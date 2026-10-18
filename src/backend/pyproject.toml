@@ -1,0 +1,52 @@
+[project]
+name = "heardloop-backend"
+version = "0.9.0"
+description = "Heardloop API and worker"
+requires-python = ">=3.13,<3.14"
+dependencies = [
+    "fastapi==0.142.1",
+    "uvicorn[standard]==0.54.0",
+    "sqlalchemy[asyncio]==2.1.1",
+    "asyncpg==0.31.0",
+    "alembic==1.20.0",
+    "pydantic==2.13.5",
+    "pydantic-settings==2.15.0",
+    "cryptography==50.0.1",
+    "argon2-cffi==25.1.0",
+    "tzdata==2026.4",  # IANA time zones for zoneinfo; slim images have no system tz database
+    "httpx==0.28.1",  # LinkedIn API client
+    "python-json-logger==4.2.0",
+]
+
+[dependency-groups]
+dev = [
+    "pytest==9.1.1",
+    "pytest-asyncio==1.4.0",
+    "ruff==0.16.9",
+    "mypy==2.3.1",
+]
+
+[tool.uv]
+package = false
+
+[tool.pytest.ini_options]
+pythonpath = ["."]
+testpaths = ["tests"]
+asyncio_mode = "auto"
+
+[tool.ruff]
+line-length = 110
+target-version = "py313"
+
+[tool.ruff.lint]
+select = ["E", "F", "W", "I", "B", "UP", "S", "ASYNC", "DTZ", "SIM", "RUF"]
+ignore = ["S101"]  # assert is fine in tests
+
+[tool.ruff.lint.per-file-ignores]
+"migrations/*" = ["E501"]
+
+[tool.mypy]
+python_version = "3.13"
+strict = true
+plugins = ["pydantic.mypy"]
+exclude = ["migrations/"]

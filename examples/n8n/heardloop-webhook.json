@@ -1,0 +1,312 @@
+{
+  "name": "Heardloop webhook",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "heardloop",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "id": "0cee5d3d-f26b-4a82-9ee3-35dda4a1acbe",
+      "name": "Heardloop webhook",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [
+        0,
+        300
+      ],
+      "webhookId": "ff584e09-f0bd-406a-969f-d13e4b02182b"
+    },
+    {
+      "parameters": {
+        "jsCode": "// Rebuilds the exact bytes Heardloop signed: JSON with sorted keys, no spaces, non-ASCII as \\uXXXX.\nconst item = $input.first().json;\nconst h = item.headers || {};\nconst ts = String(h['x-heardloop-timestamp'] || '');\nconst signature = String(h['x-heardloop-signature'] || '');\nconst body = item.body;\n\nfunction pyStr(s) {\n  return JSON.stringify(s).replace(/[\\u0080-￿]/g, c => '\\\\u' + c.charCodeAt(0).toString(16).padStart(4, '0'));\n}\nfunction canon(v) {\n  if (v === null || v === undefined) return 'null';\n  if (typeof v === 'boolean') return v ? 'true' : 'false';\n  if (typeof v === 'number') return String(v);\n  if (typeof v === 'string') return pyStr(v);\n  if (Array.isArray(v)) return '[' + v.map(canon).join(',') + ']';\n  return '{' + Object.keys(v).sort().map(k => pyStr(k) + ':' + canon(v[k])).join(',') + '}';\n}\n\nconst age = Math.abs(Date.now() / 1000 - Number(ts));\nreturn [{\n  json: {\n    toSign: ts + '.' + canon(body),\n    signature,\n    fresh: ts !== '' && Number.isFinite(age) && age <= 300,\n    event: String(h['x-heardloop-event'] || (body && body.event) || ''),\n    timestamp: ts,\n    delivery: String(h['x-heardloop-delivery'] || ''),\n    body,\n  },\n}];"
+      },
+      "id": "d56de537-dd31-4ad6-88c0-313779fad0c4",
+      "name": "Build signed string",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        220,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "action": "hmac",
+        "type": "SHA256",
+        "value": "={{ $json.toSign }}",
+        "dataPropertyName": "hmac",
+        "secret": "PASTE_WEBHOOK_SECRET_HERE",
+        "encoding": "hex"
+      },
+      "id": "a0fc2b96-3666-4679-b800-4350c255856b",
+      "name": "HMAC SHA256",
+      "type": "n8n-nodes-base.crypto",
+      "typeVersion": 1,
+      "position": [
+        440,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "// Verifies the signature in constant time, then passes on EVERYTHING Heardloop sent:\n// summary fields for easy use, plus the full `data`, `post` and `payload` objects and the delivery headers.\nconst j = $input.first().json;\nconst expected = 'sha256=' + String(j.hmac || '');\nconst got = String(j.signature || '');\nlet diff = expected.length ^ got.length;\nfor (let i = 0; i < Math.min(expected.length, got.length); i++) diff |= expected.charCodeAt(i) ^ got.charCodeAt(i);\nconst valid = diff === 0 && j.fresh === true;\n\nconst alertEvents = ['post.failed', 'account.reconnect_needed', 'account.expiring', 'backup.failed', 'backup.stale'];\nconst b = j.body || {};\nconst post = b.post || null;\nconst data = b.data || {};\nreturn [{\n  json: {\n    // check result\n    valid,\n    alert: alertEvents.includes(j.event),\n    // delivery\n    event: j.event,\n    delivery: j.delivery,\n    timestamp: j.timestamp,\n    id: b.id || null,\n    occurred_at: b.occurred_at || null,\n    workspace_id: b.workspace_id || null,\n    // post summary (null for events that are not about a post)\n    post_id: post ? post.id || null : null,\n    post_status: post ? post.status || null : null,\n    post_url: post ? post.url || null : null,\n    linkedin_url: post && post.linkedin_post_urn ? 'https://www.linkedin.com/feed/update/' + post.linkedin_post_urn + '/' : (data.linkedin_url || null),\n    campaign_id: post ? post.campaign_id || null : null,\n    scheduled_at: post ? post.scheduled_at || null : null,\n    published_at: post ? post.published_at || null : null,\n    // only when \"Include the post text\" is on in Heardloop\n    post_text: post ? post.text || null : null,\n    comment: data.comment || null,\n    actor_name: data.actor_name || null,\n    account_name: data.account_name || null,\n    // codes and counts\n    error: data.error || data.reason || null,\n    // everything, untouched\n    data,\n    post,\n    payload: b,\n  },\n}];"
+      },
+      "id": "dc9f16f7-bfc2-4f2d-a929-2e60a53d1dc0",
+      "name": "Check signature",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        660,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "loose"
+          },
+          "conditions": [
+            {
+              "id": "cebe4180-b12f-423e-96ee-5c65875040a7",
+              "leftValue": "={{ $json.valid }}",
+              "rightValue": "",
+              "operator": {
+                "type": "boolean",
+                "operation": "true",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "6d435ff3-4698-4bb4-a9be-25224bf7ec80",
+      "name": "Signature valid?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [
+        880,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ { \"ok\": true } }}",
+        "options": {
+          "responseCode": 200
+        }
+      },
+      "id": "d40cc811-a908-4104-9eea-1ae78c8d0835",
+      "name": "Respond 200",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.1,
+      "position": [
+        1100,
+        200
+      ]
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ { \"ok\": false, \"error\": \"bad_signature\" } }}",
+        "options": {
+          "responseCode": 401
+        }
+      },
+      "id": "7ec932b2-61f0-4c2f-ba03-7276501c638d",
+      "name": "Respond 401",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.1,
+      "position": [
+        1100,
+        420
+      ]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "loose"
+          },
+          "conditions": [
+            {
+              "id": "d777cf57-e24c-47a4-98ba-20942e83c240",
+              "leftValue": "={{ $json.alert }}",
+              "rightValue": "",
+              "operator": {
+                "type": "boolean",
+                "operation": "true",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "2d547dd3-c1e9-47eb-af9b-c75599b8e806",
+      "name": "Needs attention?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [
+        1320,
+        200
+      ]
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "a6d03a7d-9f07-4d60-8163-f9901656542a",
+              "name": "message",
+              "value": "=Heardloop alert: {{ $json.event }}{{ $json.error ? ' (' + $json.error + ')' : '' }}",
+              "type": "string"
+            }
+          ]
+        },
+        "includeOtherFields": true,
+        "options": {}
+      },
+      "id": "208657b5-0982-450c-882e-b8e9cc5d5453",
+      "name": "Alert",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        1540,
+        100
+      ]
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "782798f8-96a4-4f72-a0fc-4142ec82b2e8",
+              "name": "message",
+              "value": "=Heardloop event: {{ $json.event }}{{ $json.post_status ? ' - ' + $json.post_status : '' }}",
+              "type": "string"
+            }
+          ]
+        },
+        "includeOtherFields": true,
+        "options": {}
+      },
+      "id": "5502a24b-29db-440c-aa4f-5f865300a72e",
+      "name": "Log event",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        1540,
+        300
+      ]
+    }
+  ],
+  "connections": {
+    "Heardloop webhook": {
+      "main": [
+        [
+          {
+            "node": "Build signed string",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Build signed string": {
+      "main": [
+        [
+          {
+            "node": "HMAC SHA256",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "HMAC SHA256": {
+      "main": [
+        [
+          {
+            "node": "Check signature",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Check signature": {
+      "main": [
+        [
+          {
+            "node": "Signature valid?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Signature valid?": {
+      "main": [
+        [
+          {
+            "node": "Respond 200",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Respond 401",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Respond 200": {
+      "main": [
+        [
+          {
+            "node": "Needs attention?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Needs attention?": {
+      "main": [
+        [
+          {
+            "node": "Alert",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Log event",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "pinData": {},
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "tags": []
+}

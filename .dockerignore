@@ -1,0 +1,20 @@
+# Keep the Docker build context small and free of secrets / local data.
+.env
+.env.*
+!.env.example
+backups/
+docs/reports/
+docs/cursor-prompts/  # privacy-allow: path segment only; folder is git-excluded
+.git/
+.venv/
+**/__pycache__/
+**/.pytest_cache/
+**/.mypy_cache/
+**/.ruff_cache/
+**/node_modules/
+src/backend/.venv/
+src/backend/tests/
+src/frontend/node_modules/
+src/frontend/dist/
+docker-compose.override.yml
+*.pyc

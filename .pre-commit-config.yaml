@@ -1,0 +1,35 @@
+# Install once:  pip install pre-commit  &&  pre-commit install
+#   (installs both the pre-commit and the commit-msg hook, see default_install_hook_types)
+# Run on everything:  pre-commit run --all-files
+default_install_hook_types: [pre-commit, commit-msg]
+default_stages: [pre-commit]
+repos:
+  - repo: https://github.com/gitleaks/gitleaks
+    rev: v8.24.2
+    hooks:
+      - id: gitleaks
+  - repo: local
+    hooks:
+      - id: check-private
+        name: check for personal / environment details
+        entry: python scripts/check_private.py
+        language: system
+        types: [text]
+        stages: [pre-commit, commit-msg]
+      - id: check-english
+        name: repository is English-only
+        entry: python scripts/check_english.py
+        language: system
+        types: [text]
+        stages: [pre-commit, commit-msg]
+      - id: no-local-only
+        name: block local-only files
+        entry: reports, prompts and editor settings are local only
+        language: fail
+        files: ^(docs/reports/|docs/[a-z-]*prompts/|\.(?!github/)[a-z]+/)
+      - id: no-env
+        name: block .env files
+        entry: .env files must never be committed
+        language: fail
+        files: (^|/)\.env(\..+)?$
+        exclude: \.env\.example$

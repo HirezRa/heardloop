@@ -1,0 +1,172 @@
+# Heardloop - local stack. Only the web port is published (127.0.0.1:8380); api and db stay internal.
+# First run:  scripts/new-env.ps1  ->  docker compose up -d --build
+# Personal tweaks (ports, paths, hosts) go in docker-compose.override.yml, which is git-ignored.
+name: heardloop
+
+# Connection and settings shared by the backup service and the restore tool.
+x-backup-env: &backup-env
+  PGHOST: db
+  PGUSER: heardloop
+  PGDATABASE: heardloop
+  POSTGRES_PASSWORD: "${POSTGRES_PASSWORD:?Set POSTGRES_PASSWORD in .env}"
+  BACKUP_HOUR_UTC: "${BACKUP_HOUR_UTC:-01}"
+  BACKUP_KEEP_DAYS: "${BACKUP_KEEP_DAYS:-30}"
+  BACKUP_KEEP_MIN: "${BACKUP_KEEP_MIN:-7}"
+  BACKUP_PASSPHRASE: "${BACKUP_PASSPHRASE:-}"
+  TZ: UTC
+
+x-backend: &backend
+  build:
+    context: .
+    dockerfile: src/backend/Dockerfile
+    args:
+      GIT_SHA: ${GIT_SHA:-unknown}
+  image: heardloop-backend:local
+  restart: unless-stopped
+  environment:
+    DATABASE_URL: "postgresql+asyncpg://heardloop:${POSTGRES_PASSWORD:?Set POSTGRES_PASSWORD in .env}@db:5432/heardloop"
+    HEARDLOOP_TOKEN_KEY: "${HEARDLOOP_TOKEN_KEY:?Set HEARDLOOP_TOKEN_KEY in .env}"
+    LINKEDIN_CLIENT_ID: "${LINKEDIN_CLIENT_ID:-}"
+    LINKEDIN_CLIENT_SECRET: "${LINKEDIN_CLIENT_SECRET:-}"
+    LINKEDIN_REDIRECT_URI: "${LINKEDIN_REDIRECT_URI:-}"
+    LINKEDIN_API_VERSION: "${LINKEDIN_API_VERSION:-}"
+    MEDIA_ROOT: /data/media
+    APP_ENV: "${APP_ENV:-production}"
+    LOG_LEVEL: "${LOG_LEVEL:-INFO}"
+    COOKIE_SECURE: "${COOKIE_SECURE:-true}"
+    UI_LANGUAGE: "${UI_LANGUAGE:-en}"
+    APP_BASE_URL: "${APP_BASE_URL:-http://localhost:8380}"
+    SMTP_HOST: "${SMTP_HOST:-}"
+    SMTP_PORT: "${SMTP_PORT:-587}"
+    SMTP_USERNAME: "${SMTP_USERNAME:-}"
+    SMTP_PASSWORD: "${SMTP_PASSWORD:-}"
+    SMTP_FROM: "${SMTP_FROM:-}"
+    SMTP_SECURITY: "${SMTP_SECURITY:-starttls}"
+    # Read-only view of the newest backup manifest (written by the backup service); empty = no status.
+    BACKUP_MANIFEST_PATH: /backups/latest.json
+    UPDATE_CHECK: "${UPDATE_CHECK:-true}"
+    UPDATE_CHECK_REPO: "${UPDATE_CHECK_REPO:-HirezRa/heardloop}"
+    UPDATE_CHECK_TOKEN: "${UPDATE_CHECK_TOKEN:-}"
+  volumes:
+    - media:/data/media
+    - ${BACKUP_DIR:-./backups}:/backups:ro
+  read_only: true
+  tmpfs:
+    - /tmp
+  security_opt:
+    - no-new-privileges:true
+  cap_drop: [ALL]
+  pids_limit: 256
+  depends_on:
+    db:
+      condition: service_healthy
+
+services:
+  db:
+    image: postgres:17-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: heardloop
+      POSTGRES_USER: heardloop
+      POSTGRES_PASSWORD: "${POSTGRES_PASSWORD:?Set POSTGRES_PASSWORD in .env}"
+    volumes:
+      - db-data:/var/lib/postgresql/data
+    # The Postgres entrypoint fixes ownership of the data directory and drops to the postgres user.
+    cap_drop: [ALL]
+    cap_add: [CHOWN, SETUID, SETGID, FOWNER, DAC_OVERRIDE]
+    # No host port: use `docker compose exec db psql -U heardloop -d heardloop`.
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U heardloop -d heardloop"]
+      interval: 5s
+      timeout: 3s
+      retries: 20
+
+  api:
+    <<: *backend
+    # Runs `alembic upgrade head`, then uvicorn (see src/backend/Dockerfile).
+    # No host port: the API is reachable only through the web container. For direct access during
+    # development add docker-compose.dev.yml (127.0.0.1:8381).
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request,sys; sys.exit(0 if urllib.request.urlopen('http://127.0.0.1:8000/api/v1/health', timeout=3).status == 200 else 1)"]
+      interval: 10s
+      timeout: 5s
+      retries: 12
+      start_period: 20s
+
+  worker:
+    <<: *backend
+    command: ["python", "-m", "heardloop.worker.main"]
+    depends_on:
+      db:
+        condition: service_healthy
+      api:
+        condition: service_healthy
+
+  # Nightly pg_dump + media archive into BACKUP_DIR (default ./backups), verified, with retention.
+  # Manual run: scripts/backup-now.ps1 | .sh. Restore: scripts/restore.ps1 | .sh (see docs/GUIDE.md, section 10).
+  # .env is never part of a backup: keep your own copy of HEARDLOOP_TOKEN_KEY.
+  backup:
+    build:
+      context: ./src/backup
+    image: heardloop-backup:local
+    restart: unless-stopped
+    environment: *backup-env
+    volumes:
+      - media:/data/media:ro
+      - ${BACKUP_DIR:-./backups}:/backups
+    read_only: true
+    tmpfs:
+      - /tmp
+      - /var/lib/postgresql/data  # the base image declares this path as a volume; keep it off the disk
+    security_opt:
+      - no-new-privileges:true
+    cap_drop: [ALL]
+    pids_limit: 64
+    depends_on:
+      db:
+        condition: service_healthy
+
+  # Restore tool: never started by up. scripts/restore.* stop api and worker, then run it. It needs the media
+  # volume read-write and, as root without most capabilities, may write files that belong to the application
+  # user. Run by hand: docker compose run --rm -e CONFIRM_RESTORE=yes restore <set> (see docs/GUIDE.md, section 10).
+  restore:
+    profiles: ["restore"]
+    build:
+      context: ./src/backup
+    image: heardloop-backup:local
+    entrypoint: ["/usr/local/bin/restore.sh"]
+    user: root
+    environment: *backup-env
+    volumes:
+      - media:/data/media
+      - ${BACKUP_DIR:-./backups}:/backups:ro
+    read_only: true
+    tmpfs:
+      - /tmp
+      - /var/lib/postgresql/data
+    security_opt:
+      - no-new-privileges:true
+    cap_drop: [ALL]
+    cap_add: [CHOWN, DAC_OVERRIDE, FOWNER]
+    pids_limit: 64
+    depends_on:
+      db:
+        condition: service_healthy
+
+  web:
+    build:
+      context: ./src/frontend
+    restart: unless-stopped
+    ports:
+      - "127.0.0.1:8380:8080"
+    security_opt:
+      - no-new-privileges:true
+    cap_drop: [ALL]
+    pids_limit: 256
+    depends_on:
+      api:
+        condition: service_healthy
+
+volumes:
+  db-data:
+  media:

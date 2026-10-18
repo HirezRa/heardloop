@@ -1,0 +1,3 @@
+# Advisories the CI dependency audit (pip-audit) should not fail on: one id per line (PYSEC-..., GHSA-...,
+# CVE-...), followed by a comment that says why it is accepted and when to look again. Keep this list empty
+# unless a fix does not exist yet.

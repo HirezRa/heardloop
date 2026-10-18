@@ -1,0 +1,25 @@
+# Demo stack for README screenshots - fictional data only, never your real database.
+# Always use a separate project name and env file so nothing touches the real stack:
+#   docker compose -p heardloop-demo --env-file <temp>/demo.env -f docker-compose.yml -f docker-compose.demo.yml up -d --build
+# See docs/DEMO.md.
+
+x-demo-env: &demo-env
+  APP_ENV: development
+  UI_LANGUAGE: en
+  LINKEDIN_CLIENT_ID: ""
+  LINKEDIN_CLIENT_SECRET: ""
+  LINKEDIN_REDIRECT_URI: ""
+
+services:
+  api:
+    environment: *demo-env
+    ports: !override
+      - "127.0.0.1:8481:8000"
+
+  worker:
+    # Never runs in the demo: nothing may be published.
+    profiles: ["never"]
+
+  web:
+    ports: !override
+      - "127.0.0.1:8480:8080"

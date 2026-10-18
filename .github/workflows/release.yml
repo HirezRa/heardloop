@@ -1,0 +1,35 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - "v*.*.*"
+
+permissions:
+  contents: read
+
+jobs:
+  ci:
+    uses: ./.github/workflows/ci.yml
+
+  release:
+    needs: ci
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+      - name: Tag must match VERSION
+        run: |
+          tag="${GITHUB_REF_NAME}"
+          ver="$(tr -d '[:space:]' < VERSION)"
+          test "$tag" = "v${ver}"
+      - name: Extract changelog section
+        run: python3 scripts/changelog_section.py "${GITHUB_REF_NAME#v}" > /tmp/release-body.md
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@efb35369e0ad2afab669f228072c1b0d510eae64 # v3.0.3
+        with:
+          name: Heardloop ${{ github.ref_name }}
+          body_path: /tmp/release-body.md
+          make_latest: true
+          generate_release_notes: false

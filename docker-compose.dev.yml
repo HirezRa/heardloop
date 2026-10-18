@@ -1,0 +1,7 @@
+# Development only: publishes the API on the loopback interface for `npm run dev` and direct calls.
+#   docker compose -f docker-compose.yml -f docker-compose.dev.yml up -d --build
+# Do not use this file on a server.
+services:
+  api:
+    ports:
+      - "127.0.0.1:8381:8000"
