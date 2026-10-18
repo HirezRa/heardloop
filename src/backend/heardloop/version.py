@@ -20,8 +20,16 @@ def _candidates() -> list[Path]:
     return out
 
 
+def _dev_version_override() -> str | None:
+    """Dev-only: HEARDLOOP_VERSION_OVERRIDE when APP_ENV=development (throwaway update-check tests)."""
+    if (os.environ.get("APP_ENV") or "").strip().lower() != "development":
+        return None
+    value = (os.environ.get("HEARDLOOP_VERSION_OVERRIDE") or "").strip()
+    return value if _VERSION_RE.fullmatch(value) else None
+
+
 @lru_cache
-def app_version() -> str:
+def _version_from_file() -> str:
     for path in _candidates():
         try:
             text = path.read_text(encoding="utf-8").strip()
@@ -30,6 +38,13 @@ def app_version() -> str:
         if _VERSION_RE.fullmatch(text):
             return text
     return "0.0.0"
+
+
+def app_version() -> str:
+    override = _dev_version_override()
+    if override is not None:
+        return override
+    return _version_from_file()
 
 
 def git_sha() -> str:

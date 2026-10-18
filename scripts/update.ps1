@@ -3,10 +3,12 @@
 #   powershell -ExecutionPolicy Bypass -File scripts/update.ps1
 #   powershell -ExecutionPolicy Bypass -File scripts/update.ps1 -Tag v0.9.0 -Yes
 #   powershell -ExecutionPolicy Bypass -File scripts/update.ps1 -WhatIf
+#   powershell -ExecutionPolicy Bypass -File scripts/update.ps1 -DryRun
 # Never prints environment variables. Never touches .env.
 param(
     [string]$Tag = "",
     [switch]$Yes,
+    [Alias('DryRun')]
     [switch]$WhatIf
 )
 
@@ -46,6 +48,11 @@ $releaseUrl = "https://github.com/HirezRa/heardloop/releases/tag/$Tag"
 Write-Host "Current: $currentTag"
 Write-Host "Target:  $Tag"
 Write-Host "Release: $releaseUrl"
+
+if ($Tag -eq $currentTag) {
+    Write-Host "already up to date"
+    exit 0
+}
 
 if ($WhatIf) {
     Write-Host ""

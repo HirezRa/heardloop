@@ -45,6 +45,11 @@ echo "Current: ${current_tag}"
 echo "Target:  ${TAG}"
 echo "Release: ${release_url}"
 
+if [[ "$TAG" == "$current_tag" ]]; then
+  echo "already up to date"
+  exit 0
+fi
+
 if [[ "$DRY" -eq 1 ]]; then
   echo ""
   echo "Dry-run plan (no changes):"
