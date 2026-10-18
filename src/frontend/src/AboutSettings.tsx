@@ -100,7 +100,7 @@ export default function AboutSettings({ me }: { me: Me }) {
                   </a>
                 </p>
               ) : (
-                <p className="muted">{t.about.upToDate}</p>
+                <p className="muted">{t.about.upToDate(info.version)}</p>
               )}
               <button type="button" onClick={checkNow} disabled={busy}>
                 {busy ? t.about.checking : t.about.checkNow}

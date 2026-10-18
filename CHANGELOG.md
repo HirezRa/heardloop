@@ -7,6 +7,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.9.1] - 2026-10-18
+
+### Added
+
+- Dev-only `HEARDLOOP_VERSION_OVERRIDE` (when `APP_ENV=development`) for throwaway update-check tests.
+
+### Fixed
+
+- `scripts/update.ps1` accepts `-DryRun` (alias of `-WhatIf`) and prints `already up to date` when current equals target.
+- About tab copy: "You are on the latest version (vX.Y.Z)" after a successful check with nothing newer.
+
 ## [0.9.0] - 2026-10-18
 
 ### Added
