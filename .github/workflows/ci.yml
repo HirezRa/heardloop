@@ -112,6 +112,7 @@ jobs:
           cache: npm
           cache-dependency-path: src/frontend/package-lock.json
       - run: npm ci
+      - run: npm run test:update-copy
       - run: npm run build
       - name: Install Chromium for smoke test
         run: npx playwright install --with-deps chromium

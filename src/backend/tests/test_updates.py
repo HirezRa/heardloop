@@ -12,11 +12,14 @@ from pydantic import SecretStr
 from heardloop.config import Settings
 from heardloop.updates import (
     UpdateCheckState,
+    classify_request_error,
     fetch_latest_release,
     filter_latest_release,
     is_newer,
+    merge_last_ok,
     parse_semver,
     public_update_field,
+    public_update_status,
 )
 
 
@@ -131,6 +134,49 @@ def test_public_update_field_only_when_newer() -> None:
     assert public_update_field(state, "0.9.0")["available"] is True
     assert public_update_field(state, "0.9.1") is None
     assert public_update_field(UpdateCheckState(checked_at="t", error="not_found"), "0.9.0") is None
+
+
+def test_error_keeps_last_ok_and_banner() -> None:
+    ok = UpdateCheckState(
+        checked_at="2026-10-18T00:00:00+00:00",
+        latest="0.9.5",
+        url="https://github.com/HirezRa/heardloop/releases/tag/v0.9.5",
+        notes="ok",
+    )
+    ok = merge_last_ok(None, ok)
+    err = merge_last_ok(ok, UpdateCheckState(checked_at="2026-10-19T00:00:00+00:00", error="tls"))
+    assert err.error == "tls"
+    assert err.last_ok_latest == "0.9.5"
+    assert public_update_field(err, "0.9.4")["latest"] == "0.9.5"
+    status = public_update_status(err, "0.9.4", enabled=True)
+    assert status["status"] == "error"
+    assert status["error"] == "tls"
+    assert status["last_ok_latest"] == "0.9.5"
+    assert "update" in status
+
+
+def test_current_only_after_success() -> None:
+    current = UpdateCheckState(
+        checked_at="t",
+        latest="0.9.4",
+        url="https://github.com/HirezRa/heardloop/releases/tag/v0.9.4",
+    )
+    assert public_update_status(current, "0.9.4", enabled=True)["status"] == "current"
+    assert public_update_status(None, "0.9.4", enabled=True)["status"] == "never"
+    assert public_update_status(None, "0.9.4", enabled=False)["status"] == "disabled"
+    failed = UpdateCheckState(checked_at="t", error="network")
+    assert public_update_status(failed, "0.9.4", enabled=True)["status"] == "error"
+
+
+def test_classify_tls_from_ssl_cause() -> None:
+    class FakeSSL(Exception):
+        pass
+
+    exc = httpx.ConnectError("connect failed")
+    exc.__cause__ = FakeSSL("CERTIFICATE_VERIFY_FAILED")
+    assert classify_request_error(exc) == "tls"
+    assert classify_request_error(httpx.ConnectTimeout("t")) == "timeout"
+    assert classify_request_error(httpx.ConnectError("refused")) == "network"
 
 
 def test_update_check_token_is_secret(monkeypatch: pytest.MonkeyPatch) -> None:
