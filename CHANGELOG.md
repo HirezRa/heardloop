@@ -7,6 +7,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.9.5] - 2026-10-19
+
+### Documentation
+
+- Fresh README / GUIDE screenshots from the demo stack (normal text size, English, light theme).
+- Demo seed enrolls owner TOTP with a fixed development secret; screenshot script dismisses the update banner after `update-banner.png`.
+
 ## [0.9.4] - 2026-10-19
 
 ### Fixed
