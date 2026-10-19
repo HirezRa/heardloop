@@ -1,12 +1,12 @@
 # Heardloop user guide
 
 Heardloop is a self-hosted workspace for planning, approving, scheduling and publishing LinkedIn posts.
-This guide walks through everyday use. Installation is in the [README](../README.md); design decisions are in
-[SPEC.md](SPEC.md).
+This guide walks through everyday use. Installation is in [INSTALL.md](INSTALL.md)
+([Hebrew](he/INSTALL.md)); design decisions are in [SPEC.md](SPEC.md).
 
 ## 1. First sign-in
 
-1. The owner account is created once with `create_owner` (see README). There is no public sign-up.
+1. The owner account is created once with `create_owner` (see [INSTALL §7](INSTALL.md#7-create-the-owner-account)). There is no public sign-up.
 2. Sign in at `http://localhost:8380`. Owners must turn on **two-step verification** before they can manage
    members, settings, LinkedIn accounts or the activity log: Settings → Sign-in & security → scan the QR code
    with an authenticator app, enter the code, and **store the recovery codes** somewhere safe.
@@ -54,6 +54,9 @@ Posts → **New post**.
 - **History**: next to the version count, open the history panel to compare an older version (word-level
   diff) and restore it when the post is editable. Restore creates a new version; scheduled posts must be
   unscheduled first. At most 200 newest versions are listed (older ones stay in the database).
+
+![Version history with word-level diff](assets/screenshots/post-history.png)
+
 - **Save as template**: on an existing post, copy the current text and link card into a new template
   (media is not copied).
 
@@ -69,6 +72,9 @@ The life cycle is: Draft → Waiting for approval → Approved → Scheduled →
 
 - When the workspace requires approval (Settings → Workspace), editors **submit** a post; approvers and owners
   **approve** or **send back** with a comment, from the post itself or from the **Approvals** queue.
+
+![Approvals queue](assets/screenshots/approvals.png)
+
 - **Schedule** a post for a date and time in the workspace time zone, or **Publish now**. The worker publishes
   within about 15 seconds of the time and never publishes a post twice: if the outcome is unknown (for example a
   network failure mid-call), the post is marked failed and you are asked to check LinkedIn before retrying.
@@ -76,6 +82,8 @@ The life cycle is: Draft → Waiting for approval → Approved → Scheduled →
   README for how Heardloop's scheduled publishing relates to them.
 - The **Calendar** shows scheduled and published posts by month or week. Drag a scheduled post to another day to
   move it (same time of day).
+
+![Calendar month with scheduled posts](assets/screenshots/calendar.png)
 
 **When a post fails:** you get a notification with a plain-language reason; the activity log records the outcome
 (system actor); and if the LinkedIn account must be reconnected, Accounts shows an amber banner. After you
@@ -86,6 +94,8 @@ reconnect, Accounts can offer to reschedule the failed posts for that account (a
 Campaigns → **New campaign**: name, goal, audience, dates, tags and a colour. The colour marks the campaign's
 posts in the calendar. Each campaign shows how many posts it has in each status. Archived campaigns are hidden by
 default and accept no new posts; a campaign with posts cannot be deleted, archive it instead.
+
+![Campaigns](assets/screenshots/campaigns.png)
 
 ## 5a. Templates
 
@@ -102,6 +112,8 @@ No media. In the body you can use placeholders:
 
 Using a template does not create a post: it prefills a new draft. Templates that have been used cannot be
 deleted (archive them instead). Names are unique among active templates in the workspace.
+
+![Templates](assets/screenshots/templates.png)
 
 ## 6. Metrics and reports
 
@@ -154,9 +166,13 @@ e-mail (Settings → Notifications, when the server has SMTP configured).
 Owners can send every event to a **webhook** (Settings → Webhook) for n8n, Zapier or their own service. Each call
 is signed; see [WEBHOOKS.md](WEBHOOKS.md) for the payload and how to verify the signature.
 
+![Webhook settings](assets/screenshots/settings-webhook.png)
+
 ## 8. Settings
 
 - **Appearance** (per person): language, light/dark theme, text size, accent colour, date and time format.
+
+![Appearance settings](assets/screenshots/settings-appearance.png)
 - **Workspace**: name, time zone, whether posts need approval, weekly digest on/off. Owners also see the
   **Backups** card (see section 10).
 - **Members**: add people with an initial password they must change (they get no e-mail notifications until they
@@ -185,8 +201,9 @@ is signed; see [WEBHOOKS.md](WEBHOOKS.md) for the payload and how to verify the 
   with stray files on the media volume, so attach an upload to a post the same day.
 - Names, goals, audiences and notes cannot contain control characters (line breaks are fine only in goals,
   audiences and notes).
-- The API is not published on the host: everything goes through the web address (see the README for the
-  development override and for exposing the stack beyond localhost).
+- The API is not published on the host: everything goes through the web address (see the
+  [README Development](../README.md#development) section for the override, and
+  [Exposing Heardloop beyond localhost](../README.md#exposing-heardloop-beyond-localhost)).
 - Secrets (database password, encryption key, LinkedIn app, SMTP) live only in `.env`. Back up
   `HEARDLOOP_TOKEN_KEY`: without it the stored LinkedIn tokens and two-step secrets cannot be read.
   If the LinkedIn connection shows "needs reconnecting" right after a restart, check that
@@ -297,9 +314,13 @@ red, every owner gets one notification a day (in-app, by e-mail where enabled, a
 `backup.stale` or `backup.failed`) until it is green again. If no backup exists 36 hours after the stack started,
 that counts as amber.
 
+![Backups card](assets/screenshots/settings-backups.png)
+
 ## 11. Updating
 
 Owners may see a banner when a newer GitHub release is available (Settings → About has the same status and a
 **Check now** button). Heardloop never installs an update from the browser: that would need the Docker socket
 inside a web-facing container. On the host, after a backup, run `scripts/update.ps1` (Windows) or
 `scripts/update.sh` (Linux/macOS). Full steps: [INSTALL §11](INSTALL.md#11-backups-and-updates).
+
+![Update available banner](assets/screenshots/update-banner.png)

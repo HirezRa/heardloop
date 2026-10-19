@@ -135,7 +135,7 @@ class Workspace(Base):
     __tablename__ = "workspaces"
     id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
     name: Mapped[str] = mapped_column(String(200))
-    time_zone: Mapped[str] = mapped_column(String(64), default="Asia/Jerusalem")
+    time_zone: Mapped[str] = mapped_column(String(64), default="UTC")
     require_approval: Mapped[bool] = mapped_column(Boolean, default=True)
     weekly_digest: Mapped[bool] = mapped_column(Boolean, default=True, server_default="true")
     last_digest_week: Mapped[str | None] = mapped_column(String(10))  # ISO week already sent, e.g. 2026-W42

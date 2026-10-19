@@ -48,7 +48,7 @@ Pick the folder where Heardloop will live (it keeps its files there), then:
 ```powershell
 git clone https://github.com/HirezRa/heardloop.git
 cd heardloop
-git checkout v<latest>   # the newest version from the Releases page, for example v0.9.0
+git checkout v<latest>   # the newest version from the Releases page, for example v0.9.6
 ```
 
 Using a release tag (not the `main` branch) means you run a tested version, and the in-app update notice works.
@@ -84,7 +84,7 @@ Click **Create app**.
 | Field | What to enter |
 | --- | --- |
 | **App name** | Anything you recognise, for example `Heardloop (personal)`. Members see it on the consent screen. |
-| **LinkedIn Page** | Start typing your Page name and pick it. If you do not have one, use **Create a new LinkedIn Page** in the dropdown, create a small Page, then come back. |
+| **LinkedIn Page** | Pick a LinkedIn Page you administer. If you are an individual developer, LinkedIn may require its default Company page for individual developers instead - follow the hint under the field. The choice cannot be changed after the app is saved. |
 | **Privacy policy URL** | Optional. Leave empty for personal use. |
 | **App logo** | Required. Any square image (PNG/JPG, at least 100 x 100 px). `docs/assets/logo.png` from this repository works. |
 | **Legal agreement** | Read it and tick the box. |
@@ -191,6 +191,9 @@ Once, for the first person:
 docker compose exec api python -m heardloop.devtools.create_owner --email <your-email> --name "<your name>" --workspace "<workspace name>"
 ```
 
+Optional: `--time-zone Europe/London` (any IANA name). If omitted, Heardloop uses the host's local zone when it
+is a known IANA name, otherwise `UTC`. New workspaces default to `UTC` when created without a flag.
+
 It asks for a password (at least 12 characters) and never shows it. There is no public sign-up: the owner adds
 other people later in **Settings -> Members**.
 
@@ -214,6 +217,8 @@ format.
 1. **Accounts -> Connect LinkedIn.**
 2. LinkedIn shows the consent screen with your app name. Check it is your profile and click **Allow**.
 3. You are back in Heardloop; the account shows **Active** and the date the connection expires.
+
+![Connected LinkedIn account](assets/screenshots/accounts.png)
 
 LinkedIn connections last about 60 days. Heardloop reminds owners 7 days before; reconnecting takes the same two
 clicks and keeps all your posts.

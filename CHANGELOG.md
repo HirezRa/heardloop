@@ -7,6 +7,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.9.6] - 2026-10-19
+
+### Changed
+
+- New workspaces default to time zone `UTC`; `create_owner` accepts optional `--time-zone` (IANA; otherwise host local if detectable, else UTC).
+
+### Documentation
+
+- Docs review: Python 3.14 badges/tables, README gallery and documentation map, GUIDE screenshot embeds, INSTALL LinkedIn Page wording (en/he), GitHub issue/PR templates, asset and markdown-link CI checks.
+
 ## [0.9.5] - 2026-10-19
 
 ### Documentation
