@@ -57,9 +57,13 @@ Posts → **New post**.
 - **Save as template**: on an existing post, copy the current text and link card into a new template
   (media is not copied).
 
+![Post editor with LinkedIn-style preview](assets/screenshots/posts-editor.png)
+
 Every save creates a version. Editing a post that was already approved or scheduled sends it back to draft.
 
 ## 4. Approval and scheduling
+
+![Post list with a post waiting for approval](assets/screenshots/posts-list.png)
 
 The life cycle is: Draft → Waiting for approval → Approved → Scheduled → Publishing → Published (or Failed).
 
@@ -100,6 +104,8 @@ Using a template does not create a post: it prefills a new draft. Templates that
 deleted (archive them instead). Names are unique among active templates in the workspace.
 
 ## 6. Metrics and reports
+
+![Reports](assets/screenshots/reports.png)
 
 LinkedIn does not give this app read access to your post analytics, so numbers are entered by hand, and it takes
 a minute per post: open a published post in Heardloop, click **Add measurement** under the preview, copy the

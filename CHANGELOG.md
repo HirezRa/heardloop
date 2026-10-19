@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Documentation
+
+- Fresh README / GUIDE / INSTALL screenshots from the demo stack (normal text size, English, light theme).
+
 ## [0.9.4] - 2026-10-19
 
 ### Fixed

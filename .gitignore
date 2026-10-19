@@ -11,6 +11,8 @@ docker-compose.override.yml
 
 # ---- Local-only reports and working notes ----
 docs/reports/
+docs/cursor-prompts/
+.demo-backups/
 
 # ---- Python ----
 .venv/
