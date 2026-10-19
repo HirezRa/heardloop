@@ -168,21 +168,21 @@ def test_weekly_digest_once_per_week(
     world: World,  # noqa: F811
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
+    # Pin a Monday so the post falls in "last week" regardless of when CI runs (Mondays used to flake).
+    tz = ZoneInfo("Asia/Jerusalem")
+    monday = datetime(2026, 3, 16, 9, 30, tzinfo=tz)  # fixed Monday after a full previous week
+    last_week_mid = monday - timedelta(days=4)  # previous Thursday
+
     acc = asyncio.run(_add_account(world))
     login(client, "editor@example.com")
-    _published(client, world, acc, "Last week's post", days_ago=4)
+    post = _create(client, world, acc, body="Last week's post")
+    asyncio.run(_mark_published(post["id"], last_week_mid.astimezone(UTC)))
     monkeypatch.setenv("DATABASE_URL", URL or "")
     get_settings.cache_clear()
 
     async def go() -> tuple[int, int, list]:  # type: ignore[type-arg]
         engine = create_async_engine(URL or "")
         factory = async_sessionmaker(engine, expire_on_commit=False)
-        tz = ZoneInfo("Asia/Jerusalem")
-        # A Monday 09:30 local, after the week with the post.
-        now = datetime.now(tz)
-        monday = (now + timedelta(days=(7 - now.weekday()) % 7 or 7)).replace(
-            hour=9, minute=30, second=0, microsecond=0
-        )
         clock = lambda: monday.astimezone(UTC)  # noqa: E731
         first = await digest.send_weekly_digests(factory, clock)
         second = await digest.send_weekly_digests(factory, clock)
