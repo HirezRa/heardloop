@@ -68,6 +68,8 @@ The life cycle is: Draft → Waiting for approval → Approved → Scheduled →
 - **Schedule** a post for a date and time in the workspace time zone, or **Publish now**. The worker publishes
   within about 15 seconds of the time and never publishes a post twice: if the outcome is unknown (for example a
   network failure mid-call), the post is marked failed and you are asked to check LinkedIn before retrying.
+  LinkedIn's API terms restrict automated posting; see [LinkedIn's terms](../README.md#linkedins-terms) in the
+  README for how Heardloop's scheduled publishing relates to them.
 - The **Calendar** shows scheduled and published posts by month or week. Drag a scheduled post to another day to
   move it (same time of day).
 

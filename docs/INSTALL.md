@@ -115,6 +115,12 @@ approved immediately; they then appear under **Added products**.
 
 Heardloop needs nothing else. You do **not** need the "Community Management API" or any marketing product.
 
+> LinkedIn's API Terms of Use restrict automated posting (section 3.1). Heardloop publishes a post at the time a
+> person scheduled it, using LinkedIn's official API and only the permission to post on behalf of the signed-in
+> member; every post is written and scheduled by a person. Whether scheduled publishing fits your use of LinkedIn
+> is your decision: read the [API Terms of Use](https://www.linkedin.com/legal/l/api-terms-of-use) and, if in
+> doubt, ask LinkedIn. Prefer **Publish now** if you want every post by hand.
+
 ### 4.5 Add the redirect URL
 
 Open the **Auth** tab. Under **OAuth 2.0 settings**, next to **Authorized redirect URLs for your app**, click the

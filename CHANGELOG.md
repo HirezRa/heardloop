@@ -20,6 +20,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Frontend nginx image `nginxinc/nginx-unprivileged` `1.28-alpine` → `1.31-alpine`.
 - Dependabot: one weekly minor/patch PR per ecosystem; `react` / `react-dom` / `@types/react*` always move together; majors stay separate.
 
+### Documentation
+
+- Note on LinkedIn's API Terms of Use (section 3.1) and scheduled publishing (README, INSTALL en/he, GUIDE, Accounts).
+- CI full-stack smoke: build real images, health through the web port, login page in Chromium.
+
 ## [0.9.3] - 2026-10-19
 
 ### Fixed

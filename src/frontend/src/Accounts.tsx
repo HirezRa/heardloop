@@ -177,6 +177,16 @@ export default function Accounts({ me }: { me: Me }) {
         ) : (
           <p className="muted small">{t.accounts.ownerOnly}</p>
         )}
+        <p className="muted small">
+          {t.accounts.termsNotice}{' '}
+          <a
+            href="https://github.com/HirezRa/heardloop#linkedins-terms"
+            target="_blank"
+            rel="noopener noreferrer"
+          >
+            {t.accounts.termsMore}
+          </a>
+        </p>
         <p className="muted small">{t.accounts.hint}</p>
         {msg.error && <p className="error" role="alert">{msg.error}</p>}
         {msg.ok && <p className="ok" role="status">{msg.ok}</p>}

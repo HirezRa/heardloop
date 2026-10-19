@@ -197,6 +197,9 @@ const en = {
     },
     ownerOnly: 'Only the owner can connect accounts.',
     hint: 'LinkedIn tokens are valid for about 60 days. Reconnect before they expire so scheduled posts keep working.',
+    termsNotice:
+      "Scheduled posts are published automatically at their time. LinkedIn's API terms restrict automated posting -",
+    termsMore: 'read more.',
     statuses: { active: 'Connected', expired: 'Expired', revoked: 'Disconnected' },
     reasons: {
       invalid_state: 'The connection request expired or did not match. Start again.',
@@ -1035,6 +1038,8 @@ const he: Strings = {
     },
     ownerOnly: 'רק הבעלים יכול לחבר חשבונות.',
     hint: 'הטוקן של לינקדין בתוקף כ-60 יום. כדאי לחבר מחדש לפני שהוא פג, כדי שפוסטים מתוזמנים ימשיכו לצאת.',
+    termsNotice: 'פוסטים מתוזמנים מתפרסמים אוטומטית בשעה שנקבעה. תנאי ה-API של לינקדאין מגבילים פרסום אוטומטי -',
+    termsMore: 'לפרטים.',
     statuses: { active: 'מחובר', expired: 'פג תוקף', revoked: 'מנותק' },
     reasons: {
       invalid_state: 'בקשת החיבור פגה או לא תאמה. התחל מחדש.',
