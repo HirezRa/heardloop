@@ -10,7 +10,7 @@ dependencies = [
     "asyncpg==0.31.0",
     "alembic==1.20.0",
     "pydantic==2.14.1",
-    "pydantic-settings==2.15.0",
+    "pydantic-settings==2.16.0",
     "cryptography==50.0.2",
     "argon2-cffi==25.1.0",
     "tzdata==2026.4",  # IANA time zones for zoneinfo; slim images have no system tz database
