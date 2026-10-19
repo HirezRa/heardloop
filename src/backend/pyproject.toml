@@ -1,6 +1,6 @@
 [project]
 name = "heardloop-backend"
-version = "0.9.2"
+version = "0.9.3"
 description = "Heardloop API and worker"
 requires-python = ">=3.13,<3.14"
 dependencies = [

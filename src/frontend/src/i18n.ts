@@ -525,6 +525,8 @@ const en = {
     noNotes: 'No release notes for this version.',
     loadFailed: 'Could not load version information.',
     checkFailed: 'Could not check for updates.',
+    staleBundle: 'The page is older than the server - reload',
+    reload: 'Reload',
   },
   updateBanner: {
     message: (latest: string) => `Heardloop v${latest} is available`,
@@ -1356,6 +1358,8 @@ const he: Strings = {
     whatsNewTitle: (latest: string) => `מה חדש ב-v${latest}`,
     howToUpdate: 'איך מעדכנים',
     checkNow: 'בדיקה עכשיו',
+    staleBundle: 'הדף ישן יותר מהשרת - טען מחדש',
+    reload: 'טען מחדש',
     checking: 'בודק…',
     close: 'סגירה',
     noNotes: 'אין הערות גרסה לגרסה הזו.',

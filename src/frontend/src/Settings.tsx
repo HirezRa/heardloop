@@ -23,6 +23,7 @@ import {
   type Me,
   type Member,
   type Role,
+  type AppVersion,
   type WorkspaceSettings,
 } from './api';
 import QRCode from 'qrcode';
@@ -47,7 +48,17 @@ function errorText(err: unknown): string {
 
 type Tab = 'appearance' | 'workspace' | 'members' | 'security' | 'webhook' | 'audit' | 'about';
 
-export default function Settings({ me, onMeChange }: { me: Me; onMeChange: (me: Me) => void }) {
+export default function Settings({
+  me,
+  onMeChange,
+  appVersion,
+  onAppVersion,
+}: {
+  me: Me;
+  onMeChange: (me: Me) => void;
+  appVersion: AppVersion | null;
+  onAppVersion: (v: AppVersion | null) => void;
+}) {
   const membership = me.memberships[0];
   const isOwner = membership?.role === 'owner';
   const tabs: Tab[] = isOwner
@@ -86,7 +97,7 @@ export default function Settings({ me, onMeChange }: { me: Me; onMeChange: (me: 
         )}
         {tab === 'webhook' && isOwner && <WebhookSettings workspaceId={wsId} />}
         {tab === 'audit' && isOwner && <AuditSection workspaceId={wsId} />}
-        {tab === 'about' && <AboutSettings me={me} />}
+        {tab === 'about' && <AboutSettings me={me} version={appVersion} onVersion={onAppVersion} />}
       </div>
     </div>
   );

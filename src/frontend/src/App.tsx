@@ -243,7 +243,7 @@ function Shell({ me, onMeChange, onLoggedOut }: { me: Me; onMeChange: (me: Me) =
         <h1>{title}</h1>
         <p className="muted">{description}</p>
         {section.id === 'settings' ? (
-          <Settings me={me} onMeChange={onMeChange} />
+          <Settings me={me} onMeChange={onMeChange} appVersion={appVersion} onAppVersion={setAppVersion} />
         ) : section.id === 'accounts' ? (
           <Accounts me={me} />
         ) : section.id === 'posts' ? (
