@@ -19,7 +19,7 @@ import struct
 import sys
 import uuid
 import zlib
-from datetime import date, timedelta
+from datetime import timedelta
 
 from sqlalchemy import func, select
 
@@ -47,17 +47,17 @@ from heardloop.models import (
     Workspace,
     WorkspaceRole,
 )
+from heardloop.security import totp
 from heardloop.security.crypto import TokenProtector
 from heardloop.security.passwords import hash_password
-from heardloop.security import totp
 from heardloop.timeutil import utcnow
 from heardloop.updates import META_KEY, UpdateCheckState
 from heardloop.version import app_version
 
 # Fixed demo TOTP secret (development / screenshots only). Documented in docs/DEMO.md.
-DEMO_TOTP_SECRET = "JBSWY3DPEHPK3PXP"
+DEMO_TOTP_SECRET = "JBSWY3DPEHPK3PXP"  # noqa: S105 — public demo seed, not a real credential
 DEMO_OWNER_EMAIL = "alex@example.com"
-DEMO_PASSWORD_ENV = "DEMO_PASSWORD"  # printed for the screenshot script
+DEMO_PASSWORD_ENV = "DEMO_PASSWORD"  # noqa: S105 — env var name only
 
 
 def _demo_png(width: int = 1200, height: int = 627) -> bytes:
@@ -180,8 +180,8 @@ async def main() -> int:
                 name="Launch week",
                 goal="Introduce Heardloop to our network",
                 audience="Ops and marketing leads",
-                start_date=date.today() - timedelta(days=7),
-                end_date=date.today() + timedelta(days=21),
+                start_date=now.date() - timedelta(days=7),
+                end_date=now.date() + timedelta(days=21),
                 tags=["launch", "product"],
                 color="#0a66c2",
                 status=CampaignStatus.ACTIVE,
