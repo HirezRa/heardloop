@@ -11,7 +11,7 @@ dependencies = [
     "alembic==1.20.0",
     "pydantic==2.13.5",
     "pydantic-settings==2.15.0",
-    "cryptography==50.0.1",
+    "cryptography==50.0.2",
     "argon2-cffi==25.1.0",
     "tzdata==2026.4",  # IANA time zones for zoneinfo; slim images have no system tz database
     "httpx==0.28.1",  # LinkedIn API client
