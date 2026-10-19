@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- Backend image Python `3.13-slim` → `3.14-slim`.
+- Frontend nginx image `nginxinc/nginx-unprivileged` `1.28-alpine` → `1.31-alpine`.
+
 ## [0.9.3] - 2026-10-19
 
 ### Fixed
