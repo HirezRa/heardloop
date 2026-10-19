@@ -4,7 +4,7 @@ version = "0.9.3"
 description = "Heardloop API and worker"
 requires-python = ">=3.13,<3.14"
 dependencies = [
-    "fastapi==0.142.1",
+    "fastapi==0.143.2",
     "uvicorn[standard]==0.54.0",
     "sqlalchemy[asyncio]==2.1.1",
     "asyncpg==0.31.0",
