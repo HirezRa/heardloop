@@ -11,6 +11,9 @@
  *
  * Usage (from repo root, after npm i playwright in a temp folder or from src/frontend):
  *   node scripts/linkedin-portal-shots.mjs
+ * Optional: HEARDLOOP_SHOTS_CHANNEL=chrome uses the installed Google Chrome instead of
+ * Playwright's bundled Chromium (also used automatically if Chromium is missing).
+ * Profile is always %LOCALAPPDATA%\heardloop-shots-profile — never the real Chrome profile.
  */
 import { createRequire } from 'node:module';
 import { createInterface } from 'node:readline/promises';
@@ -46,7 +49,7 @@ const FORBIDDEN_CLICK = /create app|request access|update|verify|generate|save|d
 
 const rl = createInterface({ input, output });
 
-console.log(`Persistent Chromium profile (delete after use):\n  ${profileDir}`);
+console.log(`Persistent shots profile (delete after use; never your real Chrome profile):\n  ${profileDir}`);
 console.log(`Shots will be written to (git-excluded):\n  ${outDir}\n`);
 
 const blurListRaw = await rl.question(
@@ -58,11 +61,29 @@ const blurValues = blurListRaw
   .filter(Boolean)
   .map((s) => s.toLowerCase());
 
-const context = await chromium.launchPersistentContext(profileDir, {
+const launchOpts = {
   headless: false,
   viewport: { width: 1440, height: 900 },
   deviceScaleFactor: 1,
-});
+};
+
+async function launchShotsBrowser() {
+  const wantChrome = (process.env.HEARDLOOP_SHOTS_CHANNEL || '').toLowerCase() === 'chrome';
+  if (wantChrome) {
+    console.log('Launching installed Google Chrome (HEARDLOOP_SHOTS_CHANNEL=chrome).');
+    return chromium.launchPersistentContext(profileDir, { ...launchOpts, channel: 'chrome' });
+  }
+  try {
+    return await chromium.launchPersistentContext(profileDir, launchOpts);
+  } catch (err) {
+    const msg = err instanceof Error ? err.message : String(err);
+    if (!/executable doesn't exist|browserType\.launch|chromium/i.test(msg)) throw err;
+    console.log('Bundled Chromium missing; launching installed Google Chrome instead.');
+    return chromium.launchPersistentContext(profileDir, { ...launchOpts, channel: 'chrome' });
+  }
+}
+
+const context = await launchShotsBrowser();
 
 await context.route('**/*', async (route) => {
   const req = route.request();
