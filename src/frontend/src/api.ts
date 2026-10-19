@@ -218,10 +218,33 @@ export interface AppUpdateInfo {
   notes: string;
 }
 
+export type AppUpdateStatus =
+  | { status: 'disabled' }
+  | { status: 'never' }
+  | { status: 'current'; checked_at?: string }
+  | {
+      status: 'newer';
+      latest: string;
+      url?: string;
+      notes?: string;
+      published_at?: string | null;
+      checked_at?: string;
+    }
+  | {
+      status: 'error';
+      error: string;
+      checked_at?: string;
+      last_ok_at?: string | null;
+      last_ok_latest?: string | null;
+      update?: AppUpdateInfo;
+    };
+
 export interface AppVersion {
   version: string;
   git_sha: string;
   update: AppUpdateInfo | null;
+  /** Owners only: honest check state (never claims current after a failed check). */
+  update_status: AppUpdateStatus | null;
 }
 
 export const getAppVersion = () => request<AppVersion>('GET', '/api/v1/version');

@@ -258,6 +258,29 @@ docker compose exec api python -m heardloop.devtools.create_owner --email <המ�
 | ‏Heardloop לא עולה, ובלוג **"HEARDLOOP_TOKEN_KEY does not match"** | ‏`.env` הוחלף או שמשתנה בחלון הפקודות גובר עליו. משחזרים את ה-`.env` המגובה; ב-PowerShell מריצים `Remove-Item Env:HEARDLOOP_TOKEN_KEY` ומפעילים שוב. |
 | ‏**http://localhost:8380** לא נפתח | ‏Docker Desktop לא רץ, או שתוכנה אחרת תופסת את פורט 8380. ‏`docker compose ps` מראה מה רץ; משנים פורט ב-`docker-compose.override.yml`. |
 | פוסט מתוזמן יצא באיחור | המחשב היה במצב שינה או כבוי. הפוסט יוצא כשהמחשב חוזר. |
+| ב«אודות» מופיע **לא ניתן לבדוק עדכונים** עם סיבת TLS / תעודה | פרוקסי או אנטי־וירוס בודקים HTTPS. מייצאים את תעודת השורש של הארגון לקובץ `.pem`, מחברים אותו לקריאה בלבד לקונטיינרים של api ו-worker, ומגדירים `EXTRA_CA_CERT_FILE` לנתיב בתוך הקונטיינר (ראו למטה). **אין** לבטל אימות תעודות. |
+
+**תעודת שורש ארגונית לבדיקת העדכונים (בדיקת TLS)**
+
+1. מייצאים את תעודת השורש של הארגון כ-PEM (ב-Windows לעיתים «Base-64 encoded X.509 (.CER)»; מוודאים שזה טקסט PEM שמתחיל ב-`BEGIN CERTIFICATE`).
+2. שמים את הקובץ ליד `docker-compose.yml`, למשל `certs/org-root.pem` (לא ב-git).
+3. ב-`docker-compose.override.yml` (לא ב-git) מחברים את הקובץ ומגדירים את המשתנה:
+
+```yaml
+services:
+  api:
+    volumes:
+      - ./certs/org-root.pem:/certs/org-root.pem:ro
+    environment:
+      EXTRA_CA_CERT_FILE: /certs/org-root.pem
+  worker:
+    volumes:
+      - ./certs/org-root.pem:/certs/org-root.pem:ro
+    environment:
+      EXTRA_CA_CERT_FILE: /certs/org-root.pem
+```
+
+4. מריצים `docker compose up -d` ואז **הגדרות ← אודות ← בדיקה עכשיו**. רק בדיקת העדכונים מול GitHub משתמשת בתעודה הזו; לינקדאין, SMTP ו-webhooks נשארים עם מאגר האמון הרגיל.
 
 עדיין תקועים? פותחים Issue ב-GitHub עם טקסט השגיאה מהאפליקציה או מ-`docker compose logs api worker`
 (לפני שמפרסמים, מוודאים שאין בטקסט כתובות מייל, טוקנים או כתובות IP).

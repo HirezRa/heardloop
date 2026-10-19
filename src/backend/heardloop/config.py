@@ -47,6 +47,9 @@ class Settings(BaseSettings):
     update_check: bool = Field(default=True, alias="UPDATE_CHECK")
     update_check_repo: str = Field(default="HirezRa/heardloop", alias="UPDATE_CHECK_REPO")
     update_check_token: SecretStr = Field(default=SecretStr(""), alias="UPDATE_CHECK_TOKEN")
+    # Optional PEM of an organisation root CA for the update check only (TLS-inspecting proxies).
+    # Empty = system trust store. LinkedIn, SMTP and webhooks are unaffected.
+    extra_ca_cert_file: str = Field(default="", alias="EXTRA_CA_CERT_FILE")
 
     # Sessions. Browsers accept Secure cookies on http://localhost, so keep this on.
     cookie_secure: bool = Field(default=True, alias="COOKIE_SECURE")
@@ -81,6 +84,14 @@ class Settings(BaseSettings):
     @classmethod
     def _update_check_token(cls, v: object) -> object:
         return "" if v is None or (isinstance(v, str) and v.strip().startswith("<")) else v
+
+    @field_validator("extra_ca_cert_file", mode="before")
+    @classmethod
+    def _extra_ca_cert_file(cls, v: object) -> object:
+        if v is None:
+            return ""
+        text = str(v).strip()
+        return "" if not text or text.startswith("<") else text
 
     @field_validator("linkedin_client_id", "linkedin_redirect_uri", mode="before")
     @classmethod

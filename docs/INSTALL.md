@@ -262,6 +262,29 @@ The [user guide](GUIDE.md) covers approvals, campaigns, the calendar, templates,
 | Heardloop does not start, log says **"HEARDLOOP_TOKEN_KEY does not match"** | `.env` was replaced or a shell variable overrides it. Restore your backed-up `.env`; in PowerShell run `Remove-Item Env:HEARDLOOP_TOKEN_KEY` and start again. |
 | **http://localhost:8380** does not open | Docker Desktop is not running, or another program uses port 8380. `docker compose ps` shows what runs; change the port in `docker-compose.override.yml`. |
 | A scheduled post went out late | The computer was asleep or off at that time. Posts are published when it is back. |
+| About says **Could not check for updates** with a TLS / certificate reason | A proxy or antivirus is inspecting HTTPS. Export your organisation's root CA to a `.pem` file, mount it read-only into the API and worker containers, and set `EXTRA_CA_CERT_FILE` to that path inside the container (see below). Do **not** turn off certificate verification. |
+
+**Organisation CA for the update check (TLS inspection)**
+
+1. Export the corporate root certificate as PEM (often "Base-64 encoded X.509 (.CER)" in Windows; rename/ensure it is PEM text starting with `BEGIN CERTIFICATE`).
+2. Put the file next to `docker-compose.yml`, for example `certs/org-root.pem` (keep it out of git).
+3. In `docker-compose.override.yml` (git-ignored), mount it and leave the env var pointing at the container path:
+
+```yaml
+services:
+  api:
+    volumes:
+      - ./certs/org-root.pem:/certs/org-root.pem:ro
+    environment:
+      EXTRA_CA_CERT_FILE: /certs/org-root.pem
+  worker:
+    volumes:
+      - ./certs/org-root.pem:/certs/org-root.pem:ro
+    environment:
+      EXTRA_CA_CERT_FILE: /certs/org-root.pem
+```
+
+4. `docker compose up -d` and use **Settings → About → Check now**. Only the GitHub update check uses this CA; LinkedIn, SMTP and webhooks keep the default trust store.
 
 Still stuck? Open an issue on GitHub with the error text from the app or from `docker compose logs api worker`
 (check that the text contains no e-mail addresses, tokens or IP addresses before posting it).

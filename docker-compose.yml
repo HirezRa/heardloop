@@ -51,6 +51,7 @@ x-backend: &backend
     UPDATE_CHECK: "${UPDATE_CHECK:-true}"
     UPDATE_CHECK_REPO: "${UPDATE_CHECK_REPO:-HirezRa/heardloop}"
     UPDATE_CHECK_TOKEN: "${UPDATE_CHECK_TOKEN:-}"
+    EXTRA_CA_CERT_FILE: "${EXTRA_CA_CERT_FILE:-}"
     # Dev-only (ignored unless APP_ENV=development): pretend this install is an older version for update-check tests.
     HEARDLOOP_VERSION_OVERRIDE: "${HEARDLOOP_VERSION_OVERRIDE:-}"
   volumes:

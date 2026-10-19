@@ -519,6 +519,25 @@ const en = {
     updates: 'Updates',
     available: (latest: string) => `Heardloop v${latest} is available.`,
     upToDate: (version: string) => `You are on the latest version (v${version})`,
+    neverChecked: 'Updates have not been checked yet.',
+    updatesDisabled: 'Automatic update checks are turned off on this server.',
+    checkError: (reason: string, lastOk: string | null) =>
+      lastOk
+        ? `Could not check for updates (${reason}). Last successful check: ${lastOk} was the latest.`
+        : `Could not check for updates (${reason}).`,
+    errorReasons: {
+      tls: 'The secure connection to GitHub could not be verified - a proxy or antivirus may be inspecting HTTPS',
+      network: 'Could not reach GitHub',
+      rate_limited: 'GitHub rate limit — try again later',
+      not_found: 'No release found for this repository',
+      bad_response: 'Unexpected response from GitHub',
+      timeout: 'The request to GitHub timed out',
+      bad_json: 'Unexpected response from GitHub',
+      oversized: 'Unexpected response from GitHub',
+      ignored: 'No suitable release tag on GitHub',
+      bad_repo: 'Update check repository setting is invalid',
+      disabled: 'Update checks are turned off',
+    },
     whatsNew: "What's new",
     whatsNewTitle: (latest: string) => `What's new in v${latest}`,
     howToUpdate: 'How to update',
@@ -1359,6 +1378,25 @@ const he: Strings = {
     updates: 'עדכונים',
     available: (latest: string) => `Heardloop v${latest} זמין.`,
     upToDate: (version: string) => `אתה על הגרסה העדכנית ביותר (v${version})`,
+    neverChecked: 'עדיין לא בוצעה בדיקת עדכונים.',
+    updatesDisabled: 'בדיקות העדכון האוטומטיות כבויות בשרת הזה.',
+    checkError: (reason: string, lastOk: string | null) =>
+      lastOk
+        ? `לא ניתן לבדוק עדכונים (${reason}). בדיקה מוצלחת אחרונה: ${lastOk} הייתה העדכנית.`
+        : `לא ניתן לבדוק עדכונים (${reason}).`,
+    errorReasons: {
+      tls: 'לא ניתן לאמת את החיבור המאובטח ל-GitHub — ייתכן שפרוקסי או אנטי־וירוס בודקים HTTPS',
+      network: 'לא ניתן להגיע ל-GitHub',
+      rate_limited: 'הגבלת קצב של GitHub — נסו שוב מאוחר יותר',
+      not_found: 'לא נמצאה גרסה למאגר הזה',
+      bad_response: 'תשובה לא צפויה מ-GitHub',
+      timeout: 'הבקשה ל-GitHub חרגה מהזמן',
+      bad_json: 'תשובה לא צפויה מ-GitHub',
+      oversized: 'תשובה לא צפויה מ-GitHub',
+      ignored: 'אין תגית גרסה מתאימה ב-GitHub',
+      bad_repo: 'הגדרת מאגר בדיקת העדכונים אינה תקינה',
+      disabled: 'בדיקות העדכון כבויות',
+    },
     whatsNew: 'מה חדש',
     whatsNewTitle: (latest: string) => `מה חדש ב-v${latest}`,
     howToUpdate: 'איך מעדכנים',
