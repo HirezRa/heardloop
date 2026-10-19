@@ -1,0 +1,45 @@
+name: Bug report
+description: Something does not work as expected
+labels: ["bug"]
+body:
+  - type: input
+    id: version
+    attributes:
+      label: Heardloop version
+      description: Settings → About shows the running version (for example 0.9.6).
+      placeholder: "0.9.6"
+    validations:
+      required: true
+  - type: textarea
+    id: what
+    attributes:
+      label: What happened
+      description: What you expected, and what you saw instead.
+    validations:
+      required: true
+  - type: textarea
+    id: steps
+    attributes:
+      label: Steps to reproduce
+      description: Numbered steps someone else can follow.
+      placeholder: |
+        1.
+        2.
+        3.
+    validations:
+      required: true
+  - type: textarea
+    id: logs
+    attributes:
+      label: Logs (optional)
+      description: >
+        Paste relevant `docker compose logs` lines. Remove e-mails, tokens, IP addresses,
+        host names and local paths before submitting.
+      render: text
+  - type: checkboxes
+    id: terms
+    attributes:
+      label: Checks
+      options:
+        - label: I removed secrets and personal data from this report
+          required: true

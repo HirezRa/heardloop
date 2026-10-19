@@ -22,6 +22,10 @@ jobs:
         run: python3 scripts/check_english.py --all
       - name: Version files agree
         run: python3 scripts/check_versions.py
+      - name: Docs assets referenced
+        run: python3 scripts/check_assets.py
+      - name: Markdown relative links and anchors
+        run: python3 scripts/check_md_links.py
       - name: Secrets (gitleaks, full history)
         run: |
           docker run --rm -v "$PWD:/repo" ghcr.io/gitleaks/gitleaks:v8.24.2 git /repo --redact --verbose

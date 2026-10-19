@@ -74,7 +74,7 @@ async def _scheduled_post(
     link: tuple[str, str, str | None] | None = None,
 ) -> uuid.UUID:
     async with factory() as s:
-        ws = Workspace(name="Test", created_at=NOW)
+        ws = Workspace(name="Test", time_zone="Asia/Jerusalem", created_at=NOW)
         author = User(email=f"{uuid.uuid4().hex}@example.com", display_name="Author", created_at=NOW)
         s.add_all([ws, author])
         await s.flush()

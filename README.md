@@ -4,7 +4,8 @@
 
 <p align="center">
   <a href="https://github.com/HirezRa/heardloop/actions/workflows/ci.yml"><img alt="CI" src="https://github.com/HirezRa/heardloop/actions/workflows/ci.yml/badge.svg"></a>
-  <img alt="Python 3.13" src="https://img.shields.io/badge/python-3.13-3776AB?logo=python&logoColor=white">
+  <a href="https://github.com/HirezRa/heardloop/releases"><img alt="Latest release" src="https://img.shields.io/github/v/release/HirezRa/heardloop"></a>
+  <img alt="Python 3.14" src="https://img.shields.io/badge/python-3.14-3776AB?logo=python&logoColor=white">
   <img alt="FastAPI" src="https://img.shields.io/badge/FastAPI-async-009688?logo=fastapi&logoColor=white">
   <img alt="React 19" src="https://img.shields.io/badge/React-19-61DAFB?logo=react&logoColor=black">
   <img alt="PostgreSQL 17" src="https://img.shields.io/badge/PostgreSQL-17-4169E1?logo=postgresql&logoColor=white">
@@ -16,6 +17,14 @@
   <b>Write it. Get it approved. Post it on time. Learn what worked.</b><br>
   A self-hosted workspace for planning and publishing LinkedIn posts - with a real approval flow,
   reliable scheduling and security you can read in the code.
+</p>
+
+<p align="center">
+  <a href="docs/INSTALL.md">Install guide</a> ·
+  <a href="docs/GUIDE.md">User guide</a> ·
+  <a href="https://github.com/HirezRa/heardloop/releases">Releases</a> ·
+  <a href="CHANGELOG.md">Changelog</a> ·
+  <a href="examples/n8n/README.md">n8n example</a>
 </p>
 
 ---
@@ -31,6 +40,12 @@ and posting "at 8:00 tomorrow" depends on someone remembering. Heardloop puts th
 - **Scheduling you can trust** - a worker publishes on time, never twice, and tells you clearly when something
   went wrong instead of retrying blindly.
 - **Your data stays with you** - runs on your own machine or server with Docker. No third-party SaaS in between.
+
+### What it is / is not
+
+- **It is** a self-hosted planner for your own LinkedIn profile: draft, approve, schedule, publish, measure.
+- **It does not** scrape LinkedIn, auto-generate posts, like, comment or message on your behalf.
+- **It does not** need a LinkedIn partner program — it uses the self-serve developer products.
 
 ## Features
 
@@ -59,16 +74,12 @@ and posting "at 8:00 tomorrow" depends on someone remembering. Heardloop puts th
 ## Screenshots
 
 <!-- Generated from a demo stack with fictional data: see docs/DEMO.md -->
-<p align="center">
-  <img src="docs/assets/screenshots/posts-editor.png" alt="Post editor with LinkedIn-style preview and image" width="100%">
-</p>
-<p align="center">
-  <img src="docs/assets/screenshots/posts-list.png" alt="A post waiting for approval" width="49%">
-  <img src="docs/assets/screenshots/accounts.png" alt="Connected LinkedIn account and token expiry" width="49%">
-</p>
 
-<sub>Demo screenshots: post editor with LinkedIn-style preview, a post waiting for approval, and a connected
-LinkedIn account with token expiry.</sub>
+| | |
+| --- | --- |
+| <img src="docs/assets/screenshots/posts-editor.png" alt="Post editor with LinkedIn-style preview" width="100%"><br><sub>Post editor with LinkedIn-style preview</sub> | <img src="docs/assets/screenshots/calendar.png" alt="Calendar month view" width="100%"><br><sub>Calendar month with scheduled posts</sub> |
+| <img src="docs/assets/screenshots/approvals.png" alt="Approvals queue" width="100%"><br><sub>Approvals queue for reviewers</sub> | <img src="docs/assets/screenshots/reports.png" alt="Reports" width="100%"><br><sub>Reports by week and campaign</sub> |
+| <img src="docs/assets/screenshots/templates.png" alt="Templates" width="100%"><br><sub>Reusable post templates</sub> | <img src="docs/assets/screenshots/post-history.png" alt="Version history" width="100%"><br><sub>Version history with word-level diff</sub> |
 
 ## How it works
 
@@ -133,6 +144,7 @@ powershell -ExecutionPolicy Bypass -File scripts/new-env.ps1
 docker compose up -d --build
 
 # 3. First account (once): owner + workspace. Asks for the password, never echoes it.
+# Optional: --time-zone Europe/London (default: host local zone if detectable, else UTC)
 docker compose exec api python -m heardloop.devtools.create_owner --email <your-email> --name "<your name>" --workspace "<workspace name>"
 ```
 
@@ -143,6 +155,24 @@ There is no public sign-up: the owner adds other users in Settings -> Members.
 products "Sign In with LinkedIn using OpenID Connect" and "Share on LinkedIn", set the redirect URL to
 `http://localhost:8380/api/v1/linkedin/callback`, then put the Client ID and Secret in `.env`. Full steps
 with screenshots: [INSTALL §4](docs/INSTALL.md#4-create-the-linkedin-developer-app).
+
+### Documentation map
+
+| Doc | What it covers |
+| --- | --- |
+| [INSTALL.md](docs/INSTALL.md) / [he/INSTALL.md](docs/he/INSTALL.md) | Install from zero, LinkedIn app, first login |
+| [GUIDE.md](docs/GUIDE.md) | Everyday use: posts, approvals, metrics, backups |
+| [WEBHOOKS.md](docs/WEBHOOKS.md) | Signed webhook payloads and verification |
+| [n8n example](examples/n8n/README.md) / [he/n8n.md](docs/he/n8n.md) | Importable n8n workflow |
+| [SPEC.md](docs/SPEC.md) | Design decisions the code depends on |
+| [DEMO.md](docs/DEMO.md) | Demo stack for README screenshots |
+| [CHANGELOG.md](CHANGELOG.md) | What changed in each release |
+| [SECURITY.md](SECURITY.md) | How to report vulnerabilities |
+
+## Updating
+
+On the host, after a backup, run `scripts/update.ps1` (Windows) or `scripts/update.sh` (Linux/macOS). The
+script backs up, rebuilds the stack and checks health. Full steps: [INSTALL §11](docs/INSTALL.md#11-backups-and-updates).
 
 ## Configuration
 
@@ -159,7 +189,11 @@ All settings live in `.env` (git-ignored). `.env.example` lists them all.
 | `APP_BASE_URL` | `http://localhost:8380` | Used for links in e-mails and webhook payloads |
 | `SMTP_HOST` / `SMTP_PORT` / `SMTP_USERNAME` / `SMTP_PASSWORD` / `SMTP_FROM` / `SMTP_SECURITY` | empty / `587` / - / - / - / `starttls` | Optional e-mail notifications. Empty `SMTP_HOST` = in-app only |
 | `APP_ENV` | `production` | `development` enables the API docs at `/api/docs` (reach it with the dev compose file, see Development) |
+| `LOG_LEVEL` | `INFO` | API and worker log level |
 | `COOKIE_SECURE` | `true` | Keep `true`; browsers accept secure cookies on `localhost` |
+| `SESSION_IDLE_HOURS` / `SESSION_ABSOLUTE_DAYS` | `12` / `7` | Sign-in session idle timeout (hours) and absolute lifetime (days) |
+| `WORKER_POLL_SECONDS` | `15` | How often the worker looks for due posts |
+| `UPDATE_CHECK` / `UPDATE_CHECK_REPO` | `true` / `HirezRa/heardloop` | Optional notice when a newer GitHub release exists (never installs from the app) |
 | `BACKUP_DIR` | `./backups` | Host folder for the nightly backup files (git-ignored) |
 | `BACKUP_HOUR_UTC` | `01` | Hour (UTC, 0-23) of the nightly backup |
 | `BACKUP_KEEP_DAYS` / `BACKUP_KEEP_MIN` | `30` / `7` | Delete sets older than this many days, but always keep at least this many good ones |
@@ -181,7 +215,8 @@ Security is a feature here, not an afterthought:
 - **Backups**: a nightly, verified backup of the database and media (optionally AES-256 encrypted) is written
   to a folder you choose; `.env` is never included, so back up `HEARDLOOP_TOKEN_KEY` yourself, and copy the
   backup folder off the machine ([guide](docs/GUIDE.md#10-backups-and-restore)).
-- **Uploads**: images checked by content (PNG, JPEG, GIF only), size-limited, stored under random names.
+- **Uploads**: images (PNG, JPEG, GIF) and MP4 video checked by content, size-limited, stored under
+  random names; analytics imports (`.xlsx`) parsed with the standard library only and never stored.
 - **Network**: only the web container publishes a port (loopback). The API and database are reachable from
   inside the Docker network only; containers run with all Linux capabilities dropped.
 - **Supply chain & privacy**: pinned dependencies, Dependabot, a dependency vulnerability audit (`pip-audit`),
@@ -213,7 +248,7 @@ Found a vulnerability? Please follow [SECURITY.md](SECURITY.md) instead of openi
 - [ ] **Phase 5 (open)**: optional AI writing assistant
 - Later: company pages (postponed until after real-world use)
 
-Progress is tracked in [issues](https://github.com/HirezRa/heardloop/issues) and the project board.
+Progress is tracked in [issues](https://github.com/HirezRa/heardloop/issues).
 
 ## Development
 
@@ -245,7 +280,7 @@ docker compose -f docker-compose.yml -f docker-compose.dev.yml up -d --build
 | Layer | Tech |
 | --- | --- |
 | Web | React 19 + Vite + TypeScript, served by unprivileged nginx |
-| API | Python 3.13, FastAPI, SQLAlchemy 2 (async), Alembic |
+| API | Python 3.14 (3.13 supported), FastAPI, SQLAlchemy 2 (async), Alembic |
 | Worker | Same image, polling loop, no broker |
 | Database | PostgreSQL 17 |
 | Media | Docker volume `/data/media` |
@@ -254,8 +289,11 @@ docker compose -f docker-compose.yml -f docker-compose.dev.yml up -d --build
 src/backend/    heardloop/ (api, worker, domain, security, linkedin), migrations/, tests/
 src/frontend/   React app, i18n (en/he), nginx.conf
 src/backup/     backup service: nightly pg_dump + media archive, restore script
-docs/           GUIDE.md (user guide), SPEC.md (design decisions), WEBHOOKS.md, DEMO.md, assets/
-scripts/        new-env.ps1, backup-now / restore (.ps1, .sh), backup-smoke.sh, check_private.py, check_english.py
+docs/           INSTALL.md, GUIDE.md, SPEC.md, WEBHOOKS.md, DEMO.md, he/, assets/
+examples/n8n/   importable n8n workflow
+CHANGELOG.md    Keep a Changelog release notes
+scripts/        new-env.ps1, update.*/backup-now/restore, stack-smoke.sh, readme-screenshots.mjs,
+                check_private.py, check_english.py, check_versions.py, check_assets.py, check_md_links.py
 .github/        CI (privacy, gitleaks, backend, backup-smoke, frontend, stack-smoke), Dependabot
 ```
 
@@ -265,8 +303,9 @@ How to use the app: [docs/GUIDE.md](docs/GUIDE.md). Design decisions: [docs/SPEC
 
 ## Contributing
 
-Issues and pull requests are welcome. Please keep everything in English, run `pre-commit run --all-files`
-before committing, and never include secrets or personal data. One issue per branch, CI green before merge.
+Issues and pull requests are welcome. Please keep everything in English (Hebrew user guides live only in
+`docs/he/`), run `pre-commit run --all-files` before committing, and never include secrets or personal data.
+One issue per branch, CI green before merge.
 
 ## License
 

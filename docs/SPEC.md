@@ -3,20 +3,20 @@
 The full functional spec is kept outside the repo (owner's document). This file holds the decisions
 the code depends on. Keep it in English and up to date.
 
-## Decisions (v0.3, 2026-10-14)
+## Decisions (current as of v0.9.6)
 
 | Topic | Decision |
 | --- | --- |
-| Backend | Python 3.13, FastAPI, SQLAlchemy 2 async + asyncpg, Alembic |
+| Backend | Python 3.14 (image; `requires-python` allows 3.13–3.14), FastAPI, SQLAlchemy 2 async + asyncpg, Alembic |
 | Dependencies | uv, exact pins in `pyproject.toml`, `uv.lock` committed |
 | DB | PostgreSQL 17. Enums stored as text (no PG enum types). UTC `timestamptz` everywhere |
 | Scheduler | Worker polls every 15 s; claims due posts with `SELECT ... FOR UPDATE SKIP LOCKED` + 5 min lease |
-| Retries | 3 attempts, delays 1 / 5 / 15 min, then `failed` + owner notification (phase 3) |
+| Retries | 3 attempts, delays 1 / 5 / 15 min, then `failed` + owner notification |
 | Crash safety | An attempt that started but never finished is NOT retried automatically: post -> `failed`, `unknown_outcome` |
 | Idempotency | `posts.idempotency_key` unique per post; attempt row is saved before calling LinkedIn |
 | Tokens | AES-256-GCM, record id as associated data, key from env `HEARDLOOP_TOKEN_KEY` |
 | Media | Local Docker volume `/data/media`, random file names |
-| Time | Stored UTC, displayed in the workspace time zone (default Asia/Jerusalem) |
+| Time | Stored UTC, displayed in the workspace time zone (default `UTC`; `create_owner --time-zone` sets IANA name, else host local if detectable) |
 | LinkedIn MVP | Personal profile only: OpenID Connect + `w_member_social`, Posts API `/rest/posts` |
 | LinkedIn app | Products: "Sign In with LinkedIn using OpenID Connect" + "Share on LinkedIn". Redirect URL `http://localhost:8380/api/v1/linkedin/callback`. Client ID/secret only in `.env` |
 | LinkedIn OAuth | Owner-only (with TOTP). `state` = HMAC-signed {user, workspace, nonce, exp 10 min} + nonce in an HttpOnly cookie scoped to the callback path. No refresh tokens (not available to us): ~60-day token, reconnect reminder 7 days before |
@@ -49,11 +49,11 @@ the code depends on. Keep it in English and up to date.
 | Owner rule | members/settings/accounts/audit permissions return 403 `mfa_required` until the owner turns on TOTP |
 | Posts API | `/workspaces/{id}/posts`: create (draft + version 1), edit (new version; edits after review/scheduling go back to draft), submit/approve/reject, schedule (tz-aware, 1 min..365 days ahead, refused if the LinkedIn token expires first), publish-now (= schedule now), unschedule, delete (not scheduled/published) |
 | Retry budget | `attempt_count` is reset per schedule; `publish_attempts.attempt_no` keeps counting. A manual retry of a failed post marks unfinished attempts `abandoned_by_user` after the UI asks the user to check LinkedIn |
-| Media | `POST /workspaces/{id}/media` raw body (no multipart), max 5 MB, type from magic bytes (PNG/JPEG/GIF only), random file name `<workspace>/<hex>.<ext>` on the media volume; `GET` serves it with nosniff + sandbox CSP, members only. One image per post (`post_versions.media_ids`) |
+| Media (upload) | Same endpoint for images and video: `POST /workspaces/{id}/media` raw body (no multipart), type from magic bytes, random file name `<workspace>/<hex>.<ext>` on the media volume; `GET` serves it with nosniff + sandbox CSP (Range for video), members only. Images: PNG/JPEG/GIF, max 5 MB. MP4: see Video. One image or one video per post (`post_versions.media_ids`) |
 | LinkedIn images | Images API `initializeUpload` -> PUT bytes (only to an https `*.linkedin.com` upload URL) -> poll until AVAILABLE -> `content.media.id` in the post. Image errors happen before the post exists, so 429/5xx/network are retried. The image URN is cached per owner |
 | Scheduling time zone | The UI sends `local_time` (wall clock); the server converts it with the workspace time zone (`zoneinfo`) and rejects times skipped or repeated by DST changes (422). Absolute `scheduled_at` with offset is still accepted |
 | Post editor | Plain Unicode only, exactly what LinkedIn receives. "Formatting" swaps Latin letters/digits for Mathematical Alphanumeric look-alikes (sans bold/italic, script, mono); Hebrew has no such block and passes through unchanged. Underline/strikethrough via combining marks. Structure helpers: bullets, numbering, quote, separator, emoji, RLM. Counter counts code points; accessibility warning above 20% styled letters. Hashtag suggestions from the workspace's recent posts |
-| Video | One MP4 per post (75 KB-200 MB; LinkedIn allows 500 MB), streamed to the media volume (`StreamWriter`), type by magic bytes, served with Range support. Worker: Videos API initializeUpload -> 4 MB parts (ETags) -> finalizeUpload -> poll until AVAILABLE (2 min first attempt, 10 min on retries with the cached URN); still-processing does not use up the retry budget (hard stop after 6 attempts); failed processing clears the cached URN. Video lease 30 min. Video and link card are mutually exclusive (LinkedIn) |
+| Video | Upload via Media (75 KB-200 MB MP4; LinkedIn allows 500 MB), streamed with `StreamWriter`. Worker publish path: Videos API initializeUpload -> 4 MB parts (ETags) -> finalizeUpload -> poll until AVAILABLE (2 min first attempt, 10 min on retries with the cached URN); still-processing does not use up the retry budget (hard stop after 6 attempts); failed processing clears the cached URN. Video lease 30 min. Video and link card are mutually exclusive (LinkedIn) |
 | Hashtags | `hashtags` table: saved library per workspace (max 200, unique case-insensitively, insert-or-ignore). `GET/POST/DELETE .../posts/hashtags` returns saved + recent (from the last 300 versions). Editor counts tags in the post against LinkedIn's 3-5 guidance (warning above 5); one word, letters/digits/_ plus Hebrew points |
 | Links in text | LinkedIn has no anchor-text links: the toolbar's link button inserts `selected text (https://...)`; LinkedIn auto-links the address. Preview renders URLs as links. The link card (`content.article`) is the alternative for a titled card |
 | Link card | `PostVersion.link_url/link_title/link_description` -> Posts API `content.article` (LinkedIn does not scrape URLs). The post image is the card thumbnail. `POST .../posts/link-preview` fetches Open Graph server-side with the webhook destination guard, 512 KB cap, HTML only, 3 redirects re-checked |
@@ -79,7 +79,7 @@ the code depends on. Keep it in English and up to date.
 | Owner-created members | `email_notifications` starts off; changing your password to the current one is refused (`password_unchanged`); the LinkedIn authorisation asks for `openid profile w_member_social` (no e-mail) and disconnect asks LinkedIn to revoke the token (best-effort) |
 | Dependency audit | CI runs `pip-audit --strict` on the exported runtime requirements; accepted advisories go in `.pip-audit-ignore` |
 | Audit view | `GET /workspaces/{id}/audit` owner-only, newest first, keyset paging (`before_id`); workspace events + members' sign-ins |
-| Bootstrap | No sign-up. First owner via `python -m heardloop.devtools.create_owner` |
+| Bootstrap | No sign-up. First owner via `python -m heardloop.devtools.create_owner` (`--email`, `--name`, `--workspace`, optional `--time-zone`) |
 
 ## Post lifecycle
 
@@ -103,8 +103,8 @@ the code depends on. Keep it in English and up to date.
 
 - [ ] Users created by an owner with `initial_password` should be forced to change it (`must_change_password`).
 - [ ] Owner "add member" reveals whether an e-mail already has an account; switch to invites if the app gets more users.
-- [ ] All API inputs with dates: convert to UTC before saving.
-- [ ] Phase 2: send the idempotency key to LinkedIn where the API supports it.
+- [x] All API inputs with dates: convert to UTC before saving (scheduling, metrics, calendar, digests use workspace zone → UTC).
+- [ ] Send the idempotency key to LinkedIn where the API supports it.
 - [ ] Webhook SSRF guard re-checks the peer after connect but does not pin the vetted IP for the request itself (a rebinding attacker could still receive one signed POST body); fine for an owner-only setting.
 - [ ] E-mails are English only (repo rule: non-English text only in `i18n.ts` and `docs/he/`).
 - [ ] `list_posts` loads version, account, version count and last review per post (N+1); batch it when lists grow.
