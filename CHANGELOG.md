@@ -7,6 +7,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.9.2] - 2026-10-19
+
+### Fixed
+
+- `scripts/update.ps1` / `update.sh` compare the **running** API version (image label, then
+  `app_version()`), not only `VERSION` on disk, so a checkout that is ahead of the containers still
+  rebuilds. Backend images carry `org.opencontainers.image.version` / `.revision` labels.
+
 ## [0.9.1] - 2026-10-18
 
 ### Added

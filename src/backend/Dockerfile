@@ -4,7 +4,10 @@ FROM python:3.13-slim AS runtime
 
 COPY --from=ghcr.io/astral-sh/uv:0.12.21 /uv /usr/local/bin/uv
 
+ARG VERSION=0.0.0
 ARG GIT_SHA=unknown
+LABEL org.opencontainers.image.version=${VERSION} \
+      org.opencontainers.image.revision=${GIT_SHA}
 ENV PYTHONDONTWRITEBYTECODE=1 \
     PYTHONUNBUFFERED=1 \
     UV_COMPILE_BYTECODE=1 \
