@@ -7,7 +7,8 @@
     "dev": "vite",
     "build": "tsc -b && vite build",
     "preview": "vite preview",
-    "smoke": "node ./smoke.mjs"
+    "smoke": "node ./smoke.mjs",
+    "test:update-copy": "node ./src/updateStatus.honesty.test.mjs"
   },
   "dependencies": {
     "qrcode": "1.5.4",

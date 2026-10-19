@@ -9,6 +9,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [0.9.6] - 2026-10-19
 
+### Fixed
+
+- Update check: `POST /version/check` no longer 500s (`MissingGreenlet` after rollback); About shows honest states (`newer` / `current` / `error` / `never` / `disabled`) and never claims "latest" after a failed check; banner still uses the last successful newer release.
+- Optional `EXTRA_CA_CERT_FILE` for TLS-inspecting networks (update check only).
+
 ### Changed
 
 - New workspaces default to time zone `UTC`; `create_owner` accepts optional `--time-zone` (IANA; otherwise host local if detectable, else UTC).
@@ -16,6 +21,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Documentation
 
 - Docs review: Python 3.14 badges/tables, README gallery and documentation map, GUIDE screenshot embeds, INSTALL LinkedIn Page wording (en/he), GitHub issue/PR templates, asset and markdown-link CI checks.
+- INSTALL troubleshooting (en/he): organisation CA mount for the update check.
 
 ## [0.9.5] - 2026-10-19
 

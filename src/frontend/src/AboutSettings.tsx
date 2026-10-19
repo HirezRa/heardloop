@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { checkAppVersion, getAppVersion, type AppVersion, type Me } from './api';
 import { LOCALE, t } from './i18n';
 import { notesAsNodes } from './notesText';
+import { aboutUpdateLines } from './updateStatus';
 
 const REPO = 'https://github.com/HirezRa/heardloop';
 const BUNDLE = __HEARDLOOP_BUNDLE_VERSION__;
@@ -62,6 +63,23 @@ export default function AboutSettings({
 
   const releaseUrl = info ? `${REPO}/releases/tag/v${info.version}` : `${REPO}/releases`;
   const stale = !!info && info.version !== BUNDLE;
+  const statusLine =
+    isOwner && info
+      ? aboutUpdateLines(info.update_status, info.version, {
+          upToDate: t.about.upToDate,
+          available: t.about.available,
+          neverChecked: t.about.neverChecked,
+          updatesDisabled: t.about.updatesDisabled,
+          checkError: t.about.checkError,
+          errorReasons: t.about.errorReasons,
+        })
+      : null;
+  const notesLatest =
+    info?.update_status?.status === 'newer'
+      ? info.update_status.latest
+      : info?.update_status?.status === 'error' && info.update_status.update
+        ? info.update_status.update.latest
+        : info?.update?.latest;
 
   return (
     <section className="card-free">
@@ -121,10 +139,10 @@ export default function AboutSettings({
               </a>
             </li>
           </ul>
-          {isOwner && (
+          {isOwner && statusLine && (
             <div className="stack" style={{ marginTop: 16 }}>
               <h3>{t.about.updates}</h3>
-              {info.update?.available ? (
+              {statusLine.kind === 'error' && info.update?.available && (
                 <p>
                   {t.about.available(info.update.latest)}{' '}
                   <button type="button" className="link" onClick={() => setShowNotes(true)}>
@@ -139,9 +157,26 @@ export default function AboutSettings({
                     {t.about.howToUpdate}
                   </a>
                 </p>
-              ) : (
-                <p className="muted">{t.about.upToDate(info.version)}</p>
               )}
+              <p className={statusLine.kind === 'error' ? 'error' : statusLine.kind === 'muted' ? 'muted' : undefined}>
+                {statusLine.text}
+                {statusLine.kind === 'newer' && notesLatest && (
+                  <>
+                    {' '}
+                    <button type="button" className="link" onClick={() => setShowNotes(true)}>
+                      {t.about.whatsNew}
+                    </button>
+                    {' · '}
+                    <a
+                      href={docUrl('docs/INSTALL.md', 'docs/he/INSTALL.md') + '#11-backups-and-updates'}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                    >
+                      {t.about.howToUpdate}
+                    </a>
+                  </>
+                )}
+              </p>
               <button type="button" onClick={checkNow} disabled={busy}>
                 {busy ? t.about.checking : t.about.checkNow}
               </button>
@@ -149,11 +184,17 @@ export default function AboutSettings({
           )}
         </>
       )}
-      {showNotes && info?.update && (
+      {showNotes && info && notesLatest && (
         <dialog open className="notes-dialog" onClose={() => setShowNotes(false)}>
           <form method="dialog">
-            <h3>{t.about.whatsNewTitle(info.update.latest)}</h3>
-            <div className="notes-body">{notesAsNodes(info.update.notes || t.about.noNotes)}</div>
+            <h3>{t.about.whatsNewTitle(notesLatest)}</h3>
+            <div className="notes-body">
+              {notesAsNodes(
+                (info.update_status?.status === 'newer'
+                  ? info.update_status.notes
+                  : info.update?.notes) || t.about.noNotes,
+              )}
+            </div>
             <button type="submit">{t.about.close}</button>
           </form>
         </dialog>
