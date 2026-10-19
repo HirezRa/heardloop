@@ -334,12 +334,7 @@ def public_update_field(state: UpdateCheckState | None, current: str) -> dict[st
             "published_at": state.published_at,
             "notes": state.notes or "",
         }
-    if (
-        state.error
-        and state.last_ok_latest
-        and state.last_ok_url
-        and is_newer(state.last_ok_latest, current)
-    ):
+    if state.error and state.last_ok_latest and state.last_ok_url and is_newer(state.last_ok_latest, current):
         return {
             "available": True,
             "latest": state.last_ok_latest,
@@ -350,9 +345,7 @@ def public_update_field(state: UpdateCheckState | None, current: str) -> dict[st
     return None
 
 
-def public_update_status(
-    state: UpdateCheckState | None, current: str, *, enabled: bool
-) -> dict[str, Any]:
+def public_update_status(state: UpdateCheckState | None, current: str, *, enabled: bool) -> dict[str, Any]:
     """Honest owner-facing status for About (never claims 'current' after a failed check)."""
     if not enabled:
         return {"status": "disabled"}

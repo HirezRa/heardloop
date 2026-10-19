@@ -64,6 +64,7 @@ def test_version_endpoint_update_owner_only(client: TestClient, world: World) ->
 def test_version_check_post_returns_200_like_get(client: TestClient, world: World) -> None:  # noqa: F811
     """POST /version/check must not 500 (MissingGreenlet after rollback) and matches GET shape."""
     csrf = login(client, "owner@example.com")
+
     # Seed a successful check so the response is stable without calling GitHub.
     async def seed() -> None:
         assert URL
