@@ -114,3 +114,18 @@ jobs:
       - name: Frontend smoke (login form mounts)
         run: npm run smoke
       - run: npm audit --audit-level=high
+
+  stack-smoke:
+    # Real docker compose images: health through the web port + login page. Catches
+    # image/runtime breaks that unit tests and the static frontend smoke miss.
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: src/frontend/package-lock.json
+      - name: Full-stack compose smoke
+        run: bash scripts/stack-smoke.sh

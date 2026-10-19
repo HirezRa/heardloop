@@ -39,7 +39,7 @@ and posting "at 8:00 tomorrow" depends on someone remembering. Heardloop puts th
 | ✍️ | Post editor: LinkedIn-style preview (desktop/phone), Unicode bold/italic and more, bullets, emoji, hashtag library with 3-5 counter, link cards with auto-filled title | ✅ |
 | 🖼️ | One image (Images API) or one MP4 video up to 200 MB (Videos API, chunked upload) per post | ✅ |
 | ✅ | Approval flow: submit, approve, send back with a comment; every edit saved as a version | ✅ |
-| ⏰ | Schedule in the workspace time zone (DST-safe) or publish now | ✅ |
+| ⏰ | Schedule in the workspace time zone (DST-safe) or publish now ([LinkedIn's terms](#linkedins-terms)) | ✅ |
 | 🔗 | Connect a LinkedIn profile with OAuth; token expiry tracking and reconnect reminder | ✅ |
 | 👥 | Workspaces and roles: owner, editor, approver, viewer | ✅ |
 | 🔐 | Argon2id passwords, account lockout, TOTP two-step verification with recovery codes | ✅ |
@@ -256,7 +256,7 @@ src/frontend/   React app, i18n (en/he), nginx.conf
 src/backup/     backup service: nightly pg_dump + media archive, restore script
 docs/           GUIDE.md (user guide), SPEC.md (design decisions), WEBHOOKS.md, DEMO.md, assets/
 scripts/        new-env.ps1, backup-now / restore (.ps1, .sh), backup-smoke.sh, check_private.py, check_english.py
-.github/        CI (privacy, gitleaks, backend, backup-smoke, frontend), Dependabot
+.github/        CI (privacy, gitleaks, backend, backup-smoke, frontend, stack-smoke), Dependabot
 ```
 
 How to use the app: [docs/GUIDE.md](docs/GUIDE.md). Design decisions: [docs/SPEC.md](docs/SPEC.md); webhooks: [docs/WEBHOOKS.md](docs/WEBHOOKS.md); contributor rules: [AGENTS.md](AGENTS.md).
@@ -271,6 +271,15 @@ before committing, and never include secrets or personal data. One issue per bra
 ## License
 
 [MIT](LICENSE) - free to use, change and share; keep the copyright notice.
+
+## LinkedIn's terms
+
+LinkedIn's API Terms of Use restrict automated posting (section 3.1). Heardloop publishes a post at the time
+a person scheduled it, using LinkedIn's official API and only the permission to post on behalf of the
+signed-in member. Every post is written and scheduled by a person; Heardloop never creates or repeats posts
+on its own. Whether scheduled publishing fits your use of LinkedIn is your decision: read the
+[API Terms of Use](https://www.linkedin.com/legal/l/api-terms-of-use) and, if in doubt, ask LinkedIn. If you
+prefer to publish every post by hand, use **Publish now** instead of scheduling.
 
 ## Disclaimer
 
