@@ -13,6 +13,8 @@ ENV PYTHONDONTWRITEBYTECODE=1 \
     UV_COMPILE_BYTECODE=1 \
     UV_LINK_MODE=copy \
     UV_PROJECT_ENVIRONMENT=/opt/venv \
+    # Prefer the image's Python so the venv does not point at a root-only download under /root.
+    UV_PYTHON_PREFERENCE=only-system \
     PATH="/opt/venv/bin:$PATH" \
     HEARDLOOP_GIT_SHA=${GIT_SHA}
 

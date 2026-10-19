@@ -54,7 +54,7 @@ and posting "at 8:00 tomorrow" depends on someone remembering. Heardloop puts th
 | 📈 | Post metrics (entered from LinkedIn's numbers), reports by week, campaign, weekday and media, CSV export, weekly digest | ✅ |
 | 📥 | Import LinkedIn analytics exports (.xlsx): numbers and audience per post, one file or many, posts created on the fly | ✅ |
 | 💾 | Nightly backups with verified restore: database and media, retention, optional AES-256 encryption, staleness alert ([guide](docs/GUIDE.md#10-backups-and-restore)) | ✅ |
-| 🏢 | Company pages, AI writing assistant (optional) | 🛠️ Phase 5 |
+| ✨ | AI writing assistant (optional) | 🛠️ planned |
 
 ## Screenshots
 
@@ -67,8 +67,8 @@ and posting "at 8:00 tomorrow" depends on someone remembering. Heardloop puts th
   <img src="docs/assets/screenshots/accounts.png" alt="Connected LinkedIn account and token expiry" width="49%">
 </p>
 
-<sub>Early version: posts, approvals, scheduling, calendar, campaigns, notifications and accounts work today;
-metrics and reports are next.</sub>
+<sub>Demo screenshots: post editor with LinkedIn-style preview, a post waiting for approval, and a connected
+LinkedIn account with token expiry.</sub>
 
 ## How it works
 
@@ -209,7 +209,9 @@ Found a vulnerability? Please follow [SECURITY.md](SECURITY.md) instead of openi
 - [x] **Phase 2 - LinkedIn publishing**: OAuth, editor, approvals, scheduling, images
 - [x] **Phase 3 - Campaigns and workflow**: campaigns, calendar, review queue, notifications
 - [x] **Phase 4 - Metrics and reports**: manual post metrics, reports, CSV export, weekly digest
-- [ ] **Phase 5 - Hardening and extensions**: backups, company pages, templates, optional AI assistant
+- [x] **Phase 5 - Hardening and extensions**: backups, templates, version history, analytics import, public release, update notice
+- [ ] **Phase 5 (open)**: optional AI writing assistant
+- Later: company pages (postponed until after real-world use)
 
 Progress is tracked in [issues](https://github.com/HirezRa/heardloop/issues) and the project board.
 
