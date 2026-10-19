@@ -7,6 +7,8 @@ worker does not run, so nothing can be published.
 `seed_demo` creates workspace **Acme Studio**, people `alex@example.com` (owner, password + TOTP),
 `sam@example.com`, `robin@example.com`, LinkedIn account **Alex Demo**, posts, a campaign, a template,
 metrics, a webhook URL `https://hooks.example.com/heardloop`, and an `update_check` row for the banner.
+The screenshot script captures `update-banner.png` first, then dismisses the banner (writes
+`dismissed_update` in the owner's `ui_prefs`) so every other shot is free of it.
 
 The owner already has two-step verification enabled with a fixed demo secret (development only):
 

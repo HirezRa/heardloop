@@ -78,6 +78,20 @@ await page.fill('input[autocomplete="one-time-code"], input[inputmode="text"]', 
 await page.click('button[type=submit]');
 await page.waitForSelector('main.content', { timeout: 15000 });
 
+// Seeded update_check shows the banner. Capture it alone, then dismiss so every other shot is clean.
+await go('calendar');
+const updateBanner = page.locator('.banner').filter({ hasText: /available/i });
+if (await updateBanner.count()) {
+  await page.waitForTimeout(300);
+  await updateBanner.first().screenshot({ path: join(out, 'update-banner.png') });
+  console.log('saved update-banner.png');
+  await updateBanner.getByRole('button', { name: /dismiss/i }).click();
+  await updateBanner.waitFor({ state: 'detached', timeout: 10000 });
+  console.log('dismissed update banner for remaining shots');
+} else {
+  console.log('skip update-banner.png (no seeded update_check / banner)');
+}
+
 await go('calendar');
 await shot('calendar');
 
@@ -145,16 +159,5 @@ await shot('settings-webhook');
 
 await go('settings', 'workspace');
 await shot('settings-backups');
-
-await go('calendar');
-const banner = page.locator('.banner').filter({ hasText: /available/i });
-if (await banner.count()) {
-  // Capture the banner strip (not the whole calendar again).
-  await page.waitForTimeout(300);
-  await banner.first().screenshot({ path: join(out, 'update-banner.png') });
-  console.log('saved update-banner.png');
-} else {
-  console.log('skip update-banner.png (no seeded update_check / banner)');
-}
 
 await browser.close();
