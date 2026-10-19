@@ -30,7 +30,7 @@ export const DEFAULT_PREFS: UiPrefs = {
 };
 
 export const ACCENTS = ['#0a66c2', '#1a7f37', '#9333ea', '#c2410c', '#be123c', '#0f766e', '#4b5563'] as const;
-const FONT_PX: Record<FontSize, number> = { s: 14, m: 16, l: 18, xl: 20 };
+const FONT_PX: Record<FontSize, number> = { s: 15, m: 16, l: 18, xl: 21 };
 
 /** The preferences in effect (module state, like LOCALE in i18n.ts). */
 export let PREFS: UiPrefs = DEFAULT_PREFS;

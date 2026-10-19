@@ -192,13 +192,14 @@ export default function Templates({ me }: { me: Me }) {
           )}
         </div>
         <input
+          className="templates-search"
           type="search"
           value={search}
           onChange={(e) => setSearch(e.target.value)}
           placeholder={t.templates.search}
           aria-label={t.templates.search}
         />
-        <label className="check small">
+        <label className="check">
           <input type="checkbox" checked={showArchived} onChange={(e) => setShowArchived(e.target.checked)} />
           {t.templates.showArchived}
         </label>

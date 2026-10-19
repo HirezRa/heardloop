@@ -4,30 +4,55 @@ import { LOCALE, t } from './i18n';
 import { notesAsNodes } from './notesText';
 
 const REPO = 'https://github.com/HirezRa/heardloop';
+const BUNDLE = __HEARDLOOP_BUNDLE_VERSION__;
+const HEX_SHA = /^[0-9a-f]{7,40}$/i;
 
 function docUrl(pathEn: string, pathHe?: string): string {
   const path = LOCALE === 'he' && pathHe ? pathHe : pathEn;
   return `${REPO}/blob/main/${path}`;
 }
 
-export default function AboutSettings({ me }: { me: Me }) {
+function showBuild(sha: string | undefined): boolean {
+  const v = (sha || '').trim();
+  return !!v && v !== 'unknown' && HEX_SHA.test(v);
+}
+
+export default function AboutSettings({
+  me,
+  version,
+  onVersion,
+}: {
+  me: Me;
+  version: AppVersion | null;
+  onVersion: (v: AppVersion | null) => void;
+}) {
   const isOwner = me.memberships[0]?.role === 'owner';
-  const [info, setInfo] = useState<AppVersion | null>(null);
+  const [info, setInfo] = useState<AppVersion | null>(version);
   const [error, setError] = useState('');
   const [busy, setBusy] = useState(false);
   const [showNotes, setShowNotes] = useState(false);
 
   useEffect(() => {
+    setInfo(version);
+  }, [version]);
+
+  useEffect(() => {
+    if (version) return;
     getAppVersion()
-      .then(setInfo)
+      .then((v) => {
+        setInfo(v);
+        onVersion(v);
+      })
       .catch(() => setError(t.about.loadFailed));
-  }, []);
+  }, [version, onVersion]);
 
   async function checkNow() {
     setBusy(true);
     setError('');
     try {
-      setInfo(await checkAppVersion());
+      const v = await checkAppVersion();
+      setInfo(v);
+      onVersion(v);
     } catch {
       setError(t.about.checkFailed);
     } finally {
@@ -36,6 +61,7 @@ export default function AboutSettings({ me }: { me: Me }) {
   }
 
   const releaseUrl = info ? `${REPO}/releases/tag/v${info.version}` : `${REPO}/releases`;
+  const stale = !!info && info.version !== BUNDLE;
 
   return (
     <section className="card-free">
@@ -50,9 +76,19 @@ export default function AboutSettings({ me }: { me: Me }) {
           <p>
             {t.about.versionLabel}: <strong>v{info.version}</strong>
           </p>
-          <p className="muted small">
-            {t.about.gitSha}: <code>{info.git_sha}</code>
-          </p>
+          {stale && (
+            <p className="banner version-stale" role="status">
+              {t.about.staleBundle}{' '}
+              <button type="button" onClick={() => window.location.reload()}>
+                {t.about.reload}
+              </button>
+            </p>
+          )}
+          {showBuild(info.git_sha) && (
+            <p className="muted small">
+              {t.about.gitSha}: <code>{info.git_sha}</code>
+            </p>
+          )}
           <p className="muted small">{t.about.license}</p>
           <p>
             <a href={releaseUrl} target="_blank" rel="noopener noreferrer">
@@ -95,7 +131,11 @@ export default function AboutSettings({ me }: { me: Me }) {
                     {t.about.whatsNew}
                   </button>
                   {' · '}
-                  <a href={docUrl('docs/INSTALL.md', 'docs/he/INSTALL.md') + '#11-backups-and-updates'} target="_blank" rel="noopener noreferrer">
+                  <a
+                    href={docUrl('docs/INSTALL.md', 'docs/he/INSTALL.md') + '#11-backups-and-updates'}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                  >
                     {t.about.howToUpdate}
                   </a>
                 </p>

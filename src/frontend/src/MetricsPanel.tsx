@@ -80,6 +80,7 @@ export default function MetricsPanel({ workspaceId, postId, canWrite }: { worksp
   const [capturedOn, setCapturedOn] = useState<string | null>(null);
   // An export whose post is not in Heardloop: kept until the user decides whether to create it.
   const [pending, setPending] = useState<{ file: File; shareId: string } | null>(null);
+  const [chosenFile, setChosenFile] = useState('');
   const fileInput = useRef<HTMLInputElement>(null);
 
   const load = useCallback(() => {
@@ -175,20 +176,25 @@ export default function MetricsPanel({ workspaceId, postId, canWrite }: { worksp
         <div className="metric-form">
           <p className="muted small">{t.metrics.importHelp}</p>
           <div className="actions">
-            <label className="small">
+            <label className="check">
               {t.metrics.capturedOn} <DateInput value={capturedOn} onChange={setCapturedOn} label={t.metrics.capturedOn} />
             </label>
-            <input
-              ref={fileInput}
-              type="file"
-              accept=".xlsx,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
-              disabled={busy || pending !== null}
-              aria-label={t.metrics.chooseFile}
-              onChange={(e) => {
-                const file = e.target.files?.[0];
-                if (file) void runImport(file);
-              }}
-            />
+            <label className="file-btn">
+              {t.metrics.chooseFile}
+              <input
+                ref={fileInput}
+                type="file"
+                accept=".xlsx,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+                disabled={busy || pending !== null}
+                aria-label={t.metrics.chooseFile}
+                onChange={(e) => {
+                  const file = e.target.files?.[0];
+                  setChosenFile(file?.name ?? '');
+                  if (file) void runImport(file);
+                }}
+              />
+            </label>
+            {chosenFile && <span className="file-name">{chosenFile}</span>}
           </div>
           {pending && (
             <>

@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.9.3] - 2026-10-19
+
+### Fixed
+
+- Text size setting now applies to form controls; meta text uses a readable scale (nothing below 0.8125rem); "very large" is 21px; chart labels match page text; About shows one consistent version and hides unknown build SHAs.
+
 ## [0.9.2] - 2026-10-19
 
 ### Fixed

@@ -110,10 +110,16 @@ function Trend({ buckets }: { buckets: ReportBucket[] }) {
   const wrap = useRef<HTMLDivElement>(null);
   const [width, setWidth] = useState(600);
   const empty = buckets.length === 0;
+  const [labelPx, setLabelPx] = useState(13);
   useEffect(() => {
     const el = wrap.current;
     if (!el) return;
-    const update = () => setWidth(Math.max(280, Math.round(el.clientWidth)));
+    const update = () => {
+      setWidth(Math.max(280, Math.round(el.clientWidth)));
+      const rootFs = parseFloat(getComputedStyle(document.documentElement).fontSize) || 16;
+      setLabelPx(rootFs * 0.8125);
+      el.style.setProperty('--chart-fs', `${rootFs * 0.8125}px`);
+    };
     update();
     const observer = new ResizeObserver(update);
     observer.observe(el);
@@ -145,6 +151,7 @@ function Trend({ buckets }: { buckets: ReportBucket[] }) {
         dy="0.32em"
         textAnchor={onRight ? 'start' : 'end'}
         className="scale"
+        fontSize={labelPx}
       >
         {compact.format(s * max)}
       </text>
@@ -172,16 +179,16 @@ function Trend({ buckets }: { buckets: ReportBucket[] }) {
             </circle>
             {single && (
               <>
-                <text x={dotX(i, -9) - 8} y={y(b.impressions, maxImp)} dy="0.32em" textAnchor="end" className="value">
+                <text x={dotX(i, -9) - 8} y={y(b.impressions, maxImp)} dy="0.32em" textAnchor="end" className="value" fontSize={labelPx}>
                   {b.impressions.toLocaleString()}
                 </text>
-                <text x={dotX(i, 9) + 8} y={y(b.engagement, maxEng)} dy="0.32em" textAnchor="start" className="value">
+                <text x={dotX(i, 9) + 8} y={y(b.engagement, maxEng)} dy="0.32em" textAnchor="start" className="value" fontSize={labelPx}>
                   {b.engagement.toLocaleString()}
                 </text>
               </>
             )}
             {(buckets.length <= 12 || i % every === 0) && (
-              <text x={x(i)} y={h - 8} textAnchor="middle" className="tick">
+              <text x={x(i)} y={h - 8} textAnchor="middle" className="tick" fontSize={labelPx}>
                 {b.key.slice(5)}
               </text>
             )}

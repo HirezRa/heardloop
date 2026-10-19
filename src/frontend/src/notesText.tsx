@@ -1,13 +1,24 @@
-/** Render release notes as plain text: keep line breaks; turn bare https:// URLs into safe links. */
+/** Render release notes as plain text: keep line breaks; turn bare https:// URLs into safe links.
+ * Lines starting with markdown # / ## / ### become bold after stripping the hashes (still text, no HTML). */
 import type { ReactNode } from 'react';
 
 const URL_RE = /(https:\/\/[^\s<>"']+)/g;
+const HEADING_RE = /^(#{1,6})\s+(.*)$/;
 
 export function notesAsNodes(notes: string): ReactNode[] {
   const lines = notes.replace(/\r\n/g, '\n').split('\n');
   const out: ReactNode[] = [];
   lines.forEach((line, i) => {
     if (i > 0) out.push(<br key={`br-${i}`} />);
+    const heading = HEADING_RE.exec(line);
+    if (heading) {
+      out.push(
+        <span key={`h-${i}`} className="notes-heading">
+          {linkifyLine(heading[2], i)}
+        </span>,
+      );
+      return;
+    }
     out.push(...linkifyLine(line, i));
   });
   return out;
