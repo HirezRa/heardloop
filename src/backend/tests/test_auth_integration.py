@@ -54,8 +54,8 @@ async def _reset_and_seed(token_key: str) -> World:
         await conn.run_sync(Base.metadata.create_all)
     now = utcnow()
     async with async_sessionmaker(engine, expire_on_commit=False)() as db:
-        ws = Workspace(name="Main", created_at=now)
-        other = Workspace(name="Other", created_at=now)
+        ws = Workspace(name="Main", time_zone="Asia/Jerusalem", created_at=now)
+        other = Workspace(name="Other", time_zone="Asia/Jerusalem", created_at=now)
         users = {
             role: User(
                 email=f"{role.value}@example.com",
