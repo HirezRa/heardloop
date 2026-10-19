@@ -1,6 +1,7 @@
 version: 2
 updates:
   # One weekly PR per ecosystem for minor/patch; majors stay ungrouped (separate PRs).
+  # react + react-dom (+ types) always move together.
   - package-ecosystem: uv
     directory: /src/backend
     schedule: { interval: weekly }
@@ -13,9 +14,20 @@ updates:
     directory: /src/frontend
     schedule: { interval: weekly }
     groups:
+      react:
+        patterns:
+          - "react"
+          - "react-dom"
+          - "@types/react"
+          - "@types/react-dom"
       npm:
         applies-to: version-updates
         update-types: ["minor", "patch"]
+        exclude-patterns:
+          - "react"
+          - "react-dom"
+          - "@types/react"
+          - "@types/react-dom"
 
   - package-ecosystem: docker
     directories: [/src/backend, /src/frontend]

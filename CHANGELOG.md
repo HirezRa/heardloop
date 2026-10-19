@@ -7,10 +7,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.9.4] - 2026-10-19
+
+### Fixed
+
+- `react-dom` matches `react` (19.3.1); CI checks the pair and smokes the login form so a blank page cannot ship again.
+- README status matches what is shipped (metrics/reports/backups/templates done; optional AI open; company pages later).
+
 ### Changed
 
-- Backend image Python `3.13-slim` → `3.14-slim`.
+- Backend image Python `3.13-slim` → `3.14-slim` (`requires-python` allows 3.14; image venv uses system Python).
 - Frontend nginx image `nginxinc/nginx-unprivileged` `1.28-alpine` → `1.31-alpine`.
+- Dependabot: one weekly minor/patch PR per ecosystem; `react` / `react-dom` / `@types/react*` always move together; majors stay separate.
 
 ## [0.9.3] - 2026-10-19
 

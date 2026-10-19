@@ -95,8 +95,8 @@ the code depends on. Keep it in English and up to date.
 1. Foundation: done (auth, roles, settings, audit log, TOTP)
 2. LinkedIn: OAuth connect, publisher, post editor, approval, scheduling, publish-now (done; first real post 2026-10-15); images + workspace time zone (done)
 3. Campaigns, calendar, approval queue, notifications, post editor, video, settings polish (done)
-4. Manual metrics, reports, CSV export, weekly digest (in review)
-5. Hardening (security review, backups: done), company pages, AI writing assistant
+4. Manual metrics, reports, CSV export, weekly digest (done)
+5. Hardening (security review, backups, templates, version history, analytics import, public release, update notice: done); optional AI writing assistant (open). Later: company pages (postponed until after real-world use)
 
 ## Known follow-ups
 
