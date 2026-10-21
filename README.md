@@ -69,7 +69,7 @@ and posting "at 8:00 tomorrow" depends on someone remembering. Heardloop puts th
 | 📈 | Post metrics (entered from LinkedIn's numbers), reports by week, campaign, weekday and media, CSV export, weekly digest | ✅ |
 | 📥 | Import LinkedIn analytics exports (.xlsx): numbers and audience per post, one file or many, posts created on the fly | ✅ |
 | 💾 | Nightly backups with verified restore: database and media, retention, optional AES-256 encryption, staleness alert ([guide](docs/GUIDE.md#10-backups-and-restore)) | ✅ |
-| ✨ | AI writing assistant (optional) | 🛠️ planned |
+| ✨ | AI writing assistant (optional, self-hosted OpenAI-compatible model such as Ollama) and best-time suggestions from your own metrics | ✅ |
 
 ## Screenshots
 
@@ -194,6 +194,7 @@ All settings live in `.env` (git-ignored). `.env.example` lists them all.
 | `SESSION_IDLE_HOURS` / `SESSION_ABSOLUTE_DAYS` | `12` / `7` | Sign-in session idle timeout (hours) and absolute lifetime (days) |
 | `WORKER_POLL_SECONDS` | `15` | How often the worker looks for due posts |
 | `UPDATE_CHECK` / `UPDATE_CHECK_REPO` | `true` / `HirezRa/heardloop` | Optional notice when a newer GitHub release exists (never installs from the app) |
+| `AI_BASE_URL` / `AI_MODEL` / `AI_API_KEY` / `AI_TIMEOUT_SECONDS` | empty / empty / empty / `60` | Optional AI writing assistant: an OpenAI-compatible server, e.g. `http://ollama:11434/v1` ([INSTALL §13](docs/INSTALL.md#13-optional-ai-writing-assistant)). Post text is sent there when the assistant is used |
 | `BACKUP_DIR` | `./backups` | Host folder for the nightly backup files (git-ignored) |
 | `BACKUP_HOUR_UTC` | `01` | Hour (UTC, 0-23) of the nightly backup |
 | `BACKUP_KEEP_DAYS` / `BACKUP_KEEP_MIN` | `30` / `7` | Delete sets older than this many days, but always keep at least this many good ones |
@@ -245,7 +246,7 @@ Found a vulnerability? Please follow [SECURITY.md](SECURITY.md) instead of openi
 - [x] **Phase 3 - Campaigns and workflow**: campaigns, calendar, review queue, notifications
 - [x] **Phase 4 - Metrics and reports**: manual post metrics, reports, CSV export, weekly digest
 - [x] **Phase 5 - Hardening and extensions**: backups, templates, version history, analytics import, public release, update notice
-- [ ] **Phase 5 (open)**: optional AI writing assistant
+- [x] **Phase 5 - AI**: optional AI writing assistant (self-hosted model), best-time suggestions
 - Later: company pages (postponed until after real-world use)
 
 Progress is tracked in [issues](https://github.com/HirezRa/heardloop/issues).

@@ -19,7 +19,7 @@ function removeTag(body: string, tag: string): string {
 }
 
 /** Appends "#tag" on the post's last line (a hashtag line), creating it when needed. */
-function appendTag(body: string, tag: string): string {
+export function appendTag(body: string, tag: string): string {
   const trimmed = body.trimEnd();
   if (!trimmed) return `#${tag}`;
   const lastLine = trimmed.slice(trimmed.lastIndexOf('\n') + 1);

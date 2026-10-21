@@ -13,10 +13,13 @@ from sqlalchemy import delete, func, select, update
 from sqlalchemy.dialects.postgresql import insert as pg_insert
 
 from heardloop import audit
+from heardloop.ai_assist import AssistError, assist
 from heardloop.api.deps import Db, WorkspaceAccess, client_ip, require_client_header, require_permission
 from heardloop.api.post_approval import version_approved
 from heardloop.api.routes_media import media_url
 from heardloop.api.schemas import (
+    AssistOut,
+    AssistRequest,
     HashtagIn,
     HashtagsOut,
     LinkCard,
@@ -32,6 +35,7 @@ from heardloop.api.schemas import (
     ScheduleRequest,
 )
 from heardloop.auth.permissions import Permission
+from heardloop.config import get_settings
 from heardloop.domain.workflow import InvalidTransitionError, PostStatus
 from heardloop.linkpreview import LinkPreviewError, fetch_preview
 from heardloop.models import (
@@ -323,6 +327,42 @@ async def link_preview(body: LinkPreviewRequest, access: WriteAccess, request: R
         image_url=preview.image_url,
         site_name=preview.site_name,
     )
+
+
+_ASSIST_SLOTS = asyncio.Semaphore(2)  # a local model handles few requests at once
+_ASSIST_WINDOW = timedelta(minutes=1)
+_ASSIST_PER_WINDOW = 10
+_assist_calls: dict[uuid.UUID, deque[datetime]] = {}
+
+
+def _assist_allowed(user_id: uuid.UUID, now: datetime) -> bool:
+    calls = _assist_calls.setdefault(user_id, deque())
+    while calls and calls[0] < now - _ASSIST_WINDOW:
+        calls.popleft()
+    if len(calls) >= _ASSIST_PER_WINDOW:
+        return False
+    calls.append(now)
+    return True
+
+
+@router.post("/assist")
+async def ai_assist(body: AssistRequest, access: WriteAccess, request: Request) -> AssistOut:
+    """Optional AI writing help on the editor's text (or selection). Nothing is stored or published.
+
+    Off unless the owner set AI_BASE_URL and AI_MODEL (503 `ai_not_configured`). The text goes to that server
+    only; the response is a suggestion the editor can take or leave. Rate-limited per user.
+    """
+    settings = get_settings()
+    if not settings.ai_configured:
+        raise HTTPException(status.HTTP_503_SERVICE_UNAVAILABLE, "ai_not_configured")
+    if not _assist_allowed(access.principal.user.id, utcnow()):
+        raise HTTPException(status.HTTP_429_TOO_MANY_REQUESTS, "too_many_requests")
+    try:
+        async with _ASSIST_SLOTS:
+            result = await assist(request.app.state.http, settings, body.action, body.text, body.tone)
+    except AssistError as exc:
+        raise HTTPException(status.HTTP_502_BAD_GATEWAY, f"ai_failed:{exc.code}") from None
+    return AssistOut(text=result.text, hashtags=result.hashtags)
 
 
 RECOMMENDED_HASHTAGS = 5  # LinkedIn's own guidance is 3-5; more reads as spam

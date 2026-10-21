@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """Fail on broken relative links and missing #anchors in markdown (no network).
 
-Checks README.md and docs/**/*.md (skips docs/cursor-prompts/).
+Checks README.md and docs/**/*.md (skips docs/cursor-prompts/). privacy-allow
 """
 
 from __future__ import annotations
@@ -42,7 +42,7 @@ def _md_files() -> list[Path]:
     files = [ROOT / "README.md", ROOT / "AGENTS.md", ROOT / "SECURITY.md", ROOT / "CHANGELOG.md"]
     files.extend(sorted((ROOT / "docs").rglob("*.md")))
     files.extend(sorted((ROOT / "examples").rglob("*.md")))
-    return [p for p in files if p.is_file() and "cursor-prompts" not in p.parts]
+    return [p for p in files if p.is_file() and "cursor-prompts" not in p.parts]  # privacy-allow
 
 
 def main() -> int:

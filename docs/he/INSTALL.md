@@ -285,4 +285,45 @@ services:
 עדיין תקועים? פותחים Issue ב-GitHub עם טקסט השגיאה מהאפליקציה או מ-`docker compose logs api worker`
 (לפני שמפרסמים, מוודאים שאין בטקסט כתובות מייל, טוקנים או כתובות IP).
 
+## 13. אופציונלי: עוזר כתיבה (AI)
+
+בעורך הפוסטים אפשר להפעיל **עוזר כתיבה** (שיפור, קיצור, פתיחה חזקה יותר, תיקון שגיאות, הצעת האשטגים, תרגום).
+הוא כבוי עד שמחברים את Heardloop לשרת שתומך ב-API התואם ל-OpenAI, `/v1/chat/completions` (למשל Ollama, LM Studio או vLLM).
+כשמישהו משתמש בעוזר, טקסט הפוסט (או החלק המסומן) נשלח לשרת הזה. Heardloop לא שומר כלום. עדיף מודל שמריצים לבד,
+כך שהטקסט לא יוצא מהרשת שלכם.
+
+דוגמה: Ollama כשירות נוסף בקובץ `docker-compose.override.yml` (לא נשמר ב-git):
+
+```yaml
+services:
+  ollama:
+    image: ollama/ollama:<version>   # pin a release tag
+    restart: unless-stopped
+    volumes:
+      - ollama:/root/.ollama
+volumes:
+  ollama:
+```
+
+```powershell
+docker compose up -d ollama
+docker compose exec ollama ollama pull llama3.1:8b
+```
+
+ואז ב-`.env`:
+
+```dotenv
+AI_BASE_URL=http://ollama:11434/v1
+AI_MODEL=llama3.1:8b
+```
+
+ולבסוף `docker compose up -d api`. מודל בגודל הזה צריך כמה GB של זיכרון פנוי, ועונה תוך שניות עד דקה במחשב רגיל.
+`AI_TIMEOUT_SECONDS` (ברירת מחדל 60) הוא הזמן המקסימלי לבקשה.
+
+- Ollama במחשב אחר ברשת: `AI_BASE_URL=http://<that machine>:11434/v1`.
+- אפשר גם שירות מקוון (`AI_API_KEY` נשלח כ-Bearer token), אבל אז טקסט הפוסטים יוצא מהרשת שלכם.
+- כל משתמש יכול לשלוח 10 בקשות בדקה. צופים (viewer) לא רואים את העוזר.
+
+**הזמנים הטובים** ליד שדה התזמון לא צריכים AI: הם מחושבים מהמדדים של הפוסטים שלכם, ומופיעים אחרי שלכמה פוסטים יש נתונים.
+
 </div>

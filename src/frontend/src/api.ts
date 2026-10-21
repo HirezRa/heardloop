@@ -9,6 +9,8 @@ export interface Me {
   csrf_token: string;
   mfa_enabled: boolean;
   ui_prefs: UiPrefs;
+  /** The owner configured an AI server (AI_BASE_URL / AI_MODEL): the editor shows the assistant. */
+  ai_assist?: boolean;
 }
 
 export interface MfaChallenge {
@@ -355,6 +357,15 @@ export const updatePost = (
 ) => request<Post>('PATCH', post(id, postId), body);
 export const fetchLinkPreview = (id: string, url: string) =>
   request<LinkPreview>('POST', `${posts(id)}/link-preview`, { url });
+export type AssistAction = 'improve' | 'shorten' | 'hook' | 'fix' | 'hashtags' | 'translate_en' | 'translate_he';
+export type AssistTone = 'professional' | 'friendly' | 'bold';
+export interface AssistResult {
+  text: string | null;
+  hashtags: string[];
+}
+/** Optional AI help on the editor text. Nothing is stored; 503 ai_not_configured when the owner has not set it up. */
+export const aiAssist = (id: string, action: AssistAction, text: string, tone?: AssistTone) =>
+  request<AssistResult>('POST', `${posts(id)}/assist`, tone ? { action, text, tone } : { action, text });
 export const deletePost = (id: string, postId: string) => request<void>('DELETE', post(id, postId));
 export const postAction = (
   id: string,
@@ -771,3 +782,19 @@ export const reportCsvUrl = (id: string, start?: string | null, end?: string | n
   if (end) q.set('end', end);
   return `${ws(id)}/reports/export.csv?${q}`;
 };
+
+export interface BestTimeSlot {
+  weekday: number; // 0 = Monday, workspace time zone
+  hour: number;
+  posts: number;
+  avg_engagement_rate: number;
+}
+export interface BestTimes {
+  time_zone: string;
+  days: number;
+  measured: number;
+  min_posts: number;
+  slots: BestTimeSlot[];
+}
+/** Best weekday + hour slots from your own metrics (no AI); empty until there is enough data. */
+export const getBestTimes = (id: string) => request<BestTimes>('GET', `${ws(id)}/reports/best-times`);

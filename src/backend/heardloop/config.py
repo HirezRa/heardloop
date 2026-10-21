@@ -51,6 +51,15 @@ class Settings(BaseSettings):
     # Empty = system trust store. LinkedIn, SMTP and webhooks are unaffected.
     extra_ca_cert_file: str = Field(default="", alias="EXTRA_CA_CERT_FILE")
 
+    # Optional AI writing assistant: any OpenAI-compatible chat-completions server (Ollama, LM Studio,
+    # vLLM, ...). Empty AI_BASE_URL = off. Post text is sent to this server when someone uses the
+    # assistant, so prefer one you host yourself.
+    # Example: http://ollama:11434/v1 (Ollama as a compose service).
+    ai_base_url: str = Field(default="", alias="AI_BASE_URL")
+    ai_model: str = Field(default="", alias="AI_MODEL")
+    ai_api_key: SecretStr = Field(default=SecretStr(""), alias="AI_API_KEY")
+    ai_timeout_seconds: float = Field(default=60.0, alias="AI_TIMEOUT_SECONDS", gt=0, le=300)
+
     # Sessions. Browsers accept Secure cookies on http://localhost, so keep this on.
     cookie_secure: bool = Field(default=True, alias="COOKIE_SECURE")
     session_idle_hours: int = Field(default=12, alias="SESSION_IDLE_HOURS", gt=0)
@@ -160,6 +169,42 @@ class Settings(BaseSettings):
         if not re.match(r"^https?://[^/\s]+$", value):
             raise ValueError("APP_BASE_URL must look like https://example.com (no path)")
         return value
+
+    @field_validator("ai_base_url", mode="before")
+    @classmethod
+    def _ai_base_url(cls, v: object) -> object:
+        value = str(v or "").strip().rstrip("/")
+        if not value or value.startswith("<"):
+            return ""
+        # Scheme, host, optional port and path; no user info, query or fragment (the key goes in AI_API_KEY).
+        if not re.fullmatch(r"https?://[A-Za-z0-9.\-\[\]:]+(/[A-Za-z0-9._~\-/]*)?", value):
+            raise ValueError("AI_BASE_URL must look like http://host:port/v1 (no user info or query)")
+        return value
+
+    @field_validator("ai_model", mode="before")
+    @classmethod
+    def _ai_model(cls, v: object) -> object:
+        value = str(v or "").strip()
+        if value.startswith("<"):
+            return ""
+        if value and not re.fullmatch(r"[A-Za-z0-9._:/\-@]{1,200}", value):
+            raise ValueError("AI_MODEL must be a model name such as llama3.1:8b")
+        return value
+
+    @field_validator("ai_api_key", mode="before")
+    @classmethod
+    def _drop_ai_key_placeholder(cls, v: object) -> object:
+        return "" if isinstance(v, str) and v.strip().startswith("<") else v
+
+    @model_validator(mode="after")
+    def _ai_model_required(self) -> "Settings":
+        if self.ai_base_url and not self.ai_model:
+            raise ValueError("AI_MODEL is required when AI_BASE_URL is set")
+        return self
+
+    @property
+    def ai_configured(self) -> bool:
+        return bool(self.ai_base_url and self.ai_model)
 
     @field_validator("linkedin_client_secret", mode="before")
     @classmethod
