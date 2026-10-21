@@ -36,6 +36,8 @@ import { diffWords } from './diff';
 import EditorToolbar from './EditorToolbar';
 import LinkCardEditor from './LinkCardEditor';
 import HashtagPicker from './HashtagPicker';
+import AiAssistant from './AiAssistant';
+import BestTimes from './BestTimes';
 import MetricsPanel from './MetricsPanel';
 import { countCharacters, styledRatio, utf16Length } from './unicodeFormat';
 import { formatDateTime } from './dates';
@@ -905,6 +907,18 @@ export default function Posts({ me, focusPostId }: { me: Me; focusPostId?: strin
           {canWrite && textEditable && (
             <HashtagPicker workspaceId={wsId} body={draft.body} onChange={(body) => setDraft({ ...draft, body })} disabled={busy} />
           )}
+          {canWrite && textEditable && me.ai_assist && (
+            <AiAssistant
+              workspaceId={wsId}
+              textareaRef={textareaRef}
+              value={draft.body}
+              onChange={(body) => {
+                setDraft({ ...draft, body });
+                setPlaceholdersLeft(leftoverPlaceholders(body));
+              }}
+              disabled={busy}
+            />
+          )}
           {canWrite && editable && (
             <div className="image-row">
               {draft.media.length === 0 ? (
@@ -1028,6 +1042,7 @@ export default function Posts({ me, focusPostId }: { me: Me; focusPostId?: strin
             {selected && !dirty && canSchedule && (
               <>
                 <DateTimeInput value={when} onChange={setWhen} label={t.posts.scheduleAt} />
+                <BestTimes workspaceId={wsId} timeZone={timeZone} onPick={setWhen} disabled={busy} />
                 <button
                   type="button"
                   disabled={busy || !when}
@@ -1056,6 +1071,7 @@ export default function Posts({ me, focusPostId }: { me: Me; focusPostId?: strin
             {selected && !dirty && status === 'scheduled' && (
               <>
                 <DateTimeInput value={when} onChange={setWhen} label={t.posts.scheduleAt} />
+                <BestTimes workspaceId={wsId} timeZone={timeZone} onPick={setWhen} disabled={busy} />
                 <button
                   type="button"
                   disabled={busy || !when}

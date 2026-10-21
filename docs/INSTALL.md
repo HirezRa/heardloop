@@ -288,3 +288,46 @@ services:
 
 Still stuck? Open an issue on GitHub with the error text from the app or from `docker compose logs api worker`
 (check that the text contains no e-mail addresses, tokens or IP addresses before posting it).
+
+## 13. Optional: AI writing assistant
+
+The post editor can show an **AI assistant** (improve, shorten, stronger opening, fix spelling, suggest hashtags,
+translate). It stays off until you point Heardloop at a server that speaks the OpenAI-compatible
+`/v1/chat/completions` API (Ollama, LM Studio, vLLM and others do). When someone uses it, the post text (or the
+selected part) is sent to that server; Heardloop stores nothing. Prefer a model you run yourself, so the text
+never leaves your network.
+
+Example: Ollama as an extra service in `docker-compose.override.yml` (git-ignored):
+
+```yaml
+services:
+  ollama:
+    image: ollama/ollama:<version>   # pin a release tag
+    restart: unless-stopped
+    volumes:
+      - ollama:/root/.ollama
+volumes:
+  ollama:
+```
+
+```powershell
+docker compose up -d ollama
+docker compose exec ollama ollama pull llama3.1:8b
+```
+
+Then in `.env`:
+
+```dotenv
+AI_BASE_URL=http://ollama:11434/v1
+AI_MODEL=llama3.1:8b
+```
+
+and `docker compose up -d api`. A model of this size needs several GB of free memory and answers in seconds to
+a minute on a normal PC; `AI_TIMEOUT_SECONDS` (default 60) is the limit per request.
+
+- Ollama on another machine in your network: `AI_BASE_URL=http://<that machine>:11434/v1`.
+- A hosted service also works (`AI_API_KEY` is sent as a Bearer token), but then post text leaves your network.
+- Each person can send 10 requests a minute. Viewers do not see the assistant.
+
+**Best times** next to the scheduling field need no AI: they come from your own post metrics (section 6 of the
+[user guide](GUIDE.md#6-metrics-and-reports)) and appear once a few posts have numbers.

@@ -63,6 +63,7 @@ async def _me(db: Db, user: User, csrf_token: str) -> MeOut:
         csrf_token=csrf_token,
         mfa_enabled=user.mfa_enabled_at is not None,
         ui_prefs=_prefs_of(user),
+        ai_assist=get_settings().ai_configured,
     )
 
 

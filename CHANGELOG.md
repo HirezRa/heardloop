@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- Optional AI writing assistant in the post editor (#11): improve, shorten, stronger opening, fix spelling, suggest hashtags, translate to English/Hebrew, optional tone. Works with any OpenAI-compatible server (self-hosted Ollama, LM Studio, vLLM recommended); off unless `AI_BASE_URL` and `AI_MODEL` are set. Suggestions only: nothing changes until you replace or insert, nothing is stored.
+- Best-time suggestions next to the scheduling field, from your own metrics (weekday + hour with the best engagement rate); `GET .../reports/best-times`.
+
 ## [0.9.6] - 2026-10-19
 
 ### Fixed

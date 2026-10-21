@@ -552,3 +552,11 @@ textarea.has-placeholders { outline: 1px solid #ca8a04; }
 .top-list { margin: 0; padding-inline-start: 1.2em; display: flex; flex-direction: column; gap: 8px; }
 .top-list li { display: flex; flex-direction: column; gap: 2px; }
 .top-list .link { text-align: start; }
+
+/* AI assistant and best-time chips in the post editor */
+.ai-assistant { border-top: 1px solid var(--border); padding-top: 8px; }
+.ai-assistant > summary { cursor: pointer; font-size: var(--fs-sm); color: var(--accent); }
+.ai-actions { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; margin: 6px 0; }
+.ai-result { border: 1px solid var(--border); border-radius: 8px; padding: 8px; margin-top: 6px; display: flex; flex-direction: column; gap: 8px; }
+.ai-text { white-space: pre-wrap; overflow-wrap: anywhere; }
+.best-times { display: inline-flex; flex-wrap: wrap; gap: 6px; align-items: center; }

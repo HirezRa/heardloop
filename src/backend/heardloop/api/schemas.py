@@ -7,6 +7,7 @@ from typing import Literal
 
 from pydantic import BaseModel, ConfigDict, Field, ValidationInfo, field_validator
 
+from heardloop.ai_assist import AssistAction, AssistTone
 from heardloop.models import CampaignStatus, WorkspaceRole
 from heardloop.security.passwords import MAX_LENGTH
 
@@ -108,6 +109,7 @@ class MeOut(BaseModel):
     csrf_token: str
     mfa_enabled: bool
     ui_prefs: UiPrefs
+    ai_assist: bool = False  # the owner configured AI_BASE_URL / AI_MODEL; the editor shows the assistant
 
 
 class MfaChallenge(BaseModel):
@@ -392,6 +394,17 @@ class LinkPreviewRequest(Strict):
     url: str = Field(min_length=1, max_length=2048)
 
 
+class AssistRequest(Strict):
+    action: AssistAction
+    text: str = Field(min_length=1, max_length=POST_MAX_CHARS)
+    tone: AssistTone | None = None
+
+
+class AssistOut(BaseModel):
+    text: str | None  # rewritten text (all actions except hashtags)
+    hashtags: list[str]  # hashtags action only, without "#"
+
+
 class LinkPreviewOut(BaseModel):
     url: str
     title: str | None
@@ -652,6 +665,21 @@ class ReportBucket(BaseModel):
     followers_gained: int = 0
     avg_impressions: float | None
     avg_engagement_rate: float | None
+
+
+class BestTimeSlot(BaseModel):
+    weekday: int  # 0 = Monday, in the workspace time zone
+    hour: int  # 0-23, in the workspace time zone
+    posts: int  # measured posts published in this slot
+    avg_engagement_rate: float  # mean of (reactions+comments+reposts+saves) / impressions per post
+
+
+class BestTimesOut(BaseModel):
+    time_zone: str
+    days: int
+    measured: int  # measured posts with impressions in the window
+    min_posts: int  # a slot needs at least this many posts to be suggested
+    slots: list[BestTimeSlot]  # best first, at most 3; empty when there is not enough data yet
 
 
 class ReportOut(BaseModel):

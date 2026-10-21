@@ -27,6 +27,8 @@ from heardloop.api.deps import Db, WorkspaceAccess, client_ip, require_client_he
 from heardloop.api.schemas import (
     METRIC_FIELDS,
     POST_MAX_CHARS,
+    BestTimeSlot,
+    BestTimesOut,
     DemographicOut,
     ImportResultOut,
     MetricsIn,
@@ -647,6 +649,62 @@ async def report(
         by_media=[_bucket(k, by_media[k]) for k in ("none", "image", "video", "link") if k in by_media],
         top_posts=top,
         unmeasured=unmeasured,
+    )
+
+
+BEST_TIME_MIN_POSTS = 2  # per weekday+hour slot
+BEST_TIME_MIN_MEASURED = 5  # in the whole window
+BEST_TIME_SLOTS = 3
+
+
+@router.get("/reports/best-times")
+async def best_times(
+    access: ReadAccess,
+    db: Db,
+    days: Annotated[int, Query(ge=30, le=MAX_REPORT_DAYS)] = 180,
+) -> BestTimesOut:
+    """Weekday + hour slots (workspace time zone) with the best engagement rate, from your own metrics.
+
+    No AI and no outside data: the latest measurement of each published post with impressions in the
+    last `days` days. A slot needs BEST_TIME_MIN_POSTS posts; nothing is suggested below
+    BEST_TIME_MIN_MEASURED measured posts.
+    """
+    ws = await db.get(Workspace, access.workspace_id)
+    tz = ZoneInfo(ws.time_zone if ws else "UTC")
+    hi = datetime.now(tz) + timedelta(days=1)
+    lo = hi - timedelta(days=days + 1)
+    posts = [
+        p
+        for p in await _report_posts(db, access.workspace_id, lo, hi)
+        if p.measured_at is not None and p.impressions and p.engagement_rate is not None
+    ]
+    slots: dict[tuple[int, int], list[float]] = defaultdict(list)
+    for p in posts:
+        local = p.published_at.astimezone(tz)
+        assert p.engagement_rate is not None
+        slots[(local.weekday(), local.hour)].append(p.engagement_rate)
+    ranked: list[BestTimeSlot] = []
+    if len(posts) >= BEST_TIME_MIN_MEASURED:
+        ranked = sorted(
+            (
+                BestTimeSlot(
+                    weekday=weekday,
+                    hour=hour,
+                    posts=len(rates),
+                    avg_engagement_rate=round(sum(rates) / len(rates), 4),
+                )
+                for (weekday, hour), rates in slots.items()
+                if len(rates) >= BEST_TIME_MIN_POSTS
+            ),
+            key=lambda s: (s.avg_engagement_rate, s.posts),
+            reverse=True,
+        )[:BEST_TIME_SLOTS]
+    return BestTimesOut(
+        time_zone=tz.key,
+        days=days,
+        measured=len(posts),
+        min_posts=BEST_TIME_MIN_POSTS,
+        slots=ranked,
     )
 
 

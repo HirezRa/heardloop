@@ -43,6 +43,11 @@ Posts → **New post**.
   the number in brackets is the conservative figure.
 - **Hashtags**: the ones already in the post are counted against LinkedIn's guidance of 3–5. Click a saved or
   recently used tag to add or remove it; save new tags to the workspace library.
+- **AI assistant** (optional, only when the owner set it up, see [INSTALL section 13](INSTALL.md#13-optional-ai-writing-assistant)):
+  improve, shorten, stronger opening, fix spelling, suggest hashtags, or translate to English or Hebrew, with an
+  optional tone. It works on the selected text, or on the whole post when nothing is selected. The answer is a
+  suggestion: **Replace**, **Insert below** or **Discard**. Suggested hashtags are added with a click. The text is
+  sent to the AI server the owner configured; nothing is stored.
 - **Image or video**: one PNG/JPEG/GIF up to 5 MB, or one MP4 (75 KB–200 MB, 3 s–30 min). Videos are uploaded
   to LinkedIn in the background when the post goes out and may take a few minutes to process.
 - **Link card**: paste an address and **Add link**; the title and description are fetched from the page and can
@@ -80,6 +85,9 @@ The life cycle is: Draft → Waiting for approval → Approved → Scheduled →
   network failure mid-call), the post is marked failed and you are asked to check LinkedIn before retrying.
   LinkedIn's API terms restrict automated posting; see [LinkedIn's terms](../README.md#linkedins-terms) in the
   README for how Heardloop's scheduled publishing relates to them.
+- **Best times** next to the scheduling field: up to three weekday + hour slots whose posts had the best
+  engagement rate in your own metrics (last 180 days, workspace time zone). A click puts the next such time in
+  the field. They appear once at least five posts have numbers and a slot has two posts; no AI is involved.
 - The **Calendar** shows scheduled and published posts by month or week. Drag a scheduled post to another day to
   move it (same time of day).
 
