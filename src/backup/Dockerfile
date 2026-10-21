@@ -1,6 +1,6 @@
 # Backup service: nightly pg_dump + media archive, restore on demand (see docs/GUIDE.md, section 10).
 # Same major version as the `db` service, so pg_dump and pg_restore match the server.
-FROM postgres:17-alpine
+FROM postgres:18-alpine
 
 RUN apk add --no-cache openssl tzdata
 
