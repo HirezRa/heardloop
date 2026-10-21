@@ -148,7 +148,7 @@ async def download(media_id: uuid.UUID, access: ReadAccess, db: Db) -> FileRespo
         path,
         media_type=asset.mime_type,
         headers={
-            "Cache-Control": "private, max-age=3600",
+            "Cache-Control": "private, no-cache",  # revalidated: signed-out browsers keep nothing usable
             "Content-Disposition": "inline",
             "Content-Security-Policy": "default-src 'none'; sandbox",
         },

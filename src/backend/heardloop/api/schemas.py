@@ -359,6 +359,11 @@ class ScheduleRequest(Strict):
 class RejectRequest(Strict):
     comment: str = Field(min_length=1, max_length=2000)
 
+    @field_validator("comment")
+    @classmethod
+    def _plain(cls, v: str) -> str:
+        return _reject_controls(v, allow_newline=True)
+
 
 class MediaRef(BaseModel):
     id: uuid.UUID

@@ -178,3 +178,12 @@ def test_allowed_mp4_major_brands(major: bytes) -> None:
 )
 def test_other_ftyp_brands_are_not_mp4(head: bytes) -> None:
     assert media.detect_media(head + b"\x00" * 32) is None
+
+
+def test_reject_comment_refuses_control_characters_but_keeps_line_feeds() -> None:
+    assert (
+        schemas.RejectRequest(comment="Please fix\nthe second line").comment == "Please fix\nthe second line"
+    )
+    for bad in ("bell\x07", "cr\r\nlf", "esc\x1b[31m"):
+        with pytest.raises(ValidationError):
+            schemas.RejectRequest(comment=bad)
