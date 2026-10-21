@@ -7,6 +7,20 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Security
+
+- Follow-up review against OWASP ASVS 4.0.3 L1-2 (#14).
+- Activity log: sign-in events (and their IP addresses) are shown and purged only for members whose only workspace this is, so adding someone from another workspace no longer exposes or erases their sign-in history.
+- Manual retry of a failed post (`schedule` / `publish-now`) needs an approved version when approval is required.
+- Analytics import: cells beyond column XFD and sheets over 200 000 expanded cells are refused; DOCTYPE/entity declarations are refused by the XML parser in any encoding (UTF-16 no longer slips past).
+- Anonymising a member also clears the IP addresses in their activity-log rows.
+- Reviewer comments refuse control characters (line feeds allowed).
+- Public `/api/v1/meta` no longer returns the version; `/version` decides "owner" correctly for people in several workspaces.
+- Media responses: `Cache-Control: private, no-cache`.
+- `scripts/backup-now.sh` only does arithmetic on numeric manifest values.
+- Containers: `db` gets `no-new-privileges` and a PID limit, `web` a read-only root; nginx sends `Permissions-Policy` and logs paths without query strings.
+- CI: release checkout does not keep credentials; Dependabot also watches `src/backup` and the compose file images.
+
 ## [0.9.6] - 2026-10-19
 
 ### Fixed

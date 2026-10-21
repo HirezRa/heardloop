@@ -613,6 +613,10 @@ async def _schedule(post: Post, when: datetime, access: WorkspaceAccess, db: Db)
         return
     if post.status == PostStatus.FAILED:
         # Manual retry: the user confirmed in the UI that the post is not on LinkedIn.
+        # Approval may have been turned on after the post was scheduled (same rule as rescheduling and
+        # as `retry-failed` on the account): a version nobody approved is not published.
+        if await _require_approval(db, access.workspace_id) and not await version_approved(db, post):
+            raise HTTPException(status.HTTP_409_CONFLICT, "approval_required")
         await db.execute(
             update(PublishAttempt)
             .where(PublishAttempt.post_id == post.id, PublishAttempt.finished_at.is_(None))

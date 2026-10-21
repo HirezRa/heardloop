@@ -3,6 +3,7 @@
 import io
 import zipfile
 from datetime import UTC, date, datetime
+from xml.etree import ElementTree as ET
 
 import pytest
 
@@ -121,6 +122,39 @@ def test_xml_with_entity_declarations_is_refused() -> None:
     with pytest.raises(ExportParseError) as err:
         parse_export(data)
     assert err.value.code == "not_xlsx"
+
+
+def test_utf16_document_with_entity_declarations_is_refused() -> None:
+    # A byte search for "<!ENTITY" misses UTF-16; the parser itself must refuse the declaration.
+    text = '<?xml version="1.0" encoding="UTF-16"?><!DOCTYPE x [<!ENTITY a "aaaa">]><sst xmlns="x">&a;</sst>'
+    data = make_xlsx(
+        {"PERFORMANCE": [["Post URL", "x"]]}, extra={"xl/sharedStrings.xml": text.encode("utf-16")}
+    )
+    with pytest.raises(ExportParseError) as err:
+        parse_export(data)
+    assert err.value.code == "not_xlsx"
+
+
+def _sheet(cells: str) -> ET.Element:
+    ns = "http://schemas.openxmlformats.org/spreadsheetml/2006/main"
+    return ET.fromstring(f'<worksheet xmlns="{ns}"><sheetData>{cells}</sheetData></worksheet>')  # noqa: S314
+
+
+@pytest.mark.parametrize("ref", ["XFE1", "ZZZZZ1", "ZZZZZZZZZZ1"])
+def test_guard_cell_beyond_the_last_excel_column(ref: str) -> None:
+    with pytest.raises(ExportParseError) as err:
+        analytics_import._sheet_rows(_sheet(f'<row><c r="{ref}"><v>1</v></c></row>'), [])
+    assert err.value.code == "too_large"
+
+
+def test_guard_sparse_cells_far_right_are_capped() -> None:
+    # Each row holds one cell at the last column: tiny on disk, 16384 strings per row once expanded.
+    rows = "".join(f'<row><c r="XFD{i}"><v>1</v></c></row>' for i in range(1, 30))
+    with pytest.raises(ExportParseError) as err:
+        analytics_import._sheet_rows(_sheet(rows), [])
+    assert err.value.code == "too_large"
+    one = analytics_import._sheet_rows(_sheet('<row><c r="XFD1"><v>7</v></c></row>'), [])
+    assert len(one[0]) == analytics_import.MAX_COLUMNS and one[0][-1] == "7"
 
 
 def test_guard_file_larger_than_two_megabytes() -> None:

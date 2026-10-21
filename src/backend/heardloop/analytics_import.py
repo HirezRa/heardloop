@@ -21,6 +21,7 @@ from decimal import Decimal, InvalidOperation
 from xml.etree import (
     ElementTree as ET,  # DOCTYPE/ENTITY declarations are refused before parsing
 )
+from xml.parsers import expat
 
 MAX_FILE_BYTES = 2 * 1024 * 1024
 MAX_MEMBERS = 50
@@ -28,6 +29,8 @@ MAX_MEMBER_BYTES = 5 * 1024 * 1024
 MAX_RATIO = 100  # uncompressed / compressed; real workbooks are far below this
 RATIO_MIN_SIZE = 10 * 1024  # tiny members may compress extremely well without being a threat
 MAX_ROWS = 5000
+MAX_COLUMNS = 16384  # Excel's last column, XFD
+MAX_CELLS = 200_000  # per sheet, counted as the expanded row widths
 MAX_DEMOGRAPHICS = 50
 MAX_TEXT = 120
 MAX_METRIC = 10**12
@@ -118,14 +121,36 @@ def _read_member(zf: zipfile.ZipFile, name: str, *, required: bool = False) -> b
         raise ExportParseError("not_xlsx") from None  # corrupt, truncated or password-protected
     if len(data) > MAX_MEMBER_BYTES:
         raise ExportParseError("too_large")
-    if b"<!DOCTYPE" in data[:4096].upper() or b"<!ENTITY" in data.upper():
-        raise ExportParseError("not_xlsx")
+    _refuse_dtd(data)
     return data
+
+
+class _DtdFound(Exception):
+    pass
+
+
+def _dtd_handler(*_args: object) -> None:
+    raise _DtdFound
+
+
+def _refuse_dtd(data: bytes) -> None:
+    """Refuses any DOCTYPE or entity declaration, whatever the document encoding.
+
+    A byte search for `<!DOCTYPE` misses UTF-16 and other encodings, so expat itself reports the
+    declaration (it decodes the document first). Real xlsx members never contain one.
+    """
+    parser = expat.ParserCreate()
+    parser.StartDoctypeDeclHandler = _dtd_handler
+    parser.EntityDeclHandler = _dtd_handler
+    try:
+        parser.Parse(data, True)
+    except (_DtdFound, expat.ExpatError, ValueError):
+        raise ExportParseError("not_xlsx") from None
 
 
 def _xml(data: bytes) -> ET.Element:
     try:
-        return ET.fromstring(data)  # noqa: S314  # DTDs are refused in _read_member
+        return ET.fromstring(data)  # noqa: S314  # DTDs are refused by _refuse_dtd in _read_member
     except ET.ParseError:
         raise ExportParseError("not_xlsx") from None
 
@@ -192,9 +217,14 @@ def _column_index(ref: str) -> int:
     match = _COLUMN.match(ref)
     if not match:
         return -1
+    letters = match.group(1)
+    if len(letters) > 3:
+        raise ExportParseError("too_large")  # beyond Excel's last column XFD
     index = 0
-    for ch in match.group(1):
+    for ch in letters:
         index = index * 26 + (ord(ch) - 64)
+    if index > MAX_COLUMNS:
+        raise ExportParseError("too_large")
     return index - 1
 
 
@@ -219,6 +249,7 @@ def _cell_value(cell: ET.Element, shared: list[str]) -> str:
 
 def _sheet_rows(root: ET.Element, shared: list[str]) -> list[list[str]]:
     rows: list[list[str]] = []
+    total = 0
     for row in root.iter(f"{{{_NS['m']}}}row"):
         if len(rows) >= MAX_ROWS:
             break
@@ -227,6 +258,9 @@ def _sheet_rows(root: ET.Element, shared: list[str]) -> list[list[str]]:
             index = _column_index(cell.get("r", ""))
             cells[index if index >= 0 else position] = _cell_value(cell, shared).strip()
         width = max(cells, default=-1) + 1
+        total += width
+        if total > MAX_CELLS:
+            raise ExportParseError("too_large")  # sparse cells far to the right would expand to huge rows
         rows.append([cells.get(i, "") for i in range(width)])
     return rows
 

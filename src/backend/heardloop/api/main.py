@@ -113,10 +113,12 @@ def create_app() -> FastAPI:
 
     @app.get("/api/v1/meta")
     async def meta() -> dict[str, str | None]:
-        """Public: the web app reads `ui_language` before sign-in to pick language and text direction."""
+        """Public: the web app reads `ui_language` before sign-in to pick language and text direction.
+
+        No version here: anonymous callers do not learn it (signed-in users get it from `/version`).
+        """
         return {
             "name": "Heardloop",
-            "version": app.version,
             "environment": settings.environment if settings.is_development else None,
             "ui_language": settings.ui_language,
         }

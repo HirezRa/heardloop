@@ -6,7 +6,7 @@ from typing import Any
 
 from fastapi import APIRouter, HTTPException, Request, status
 from pydantic import BaseModel
-from sqlalchemy import select
+from sqlalchemy import exists, select
 
 from heardloop.api.deps import CurrentPrincipal, Db
 from heardloop.config import get_settings
@@ -32,9 +32,11 @@ class VersionOut(BaseModel):
 
 
 async def _is_owner(db: Db, user_id: object) -> bool:
-    row = await db.execute(select(Membership.role).where(Membership.user_id == user_id).limit(1))
-    role = row.scalar_one_or_none()
-    return role == WorkspaceRole.OWNER
+    """True when the user is an owner in at least one workspace (members of several workspaces included)."""
+    row = await db.execute(
+        select(exists().where(Membership.user_id == user_id, Membership.role == WorkspaceRole.OWNER))
+    )
+    return bool(row.scalar())
 
 
 def _owner_payload(

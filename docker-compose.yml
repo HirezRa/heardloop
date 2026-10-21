@@ -81,6 +81,9 @@ services:
     # The Postgres entrypoint fixes ownership of the data directory and drops to the postgres user.
     cap_drop: [ALL]
     cap_add: [CHOWN, SETUID, SETGID, FOWNER, DAC_OVERRIDE]
+    security_opt:
+      - no-new-privileges:true
+    pids_limit: 512  # one process per connection plus background workers
     # No host port: use `docker compose exec db psql -U heardloop -d heardloop`.
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U heardloop -d heardloop"]
@@ -166,6 +169,10 @@ services:
     restart: unless-stopped
     ports:
       - "127.0.0.1:8380:8080"
+    read_only: true
+    tmpfs:
+      - /tmp  # pid file and request buffers of nginx-unprivileged
+      - /var/cache/nginx
     security_opt:
       - no-new-privileges:true
     cap_drop: [ALL]
