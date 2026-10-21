@@ -6,7 +6,7 @@
  * - Never automate login. The owner signs in by hand in the headed window.
  * - Never click Create app / Request access / Update / Verify / Generate / Save / Delete / Sign out
  *   (except the Create app *navigation* link that only loads the form).
- * - Shots are written under docs/cursor-prompts/32-assets/linkedin/ (git-excluded).
+ * - Shots are written under docs/cursor-prompts/32-assets/linkedin/ (git-excluded). privacy-allow
  *   Do NOT copy them into docs/assets/install/ until the owner says "add linkedin shots".
  *
  * Usage (from repo root, after npm i playwright in a temp folder or from src/frontend):
@@ -40,7 +40,7 @@ const profileDir = join(
   process.env.LOCALAPPDATA || join(homedir(), '.local', 'share'),
   'heardloop-shots-profile',
 );
-const outDir = join(repoRoot, 'docs', 'cursor-prompts', '32-assets', 'linkedin');
+const outDir = join(repoRoot, 'docs', 'cursor-prompts', '32-assets', 'linkedin'); // privacy-allow
 mkdirSync(outDir, { recursive: true });
 mkdirSync(profileDir, { recursive: true });
 

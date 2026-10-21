@@ -27,7 +27,7 @@ def _md_files() -> list[Path]:
     files = [ROOT / "README.md", ROOT / "SECURITY.md", ROOT / "AGENTS.md", ROOT / "CHANGELOG.md"]
     files.extend(sorted((ROOT / "docs").rglob("*.md")))
     files.extend(sorted((ROOT / "examples").rglob("*.md")))
-    return [p for p in files if p.is_file() and "cursor-prompts" not in p.parts]
+    return [p for p in files if p.is_file() and "cursor-prompts" not in p.parts]  # privacy-allow
 
 
 def _resolve(ref: str, md_file: Path) -> Path | None:
