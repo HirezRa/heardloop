@@ -6,7 +6,8 @@ from datetime import datetime
 from typing import Annotated, Any
 
 from fastapi import APIRouter, Depends, HTTPException, Query, Request, status
-from sqlalchemy import Text, cast, delete, or_, select
+from sqlalchemy import Text, cast, delete, exists, or_, select
+from sqlalchemy.orm import aliased
 
 from heardloop import audit
 from heardloop.api.deps import Db, WorkspaceAccess, client_ip, require_client_header, require_permission
@@ -125,14 +126,14 @@ async def list_audit(
     until: Annotated[datetime | None, Query()] = None,
     q: Annotated[str | None, Query(max_length=100)] = None,
 ) -> AuditPage:
-    """Newest first. Workspace events, plus sign-in events of this workspace's members.
+    """Newest first. Workspace events, plus sign-in events of members whose only workspace this is.
 
     Filters: `category` = action prefix (post, campaign, template, auth, member, workspace,
     linkedin, media, owner), `actor_id`, `since`/`until` (ISO 8601 with offset),
     `q` = text in the action name or the details.
     The log is append-only: there is no delete endpoint on purpose.
     """
-    members = select(Membership.user_id).where(Membership.workspace_id == access.workspace_id)
+    members = _sole_members(access.workspace_id)
     stmt = (
         select(AuditLogEntry, User.display_name)
         .outerjoin(User, User.id == AuditLogEntry.actor_id)
@@ -186,6 +187,20 @@ async def list_audit(
     return AuditPage(items=items, next_before_id=page[-1][0].id if len(rows) > limit else None)
 
 
+def _sole_members(workspace_id: uuid.UUID) -> Any:
+    """Members of this workspace who belong to no other workspace.
+
+    Sign-in events are stored without a workspace. They are shown and purged here only for people whose
+    only workspace this is: otherwise an owner could add someone else's account and read (or erase) that
+    person's sign-in history from their other workspaces.
+    """
+    other = aliased(Membership)
+    return select(Membership.user_id).where(
+        Membership.workspace_id == workspace_id,
+        ~exists().where(other.user_id == Membership.user_id, other.workspace_id != workspace_id),
+    )
+
+
 @router.post("/{workspace_id}/audit/purge")
 async def purge_audit(body: AuditPurgeRequest, access: ReadAudit, request: Request, db: Db) -> AuditPurgeOut:
     """Deletes this workspace's activity-log entries (all, or those before `before`).
@@ -193,8 +208,9 @@ async def purge_audit(body: AuditPurgeRequest, access: ReadAudit, request: Reque
     Owner with two-step verification only, password re-entered. Wrong passwords count toward the same
     lockout as sign-in (423 while locked, even for the right password) and are logged as `audit.purge_denied`.
     The purge itself is written to the log
-    with the number of entries removed, so the history is never silently blank. Members' sign-in events
-    (stored without a workspace) are included, since they are what this log shows.
+    with the number of entries removed, so the history is never silently blank. Sign-in events (stored
+    without a workspace) of members whose only workspace this is are included, since they are what this
+    log shows.
     """
     now = utcnow()
     # Row lock: parallel password guesses are serialized, so the lockout counter cannot be raced.
@@ -226,7 +242,7 @@ async def purge_audit(body: AuditPurgeRequest, access: ReadAudit, request: Reque
         raise HTTPException(status.HTTP_403_FORBIDDEN, "invalid_password")
     user.failed_login_count = 0
     user.locked_until = None
-    members = select(Membership.user_id).where(Membership.workspace_id == access.workspace_id)
+    members = _sole_members(access.workspace_id)
     stmt = delete(AuditLogEntry).where(
         or_(
             AuditLogEntry.workspace_id == access.workspace_id,

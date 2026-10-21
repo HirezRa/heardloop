@@ -56,6 +56,7 @@ def test_meta_hides_environment_in_production(client: TestClient) -> None:
     assert res.status_code == 200
     assert res.json()["name"] == "Heardloop"
     assert res.json()["environment"] is None
+    assert "version" not in res.json()  # anonymous callers do not learn the version
 
 
 def test_security_headers_and_no_docs_in_production(client: TestClient) -> None:

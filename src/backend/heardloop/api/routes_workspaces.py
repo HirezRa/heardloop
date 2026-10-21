@@ -4,7 +4,7 @@ import uuid
 from typing import Annotated
 
 from fastapi import APIRouter, Depends, HTTPException, Request, status
-from sqlalchemy import delete, func, select
+from sqlalchemy import delete, func, select, update
 from sqlalchemy.exc import IntegrityError
 
 from heardloop import audit
@@ -253,6 +253,13 @@ async def anonymise_member(
     await db.execute(delete(UserSession).where(UserSession.user_id == target_id))
     await db.execute(delete(Notification).where(Notification.user_id == target_id))
     await db.execute(delete(RecoveryCode).where(RecoveryCode.user_id == target_id))
+    # Their sign-in and activity rows stay for history, without the IP address.
+    await db.execute(
+        update(AuditLogEntry)
+        .where(AuditLogEntry.actor_id == target_id, AuditLogEntry.ip_address.is_not(None))
+        .values(ip_address=None)
+        .execution_options(synchronize_session=False)
+    )
     target.email = f"deleted+{target.id}@invalid"
     target.display_name = "Former member"
     target.password_hash = None  # nothing verifies against it

@@ -16,6 +16,9 @@ field() { printf '%s\n' "$manifest" | sed -n "s/^  \"$1\": \"\{0,1\}\([^\",]*\).
 status="$(field status)"
 db="$(field db_bytes)"
 media="$(field media_bytes)"
+# The manifest comes from the backup volume: only plain digits may reach shell arithmetic.
+[[ "$db" =~ ^[0-9]{1,15}$ ]] || db=0
+[[ "$media" =~ ^[0-9]{1,15}$ ]] || media=0
 echo
 echo "Set:       $(field set)"
 echo "Status:    $status"
