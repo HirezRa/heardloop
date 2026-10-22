@@ -30,6 +30,7 @@ from heardloop.db import create_engine, create_session_factory
 from heardloop.delivery import refresh_blocked_service_ips
 from heardloop.keycheck import ensure_token_key
 from heardloop.logging_setup import configure_logging
+from heardloop.safehttp import guarded_client
 from heardloop.security.crypto import TokenProtector
 from heardloop.version import app_version
 
@@ -56,11 +57,13 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
     app.state.session_factory = create_session_factory(engine)
     await ensure_token_key(app.state.session_factory, settings.token_key.get_secret_value())
     app.state.token_protector = TokenProtector(settings.token_key.get_secret_value())
-    app.state.http = httpx.AsyncClient(follow_redirects=False)
+    app.state.http = httpx.AsyncClient(follow_redirects=False)  # LinkedIn, GitHub, the owner's AI server
+    app.state.preview_http = guarded_client(allow_private=False)  # user URLs: pinned, vetted IPs only
     await refresh_blocked_service_ips()
     log.info("API started", extra={"environment": settings.environment})
     yield
     await app.state.http.aclose()
+    await app.state.preview_http.aclose()
     await engine.dispose()
 
 

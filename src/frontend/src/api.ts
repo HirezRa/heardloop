@@ -259,6 +259,20 @@ export const purgeAudit = (id: string, password: string, before?: string) =>
 export const changePassword = (current_password: string, new_password: string) =>
   request<void>('POST', '/api/v1/auth/password', { current_password, new_password });
 
+export interface SessionInfo {
+  id: string;
+  created_at: string;
+  last_seen_at: string;
+  expires_at: string;
+  ip_address: string | null;
+  user_agent: string | null;
+  current: boolean;
+}
+/** Your own signed-in devices. */
+export const listSessions = () => request<SessionInfo[]>('GET', '/api/v1/auth/sessions');
+export const revokeSession = (id: string) => request<void>('DELETE', `/api/v1/auth/sessions/${id}`);
+export const revokeOtherSessions = () => request<{ revoked: number }>('POST', '/api/v1/auth/sessions/revoke-others');
+
 // ---- LinkedIn accounts ----
 
 export interface LinkedInAccount {

@@ -18,6 +18,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Security
 
+- Signed-in devices (#55): list your own sessions and sign out one or all others (Settings -> Sign-in & security).
+- Notices to the person when the password changes, two-step verification is turned on or off, recovery codes are regenerated, or devices are signed out (in-app, and e-mail when on).
+- Common or easily guessed passwords are refused (bundled offline list plus padding, repetition and sequence checks).
+- New recovery codes have 80 bits (`xxxx-xxxx-xxxx-xxxx`); existing codes keep working.
+- Password change and the two-step setup/disable/recovery-code endpoints return 423 while the account is locked.
 - Follow-up review against OWASP ASVS 4.0.3 L1-2 (#14).
 - Activity log: sign-in events (and their IP addresses) are shown and purged only for members whose only workspace this is, so adding someone from another workspace no longer exposes or erases their sign-in history.
 - Manual retry of a failed post (`schedule` / `publish-now`) needs an approved version when approval is required.
@@ -29,6 +34,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - `scripts/backup-now.sh` only does arithmetic on numeric manifest values.
 - Containers: `db` gets `no-new-privileges` and a PID limit, `web` a read-only root; nginx sends `Permissions-Policy` and logs paths without query strings.
 - CI: release checkout does not keep credentials; Dependabot also watches `src/backup` and the compose file images.
+- Webhooks and link previews pin the vetted IP address (#55): the name is resolved and checked at connect time and only a checked address is dialled, so DNS rebinding cannot make the server call a private or internal address.
 
 ## [0.9.6] - 2026-10-19
 

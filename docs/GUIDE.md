@@ -188,7 +188,10 @@ is signed; see [WEBHOOKS.md](WEBHOOKS.md) for the payload and how to verify the 
   closes a member's account for good: the name becomes "Former member", sign-in, sessions, notifications and
   stored connections are removed, and the activity log keeps showing what they did under that name.
 - **Sign-in & security**: two-step verification and recovery codes, change your password (the new one must
-  differ from the current one).
+  differ from the current one and must not be a common or easily guessed password), and **Signed-in devices**:
+  where you are signed in, with **Sign out** per device or **Sign out all other devices**. You get a notice
+  (and an e-mail if it is on) when your password, two-step verification or recovery codes change, or when devices
+  are signed out.
 - **Webhook** (owners): outgoing events. Names of people and accounts are sent only when "Include the post text"
   is on. A plain `http://` address on the internet shows a warning (the payload would travel unencrypted);
   `http://` to n8n on your own network is fine.

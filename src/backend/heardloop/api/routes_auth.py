@@ -1,10 +1,11 @@
 """Authentication endpoints (FR-01)."""
 
 import logging
+import uuid
 from datetime import timedelta
 
 from fastapi import APIRouter, Depends, HTTPException, Request, Response, status
-from sqlalchemy import select
+from sqlalchemy import delete, select
 
 from heardloop import audit
 from heardloop.api.deps import (
@@ -22,6 +23,8 @@ from heardloop.api.schemas import (
     MembershipOut,
     MeOut,
     MfaChallenge,
+    SessionOut,
+    SessionsRevokedOut,
     UiPrefs,
     UserOut,
 )
@@ -35,13 +38,14 @@ from heardloop.auth.service import (
     revoke_session,
 )
 from heardloop.config import get_settings
-from heardloop.models import Membership, User, Workspace
+from heardloop.models import Membership, User, UserSession, Workspace
 from heardloop.security.passwords import (
     PasswordPolicyError,
     hash_password_async,
     validate_password,
     verify_password_async,
 )
+from heardloop.security_notice import PASSWORD_CHANGED, SESSIONS_REVOKED, notify_security
 from heardloop.timeutil import utcnow
 
 log = logging.getLogger("heardloop.auth")
@@ -189,6 +193,8 @@ async def change_password(
 ) -> None:
     user = (await db.execute(select(User).where(User.id == principal.user.id).with_for_update())).scalar_one()
     now = utcnow()
+    if user.locked_until is not None and user.locked_until > now:
+        raise HTTPException(status.HTTP_423_LOCKED, "account_locked")  # even the right password waits
     matches, _ = await verify_password_async(user.password_hash, body.current_password)
     if not matches:
         # Same counter as login: a stolen session cannot brute-force the current password.
@@ -202,7 +208,7 @@ async def change_password(
     try:
         validate_password(body.new_password, email=user.email)
     except PasswordPolicyError as exc:
-        raise HTTPException(status.HTTP_422_UNPROCESSABLE_CONTENT, str(exc)) from None
+        raise HTTPException(status.HTTP_422_UNPROCESSABLE_CONTENT, exc.code or str(exc)) from None
     user.password_hash = await hash_password_async(body.new_password)
     user.failed_login_count = 0
     user.password_changed_at = now
@@ -216,4 +222,92 @@ async def change_password(
         now=now,
         ip_address=client_ip(request),
     )
+    await notify_security(db, user.id, PASSWORD_CHANGED, now)
     await db.commit()
+
+
+@router.get("/sessions")
+async def list_sessions(principal: CurrentPrincipal, db: Db) -> list[SessionOut]:
+    """Your own signed-in devices (ASVS V3.3.4). Address and browser are shown to you only."""
+    now = utcnow()
+    idle = timedelta(hours=get_settings().session_idle_hours)
+    rows = (
+        (
+            await db.execute(
+                select(UserSession)
+                .where(
+                    UserSession.user_id == principal.user.id,
+                    UserSession.mfa_pending.is_(False),
+                    UserSession.expires_at > now,
+                    UserSession.last_seen_at > now - idle,
+                )
+                .order_by(UserSession.last_seen_at.desc())
+            )
+        )
+        .scalars()
+        .all()
+    )
+    return [
+        SessionOut(
+            id=s.id,
+            created_at=s.created_at,
+            last_seen_at=s.last_seen_at,
+            expires_at=s.expires_at,
+            ip_address=s.ip_address,
+            user_agent=s.user_agent,
+            current=s.id == principal.session.id,
+        )
+        for s in rows
+    ]
+
+
+@router.delete("/sessions/{session_id}", status_code=status.HTTP_204_NO_CONTENT)
+async def revoke_one_session(
+    session_id: uuid.UUID, principal: CurrentPrincipal, request: Request, db: Db
+) -> None:
+    """Signs out one of your other devices. Your current session uses /logout instead."""
+    if session_id == principal.session.id:
+        raise HTTPException(status.HTTP_409_CONFLICT, "current_session")
+    result = await db.execute(
+        delete(UserSession).where(UserSession.id == session_id, UserSession.user_id == principal.user.id)
+    )
+    if not result.rowcount:  # type: ignore[attr-defined]
+        raise HTTPException(status.HTTP_404_NOT_FOUND, "session_not_found")  # someone else's: same answer
+    now = utcnow()
+    audit.record(
+        db,
+        action="auth.session_revoked",
+        entity="user",
+        entity_id=principal.user.id,
+        actor_id=principal.user.id,
+        now=now,
+        ip_address=client_ip(request),
+    )
+    await notify_security(db, principal.user.id, SESSIONS_REVOKED, now, count=1)
+    await db.commit()
+
+
+@router.post("/sessions/revoke-others")
+async def revoke_others(principal: CurrentPrincipal, request: Request, db: Db) -> SessionsRevokedOut:
+    """Signs out every other device of yours; this one stays signed in."""
+    result = await db.execute(
+        delete(UserSession).where(
+            UserSession.user_id == principal.user.id, UserSession.id != principal.session.id
+        )
+    )
+    revoked = int(result.rowcount or 0)  # type: ignore[attr-defined]
+    now = utcnow()
+    audit.record(
+        db,
+        action="auth.sessions_revoked",
+        entity="user",
+        entity_id=principal.user.id,
+        actor_id=principal.user.id,
+        now=now,
+        ip_address=client_ip(request),
+        changes={"count": revoked},
+    )
+    if revoked:
+        await notify_security(db, principal.user.id, SESSIONS_REVOKED, now, count=revoked)
+    await db.commit()
+    return SessionsRevokedOut(revoked=revoked)

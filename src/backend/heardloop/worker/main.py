@@ -31,6 +31,7 @@ from heardloop.linkedin.publisher import LinkedInPublisher
 from heardloop.logging_setup import configure_logging
 from heardloop.media_gc import sweep_media
 from heardloop.publishing.base import NotConfiguredPublisher, Publisher
+from heardloop.safehttp import guarded_client
 from heardloop.security.crypto import TokenProtector
 from heardloop.timeutil import utcnow
 from heardloop.updates import run_update_check
@@ -61,7 +62,8 @@ async def main() -> None:
     engine = create_engine(settings)
     factory = create_session_factory(engine)
     protector = TokenProtector(settings.token_key.get_secret_value())
-    http = httpx.AsyncClient(follow_redirects=False)
+    http = httpx.AsyncClient(follow_redirects=False)  # LinkedIn and the GitHub update check
+    webhook_http = guarded_client(allow_private=True)  # owner-set URL: pinned, vetted IPs (LAN allowed)
     publisher: Publisher = (
         LinkedInPublisher(LinkedInClient(settings, http))
         if settings.linkedin_configured
@@ -101,7 +103,7 @@ async def main() -> None:
         except Exception:
             log.exception("E-mail delivery failed")
         try:
-            await deliver_webhooks(factory, http, protector, utcnow)
+            await deliver_webhooks(factory, webhook_http, protector, utcnow)
         except Exception:
             log.exception("Webhook delivery failed")
         if utcnow() >= next_update_check:
@@ -143,6 +145,7 @@ async def main() -> None:
             await asyncio.wait_for(stop.wait(), timeout=settings.worker_poll_seconds)
 
     await http.aclose()
+    await webhook_http.aclose()
     await engine.dispose()
     log.info("Worker stopped")
 

@@ -103,6 +103,20 @@ class UiPrefs(Strict):
         return v
 
 
+class SessionOut(BaseModel):
+    id: uuid.UUID
+    created_at: datetime
+    last_seen_at: datetime
+    expires_at: datetime
+    ip_address: str | None
+    user_agent: str | None
+    current: bool
+
+
+class SessionsRevokedOut(BaseModel):
+    revoked: int
+
+
 class MeOut(BaseModel):
     user: UserOut
     memberships: list[MembershipOut]
@@ -120,7 +134,7 @@ class MfaChallenge(BaseModel):
 
 
 class MfaCodeRequest(Strict):
-    code: str = Field(min_length=6, max_length=16)  # 6-digit TOTP or a recovery code
+    code: str = Field(min_length=6, max_length=32)  # 6-digit TOTP or a recovery code (xxxx-xxxx-xxxx-xxxx)
 
 
 class MfaSetupOut(BaseModel):
@@ -138,7 +152,7 @@ class MfaPasswordRequest(Strict):
 
 class MfaDisableRequest(Strict):
     password: str = Field(min_length=1, max_length=MAX_LENGTH)
-    code: str = Field(min_length=6, max_length=16)
+    code: str = Field(min_length=6, max_length=32)
 
 
 class MemberOut(BaseModel):

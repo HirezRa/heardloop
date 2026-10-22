@@ -57,3 +57,30 @@ def test_role_permissions(role: WorkspaceRole, permission: Permission, allowed: 
 
 def test_every_role_can_read() -> None:
     assert all(has_permission(r, Permission.WORKSPACE_READ) for r in WorkspaceRole)
+
+
+@pytest.mark.parametrize(
+    "password",
+    [
+        "password12345",
+        "Summer2026!!!",
+        "P@ssw0rd2026!",
+        "123456789012",
+        "qwertyuiop12",
+        "aaaaaaaaaaaa",
+        "abababababab",
+        "iloveyou1234",
+        "user2026!!!!",  # the e-mail name padded with digits/symbols
+    ],
+)
+def test_policy_rejects_common_or_guessable(password: str) -> None:
+    with pytest.raises(PasswordPolicyError) as err:
+        validate_password(password, email="user@example.com")
+    assert "too common" in str(err.value) and err.value.code == "password_too_common"
+
+
+@pytest.mark.parametrize(
+    "password", ["correct horse battery", "Tr0ub4dor&3xyz", "user2026!!!!xyzzy", "another long passphrase"]
+)
+def test_policy_accepts_unrelated_words(password: str) -> None:
+    validate_password(password, email="user@example.com")
