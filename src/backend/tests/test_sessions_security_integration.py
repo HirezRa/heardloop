@@ -7,6 +7,7 @@ import os
 import uuid
 from datetime import timedelta
 
+import httpx
 import pytest
 from fastapi.testclient import TestClient
 from sqlalchemy import select, update
@@ -29,9 +30,28 @@ URL = os.environ.get("TEST_DATABASE_URL")
 pytestmark = pytest.mark.skipif(not URL, reason="TEST_DATABASE_URL not set")
 
 
-def _device(client: TestClient) -> TestClient:
-    """Another browser on the same running app (own cookie jar)."""
-    return TestClient(client.app, base_url="https://testserver")
+class _SharedTransport(httpx.BaseTransport):
+    """Uses the running app's transport without closing it."""
+
+    def __init__(self, inner: httpx.BaseTransport) -> None:
+        self._inner = inner
+
+    def handle_request(self, request: httpx.Request) -> httpx.Response:
+        return self._inner.handle_request(request)
+
+    def close(self) -> None:
+        return None
+
+
+def _device(client: TestClient) -> httpx.Client:
+    """Another browser: own cookie jar, same event loop as the running app."""
+    return httpx.Client(
+        transport=_SharedTransport(client._transport),
+        base_url=client.base_url,
+        follow_redirects=True,
+        trust_env=False,
+        headers={"user-agent": "testclient"},
+    )
 
 
 def _h(csrf: str) -> dict[str, str]:
