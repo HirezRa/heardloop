@@ -248,7 +248,9 @@ The [user guide](GUIDE.md) covers approvals, campaigns, the calendar, templates,
   ```
 
   The script makes a backup first, downloads the new release, rebuilds and restarts, and checks that Heardloop
-  comes back healthy. It never touches `.env`.
+  comes back healthy. It never touches `.env`. Add `-VerifyTag` (or set `HEARDLOOP_VERIFY_TAG=1`; `--verify-tag`
+  for `update.sh`) to refuse a release tag that has no valid signature from a key your git trusts; nothing is
+  changed when the check fails.
 
 ## 12. Troubleshooting
 

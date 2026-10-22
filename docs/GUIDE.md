@@ -193,7 +193,8 @@ is signed; see [WEBHOOKS.md](WEBHOOKS.md) for the payload and how to verify the 
   (and an e-mail if it is on) when your password, two-step verification or recovery codes change, or when devices
   are signed out.
 - **Webhook** (owners): outgoing events. Names of people and accounts are sent only when "Include the post text"
-  is on.
+  is on. A plain `http://` address on the internet shows a warning (the payload would travel unencrypted);
+  `http://` to n8n on your own network is fine.
 - **Activity log** (owners): who did what and when, with filters by type, person, date and free text. Owners
   can clear the log (all, or entries older than a date) after re-entering their password. Wrong passwords there
   count toward the same sign-in lockout (5 failures lock the account for 15 minutes) and are logged; the

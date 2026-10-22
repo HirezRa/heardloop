@@ -11,6 +11,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Optional AI writing assistant in the post editor (#11): improve, shorten, stronger opening, fix spelling, suggest hashtags, translate to English/Hebrew, optional tone. Works with any OpenAI-compatible server (self-hosted Ollama, LM Studio, vLLM recommended); off unless `AI_BASE_URL` and `AI_MODEL` are set. Suggestions only: nothing changes until you replace or insert, nothing is stored.
 - Best-time suggestions next to the scheduling field, from your own metrics (weekday + hour with the best engagement rate); `GET .../reports/best-times`.
+- `AUDIT_IP_RETENTION_DAYS` (#55): optional age-based clearing of IP addresses in the activity log.
+- Update scripts: optional signed-tag check (`-VerifyTag` / `--verify-tag` / `HEARDLOOP_VERIFY_TAG=1`) (#55).
+- Webhook settings warn about plain `http://` to a public address (#55).
+- Base images pinned by digest (Dependabot keeps them current) (#55).
 
 ### Security
 

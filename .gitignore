@@ -11,7 +11,8 @@ docker-compose.override.yml
 
 # ---- Local-only reports and working notes ----
 docs/reports/
-docs/cursor-prompts/  # privacy-allow: local prompt folder name, git-excluded on purpose
+# Local prompt files (any docs/<name>-prompts/ folder); never committed or sent to Docker.
+docs/*-prompts/
 .demo-backups/
 
 # ---- Python ----

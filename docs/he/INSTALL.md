@@ -245,6 +245,8 @@ docker compose exec api python -m heardloop.devtools.create_owner --email <המ�
   ```
 
   הסקריפט מגבה קודם, מוריד את הגרסה החדשה, בונה ומפעיל מחדש, ובודק ש-Heardloop חזר תקין. הוא לא נוגע ב-`.env`.
+  עם `-VerifyTag` (או `HEARDLOOP_VERIFY_TAG=1`; ב-`update.sh` זה `--verify-tag`) הסקריפט מסרב לתג גרסה בלי חתימה
+  תקפה ממפתח ש-git שלכם סומך עליו. אם הבדיקה נכשלת, שום דבר לא משתנה.
 
 ## 12. פתרון תקלות
 

@@ -13,6 +13,31 @@ import {
 import { t } from './i18n';
 import { formatDateTime } from './dates';
 
+/**
+ * Plain http:// to a public address sends the signed payload (and, when turned on, post text and names)
+ * unencrypted across the internet. Private addresses and single-label or .local/.lan/.internal names
+ * (n8n next to Heardloop) are fine; the server still applies its own address rules.
+ */
+export function plainHttpToPublicHost(raw: string): boolean {
+  let u: URL;
+  try {
+    u = new URL(raw.trim());
+  } catch {
+    return false;
+  }
+  if (u.protocol !== 'http:') return false;
+  const host = u.hostname.replace(/^\[|\]$/g, '').toLowerCase();
+  if (host.includes(':')) return !/^(fc|fd|fe80|::1$)/.test(host); // IPv6 unique-local / link-local / loopback
+  if (!host.includes('.') || /\.(local|lan|internal|home\.arpa)$/.test(host)) return false;
+  const v4 = host.match(/^(\d+)\.(\d+)\.(\d+)\.(\d+)$/);
+  if (v4) {
+    const [a, b] = [Number(v4[1]), Number(v4[2])];
+    const priv = a === 10 || (a === 172 && b >= 16 && b <= 31) || (a === 192 && b === 168) || a === 127;
+    return !priv;
+  }
+  return true;
+}
+
 function errorText(err: unknown): string {
   if (err instanceof ApiError) {
     const known = (t.errors as Record<string, string>)[err.detail];
@@ -71,6 +96,11 @@ export default function WebhookSettings({ workspaceId }: { workspaceId: string }
           {t.webhook.url}
           <input dir="ltr" value={url} placeholder="https://" maxLength={2048} onChange={(e) => setUrl(e.target.value)} />
         </label>
+        {plainHttpToPublicHost(url) && (
+          <p className="warn-text small" role="status">
+            {t.webhook.plainHttpWarning}
+          </p>
+        )}
         <label className="check">
           <input type="checkbox" checked={includeText} onChange={(e) => setIncludeText(e.target.checked)} />
           {t.webhook.includeText}
