@@ -40,6 +40,16 @@ function describe(n: AppNotification): string {
       return t.notifications.kinds.backupFailed(d.error ?? '');
     case 'app.update_available':
       return t.notifications.kinds.updateAvailable(d.latest ?? '');
+    case 'security.password_changed':
+      return t.notifications.kinds.securityPasswordChanged;
+    case 'security.mfa_enabled':
+      return t.notifications.kinds.securityMfaEnabled;
+    case 'security.mfa_disabled':
+      return t.notifications.kinds.securityMfaDisabled;
+    case 'security.recovery_codes_regenerated':
+      return t.notifications.kinds.securityCodesRegenerated;
+    case 'security.sessions_revoked':
+      return t.notifications.kinds.securitySessionsRevoked(Number(d.count ?? 1));
     default:
       return n.kind;
   }
@@ -85,6 +95,9 @@ export default function Notifications({
     else if (n.kind === 'digest.weekly') onOpenSection('reports');
     else if (n.kind === 'backup.stale' || n.kind === 'backup.failed') {
       window.history.replaceState(null, '', '?section=settings&tab=workspace');
+      onOpenSection('settings');
+    } else if (n.kind.startsWith('security.')) {
+      window.history.replaceState(null, '', '?section=settings&tab=security');
       onOpenSection('settings');
     } else if (n.kind === 'app.update_available') {
       window.history.replaceState(null, '', '?section=settings&tab=about');

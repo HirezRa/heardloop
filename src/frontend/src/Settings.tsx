@@ -14,7 +14,10 @@ import {
   listAudit,
   purgeAudit,
   listMembers,
+  listSessions,
   removeMember,
+  revokeOtherSessions,
+  revokeSession,
   updateMember,
   updateSettings,
   type AuditEntry,
@@ -23,6 +26,7 @@ import {
   type Me,
   type Member,
   type Role,
+  type SessionInfo,
   type AppVersion,
   type WorkspaceSettings,
 } from './api';
@@ -93,6 +97,7 @@ export default function Settings({
           <>
             <MfaSection enabled={me.mfa_enabled} onChanged={() => fetchMe().then((m) => m && onMeChange(m))} />
             <PasswordSection />
+            <SessionsSection />
           </>
         )}
         {tab === 'webhook' && isOwner && <WebhookSettings workspaceId={wsId} />}
@@ -299,7 +304,7 @@ function AnonymiseDialog({
             autoComplete="one-time-code"
             required
             minLength={6}
-            maxLength={16}
+            maxLength={32}
             value={code}
             onChange={(e) => setCode(e.target.value)}
           />
@@ -452,6 +457,107 @@ function MembersSection({ workspaceId, isOwner, myId }: { workspaceId: string; i
             return null;
           }}
         />
+      )}
+      <Status {...msg} />
+    </section>
+  );
+}
+
+/** "Firefox on Windows" from a user agent; good enough to recognise your own devices. */
+function deviceLabel(ua: string | null): string {
+  if (!ua) return t.settings.sessionUnknownDevice;
+  const browser =
+    /Edg\//.test(ua) ? 'Edge' : /OPR\//.test(ua) ? 'Opera' : /Firefox\//.test(ua) ? 'Firefox' : /Chrome\//.test(ua) ? 'Chrome' : /Safari\//.test(ua) ? 'Safari' : '';
+  const os = /Windows/.test(ua)
+    ? 'Windows'
+    : /Android/.test(ua)
+      ? 'Android'
+      : /iPhone|iPad/.test(ua)
+        ? 'iOS'
+        : /Mac OS X/.test(ua)
+          ? 'macOS'
+          : /Linux/.test(ua)
+            ? 'Linux'
+            : '';
+  if (!browser && !os) return ua.slice(0, 60);
+  return [browser, os].filter(Boolean).join(' · ');
+}
+
+function SessionsSection() {
+  const [items, setItems] = useState<SessionInfo[] | null>(null);
+  const [msg, setMsg] = useState<{ ok?: string; error?: string }>({});
+  const [busy, setBusy] = useState(false);
+
+  const load = useCallback(() => {
+    listSessions()
+      .then(setItems)
+      .catch((e) => setMsg({ error: errorText(e) }));
+  }, []);
+  useEffect(load, [load]);
+
+  async function signOut(id: string) {
+    setBusy(true);
+    try {
+      await revokeSession(id);
+      setMsg({ ok: t.settings.sessionsSignedOut(1) });
+    } catch (e) {
+      setMsg({ error: errorText(e) });
+    } finally {
+      setBusy(false);
+      load();
+    }
+  }
+
+  async function signOutOthers() {
+    setBusy(true);
+    try {
+      const { revoked } = await revokeOtherSessions();
+      setMsg({ ok: revoked ? t.settings.sessionsSignedOut(revoked) : t.settings.sessionsNone });
+    } catch (e) {
+      setMsg({ error: errorText(e) });
+    } finally {
+      setBusy(false);
+      load();
+    }
+  }
+
+  const others = (items ?? []).filter((s) => !s.current).length;
+  return (
+    <section className="card">
+      <h2>{t.settings.sessionsTitle}</h2>
+      <p className="muted small">{t.settings.sessionsHint}</p>
+      {items && (
+        <ul className="sessions">
+          {items.map((s) => (
+            <li key={s.id}>
+              <div>
+                <strong>{deviceLabel(s.user_agent)}</strong>
+                {s.current && <span className="badge">{t.settings.sessionThis}</span>}
+                <div className="muted small">
+                  {t.settings.sessionLastSeen}: {formatDateTime(new Date(s.last_seen_at))} · {t.settings.sessionStarted}:{' '}
+                  {formatDateTime(new Date(s.created_at))}
+                  {s.ip_address && (
+                    <>
+                      {' · '}
+                      <bdi dir="ltr">{s.ip_address}</bdi>
+                    </>
+                  )}
+                </div>
+              </div>
+              {!s.current && (
+                <button type="button" disabled={busy} onClick={() => void signOut(s.id)}>
+                  {t.settings.sessionSignOut}
+                </button>
+              )}
+            </li>
+          ))}
+        </ul>
+      )}
+      {items && others === 0 && <p className="muted small">{t.settings.sessionsNone}</p>}
+      {others > 0 && (
+        <button type="button" className="danger-btn" disabled={busy} onClick={() => void signOutOthers()}>
+          {t.settings.sessionsSignOutOthers}
+        </button>
       )}
       <Status {...msg} />
     </section>
@@ -824,7 +930,7 @@ function MfaSection({ enabled, onChanged }: { enabled: boolean; onChanged: () =>
           <form className="form" onSubmit={disable}>
             <h3>{t.mfa.disable}</h3>
             <input type="password" dir="ltr" autoComplete="current-password" required placeholder={t.settings.currentPassword} value={password} onChange={(e) => setPassword(e.target.value)} />
-            <input dir="ltr" maxLength={16} required placeholder={t.mfa.codeOrRecovery} value={code} onChange={(e) => setCode(e.target.value)} />
+            <input dir="ltr" maxLength={32} required placeholder={t.mfa.codeOrRecovery} value={code} onChange={(e) => setCode(e.target.value)} />
             <button type="submit" className="link danger">{t.mfa.disable}</button>
           </form>
         </div>

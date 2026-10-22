@@ -560,3 +560,8 @@ textarea.has-placeholders { outline: 1px solid #ca8a04; }
 .ai-result { border: 1px solid var(--border); border-radius: 8px; padding: 8px; margin-top: 6px; display: flex; flex-direction: column; gap: 8px; }
 .ai-text { white-space: pre-wrap; overflow-wrap: anywhere; }
 .best-times { display: inline-flex; flex-wrap: wrap; gap: 6px; align-items: center; }
+
+/* Signed-in devices (Settings -> Sign-in & security) */
+.sessions { list-style: none; padding: 0; margin: 8px 0; display: flex; flex-direction: column; gap: 8px; }
+.sessions li { display: flex; justify-content: space-between; align-items: center; gap: 12px; border: 1px solid var(--border); border-radius: 8px; padding: 8px 10px; }
+.sessions li .badge { margin-inline-start: 8px; }

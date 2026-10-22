@@ -80,7 +80,7 @@ export default function Login({ onLoggedIn }: { onLoggedIn: (me: Me) => void }) 
               dir="ltr"
               autoFocus
               required
-              maxLength={16}
+              maxLength={32}
               value={code}
               onChange={(e) => setCode(e.target.value)}
             />
