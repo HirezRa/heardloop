@@ -2,7 +2,9 @@
 
 LinkedIn does not grant this app read access to member post analytics, so numbers are entered by hand from
 the LinkedIn post page, or read from the .xlsx export LinkedIn offers on each post (`/metrics/import`).
-Each entry is a dated measurement; the latest one per post feeds the reports.
+Each entry is a dated measurement. Reports compare posts at the same age (the measurement closest to
+`window_days` after publishing, default 7; 0 = the latest one) and read each publish time in the post's
+audience time zone (FR-28), so a post for one market is not averaged with a post for a market hours away.
 If LinkedIn access is ever granted, a fetcher only has to insert rows with `source=api`.
 """
 
@@ -38,6 +40,7 @@ from heardloop.api.schemas import (
     ReportPost,
     TopFieldsOut,
 )
+from heardloop.audiences import AudienceMap, weekend_for_zone
 from heardloop.auth.permissions import Permission
 from heardloop.domain.workflow import PostStatus
 from heardloop.formdata import parse_multipart
@@ -472,6 +475,9 @@ async def import_metrics(access: WriteAccess, request: Request, db: Db) -> Impor
 
 # ---- reports ----
 
+WINDOW_DEFAULT_DAYS = 7  # compare posts by the measurement taken about a week after publishing
+MAX_WINDOW_DAYS = 90
+
 
 def _snippet(body: str | None) -> str:
     line = " ".join((body or "").split())
@@ -486,6 +492,27 @@ def _engagement(m: PostMetric | None) -> int:
 
 def _rate(engagement: int, impressions: int | None) -> float | None:
     return round(engagement / impressions, 4) if impressions else None
+
+
+def _tolerance(window_days: int) -> int:
+    """How far a measurement may sit from the window before it is flagged: half the window, at least a day."""
+    return max(1, window_days // 2)
+
+
+def _pick_measurement(
+    metrics: list[PostMetric], published_at: datetime, window_days: int
+) -> PostMetric | None:
+    """The measurement that stands for the post in reports.
+
+    `window_days` 0: the latest one (whatever its age). Otherwise the one captured closest to
+    `published_at + window_days`, so every post is compared at about the same age; ties go to the later one.
+    """
+    if not metrics:
+        return None
+    if window_days <= 0:
+        return max(metrics, key=lambda m: (m.captured_at, m.id.int))
+    target = published_at + timedelta(days=window_days)
+    return min(metrics, key=lambda m: (abs(m.captured_at - target), -m.captured_at.timestamp(), -m.id.int))
 
 
 def _bucket(key: str, posts: Iterable[ReportPost], label: str | None = None) -> ReportBucket:
@@ -511,35 +538,41 @@ def _bucket(key: str, posts: Iterable[ReportPost], label: str | None = None) -> 
     )
 
 
-async def _report_posts(db: Db, workspace_id: uuid.UUID, lo: datetime, hi: datetime) -> list[ReportPost]:
-    """Published posts in [lo, hi) with their latest measurement."""
-    latest = (
-        select(PostMetric.post_id, func.max(PostMetric.captured_at).label("captured_at"))
-        .group_by(PostMetric.post_id)
-        .subquery()
-    )
+async def _report_posts(
+    db: Db,
+    workspace_id: uuid.UUID,
+    lo: datetime,
+    hi: datetime,
+    audiences: AudienceMap,
+    window_days: int,
+) -> list[ReportPost]:
+    """Published posts in [lo, hi), each with the measurement `window_days` picks, in its audience's zone."""
     rows = (
         await db.execute(
             select(
-                Post, PostVersion.body, PostVersion.media_ids, PostVersion.link_url, Campaign.name, PostMetric
+                Post,
+                PostVersion.body,
+                PostVersion.media_ids,
+                PostVersion.link_url,
+                Campaign.name,
+                Campaign.audience_id,
             )
             .join(PostVersion, PostVersion.id == Post.current_version_id, isouter=True)
             .join(Campaign, Campaign.id == Post.campaign_id, isouter=True)
-            .join(latest, latest.c.post_id == Post.id, isouter=True)
-            .join(
-                PostMetric,
-                (PostMetric.post_id == Post.id) & (PostMetric.captured_at == latest.c.captured_at),
-                isouter=True,
-            )
             .where(
                 Post.workspace_id == workspace_id,
                 Post.status == PostStatus.PUBLISHED,
                 Post.published_at >= lo,
                 Post.published_at < hi,
             )
-            .order_by(Post.published_at, PostMetric.id.desc())
+            .order_by(Post.published_at, Post.id)
         )
     ).all()
+    post_ids = [post.id for post, *_ in rows]
+    metrics: dict[uuid.UUID, list[PostMetric]] = defaultdict(list)
+    if post_ids:
+        for m in (await db.execute(select(PostMetric).where(PostMetric.post_id.in_(post_ids)))).scalars():
+            metrics[m.post_id].append(m)
     media_ids = {mid for _, _, mids, _, _, _ in rows for mid in (mids or [])}
     mimes: dict[uuid.UUID, str] = {}
     if media_ids:
@@ -550,18 +583,21 @@ async def _report_posts(db: Db, workspace_id: uuid.UUID, lo: datetime, hi: datet
                 )
             ).all()
         )
+    tolerance = _tolerance(window_days)
     out: list[ReportPost] = []
-    seen: set[uuid.UUID] = set()
-    for post, body, mids, link_url, campaign_name, metric in rows:
-        if post.published_at is None or post.id in seen:
-            continue  # two measurements with the same timestamp would otherwise repeat the post
-        seen.add(post.id)
+    for post, body, mids, link_url, campaign_name, campaign_audience_id in rows:
+        if post.published_at is None:
+            continue
         kind = "none"
         if mids:
             kind = "video" if mimes.get(mids[0], "").startswith("video/") else "image"
         elif link_url:
             kind = "link"
+        metric = _pick_measurement(metrics.get(post.id, []), post.published_at, window_days)
         engagement = _engagement(metric)
+        resolved = audiences.resolve(post.audience_id, campaign_audience_id)
+        local = post.published_at.astimezone(resolved.tz)
+        age = (metric.captured_at - post.published_at) / timedelta(days=1) if metric else None
         out.append(
             ReportPost(
                 post_id=post.id,
@@ -569,6 +605,12 @@ async def _report_posts(db: Db, workspace_id: uuid.UUID, lo: datetime, hi: datet
                 snippet=_snippet(body),
                 campaign_id=post.campaign_id,
                 campaign_name=campaign_name,
+                audience_id=resolved.audience.id if resolved.audience else None,
+                audience_code=resolved.audience.code if resolved.audience else None,
+                time_zone=resolved.tz.key,
+                local_weekday=local.weekday(),
+                local_hour=local.hour,
+                weekend=local.weekday() in resolved.weekend_days,
                 media_kind=kind,
                 impressions=metric.impressions if metric else None,
                 reactions=metric.reactions if metric else None,
@@ -581,6 +623,8 @@ async def _report_posts(db: Db, workspace_id: uuid.UUID, lo: datetime, hi: datet
                 engagement=engagement,
                 engagement_rate=_rate(engagement, metric.impressions) if metric else None,
                 measured_at=metric.captured_at if metric else None,
+                measured_age_days=round(age, 1) if age is not None else None,
+                off_window=age is not None and window_days > 0 and abs(age - window_days) > tolerance,
             )
         )
     return out
@@ -597,6 +641,22 @@ def _range(start: date | None, end: date | None, tz: ZoneInfo) -> tuple[date, da
     return start, end, lo, hi
 
 
+async def _workspace_zone(db: Db, workspace_id: uuid.UUID) -> ZoneInfo:
+    ws = await db.get(Workspace, workspace_id)
+    return ZoneInfo(ws.time_zone if ws else "UTC")
+
+
+def _weekend_shown(audiences: AudienceMap, audience_id: uuid.UUID | None) -> list[int]:
+    """The weekend marked in the weekday chart: the filtered audience's, else the default's, else by zone."""
+    chosen = audiences.by_id.get(audience_id) if audience_id else audiences.default
+    if chosen is not None:
+        return list(chosen.weekend_days)
+    return weekend_for_zone(audiences.workspace_tz.key)
+
+
+WindowDays = Annotated[int, Query(ge=0, le=MAX_WINDOW_DAYS)]
+
+
 @router.get("/reports")
 async def report(
     access: ReadAccess,
@@ -604,39 +664,67 @@ async def report(
     start: Annotated[date | None, Query()] = None,
     end: Annotated[date | None, Query()] = None,
     campaign_id: Annotated[uuid.UUID | None, Query()] = None,
+    audience_id: Annotated[uuid.UUID | None, Query()] = None,
+    window_days: WindowDays = WINDOW_DEFAULT_DAYS,
 ) -> ReportOut:
-    """Published posts in the range (default: last 90 days), latest metrics, grouped in several ways."""
-    ws = await db.get(Workspace, access.workspace_id)
-    tz = ZoneInfo(ws.time_zone if ws else "UTC")
+    """Published posts in the range (default: last 90 days), grouped in several ways.
+
+    Each post is measured at about `window_days` after publishing (0 = its latest measurement) and its
+    publish time is read in its audience's time zone, so weekday and hour buckets compare like with like.
+    """
+    tz = await _workspace_zone(db, access.workspace_id)
+    audiences = await AudienceMap.load(db, access.workspace_id, tz)
+    if audience_id is not None and audience_id not in audiences.by_id:
+        raise HTTPException(status.HTTP_404_NOT_FOUND, "audience_not_found")
     start, end, lo, hi = _range(start, end, tz)
-    posts = await _report_posts(db, access.workspace_id, lo, hi)
+    posts = await _report_posts(db, access.workspace_id, lo, hi, audiences, window_days)
     if campaign_id is not None:
         posts = [p for p in posts if p.campaign_id == campaign_id]
+    if audience_id is not None:
+        posts = [p for p in posts if p.audience_id == audience_id]
 
     by_week: dict[str, list[ReportPost]] = defaultdict(list)
     by_campaign: dict[str, list[ReportPost]] = defaultdict(list)
     campaign_labels: dict[str, str | None] = {}
+    by_audience: dict[str, list[ReportPost]] = defaultdict(list)
+    audience_labels: dict[str, str | None] = {}
     by_weekday: dict[str, list[ReportPost]] = defaultdict(list)
     by_hour: dict[str, list[ReportPost]] = defaultdict(list)
     by_media: dict[str, list[ReportPost]] = defaultdict(list)
     for p in posts:
-        local = p.published_at.astimezone(tz)
-        iso_year, iso_week, _ = local.isocalendar()
+        iso_year, iso_week, _ = p.published_at.astimezone(tz).isocalendar()
         by_week[f"{iso_year}-W{iso_week:02d}"].append(p)
         ckey = str(p.campaign_id) if p.campaign_id else "none"
         by_campaign[ckey].append(p)
         campaign_labels[ckey] = p.campaign_name
-        by_weekday[str(local.weekday())].append(p)
-        by_hour[str(local.hour)].append(p)
+        akey = str(p.audience_id) if p.audience_id else "none"
+        by_audience[akey].append(p)
+        audience_labels[akey] = p.audience_code
+        by_weekday[str(p.local_weekday)].append(p)
+        by_hour[str(p.local_hour)].append(p)
         by_media[p.media_kind].append(p)
 
+    weekend_days = _weekend_shown(audiences, audience_id)
     measured = [p for p in posts if p.measured_at is not None]
     top = sorted(measured, key=lambda p: (p.engagement, p.impressions or 0), reverse=True)[:10]
     unmeasured = [p for p in posts if p.measured_at is None][-20:]
+    weekday_buckets = []
+    for d in range(7):
+        bucket = _bucket(str(d), by_weekday.get(str(d), []))
+        bucket.weekend = d in weekend_days
+        weekday_buckets.append(bucket)
+    audience_order = list(audiences.by_id)  # settings order; posts without an audience last
+    audience_rank = {str(aid): i for i, aid in enumerate(audience_order)}
     return ReportOut(
         start=start,
         end=end,
         time_zone=tz.key,
+        audience_id=audience_id,
+        time_zones=sorted({p.time_zone for p in posts}),
+        weekend_days=weekend_days,
+        window_days=window_days,
+        window_tolerance_days=_tolerance(window_days),
+        off_window=sum(1 for p in measured if p.off_window),
         totals=_bucket("total", posts),
         trend=[_bucket(k, by_week[k]) for k in sorted(by_week)],
         by_campaign=sorted(
@@ -644,7 +732,11 @@ async def report(
             key=lambda b: (b.engagement, b.impressions),
             reverse=True,
         ),
-        by_weekday=[_bucket(str(d), by_weekday.get(str(d), [])) for d in range(7)],
+        by_audience=[
+            _bucket(k, by_audience[k], audience_labels.get(k))
+            for k in sorted(by_audience, key=lambda k: audience_rank.get(k, len(audience_rank)))
+        ],
+        by_weekday=weekday_buckets,
         by_hour=[_bucket(str(h), by_hour.get(str(h), [])) for h in range(24)],
         by_media=[_bucket(k, by_media[k]) for k in ("none", "image", "video", "link") if k in by_media],
         top_posts=top,
@@ -662,27 +754,37 @@ async def best_times(
     access: ReadAccess,
     db: Db,
     days: Annotated[int, Query(ge=30, le=MAX_REPORT_DAYS)] = 180,
+    audience_id: Annotated[uuid.UUID | None, Query()] = None,
+    window_days: WindowDays = WINDOW_DEFAULT_DAYS,
 ) -> BestTimesOut:
-    """Weekday + hour slots (workspace time zone) with the best engagement rate, from your own metrics.
+    """Weekday + hour slots with the best engagement rate, from your own metrics, for one audience.
 
-    No AI and no outside data: the latest measurement of each published post with impressions in the
-    last `days` days. A slot needs BEST_TIME_MIN_POSTS posts; nothing is suggested below
+    No AI and no outside data: published posts of the audience (posts without one when `audience_id` is
+    omitted) with impressions in the last `days` days, measured at `window_days` after publishing, in the
+    audience's time zone. A slot needs BEST_TIME_MIN_POSTS posts; nothing is suggested below
     BEST_TIME_MIN_MEASURED measured posts.
     """
-    ws = await db.get(Workspace, access.workspace_id)
-    tz = ZoneInfo(ws.time_zone if ws else "UTC")
+    tz = await _workspace_zone(db, access.workspace_id)
+    audiences = await AudienceMap.load(db, access.workspace_id, tz)
+    if audience_id is not None:
+        audience = audiences.by_id.get(audience_id)
+        if audience is None:
+            raise HTTPException(status.HTTP_404_NOT_FOUND, "audience_not_found")
+        tz = audiences.zone(audience)
     hi = datetime.now(tz) + timedelta(days=1)
     lo = hi - timedelta(days=days + 1)
     posts = [
         p
-        for p in await _report_posts(db, access.workspace_id, lo, hi)
-        if p.measured_at is not None and p.impressions and p.engagement_rate is not None
+        for p in await _report_posts(db, access.workspace_id, lo, hi, audiences, window_days)
+        if p.audience_id == audience_id
+        and p.measured_at is not None
+        and p.impressions
+        and p.engagement_rate is not None
     ]
     slots: dict[tuple[int, int], list[float]] = defaultdict(list)
     for p in posts:
-        local = p.published_at.astimezone(tz)
         assert p.engagement_rate is not None
-        slots[(local.weekday(), local.hour)].append(p.engagement_rate)
+        slots[(p.local_weekday, p.local_hour)].append(p.engagement_rate)
     ranked: list[BestTimeSlot] = []
     if len(posts) >= BEST_TIME_MIN_MEASURED:
         ranked = sorted(
@@ -701,7 +803,9 @@ async def best_times(
         )[:BEST_TIME_SLOTS]
     return BestTimesOut(
         time_zone=tz.key,
+        audience_id=audience_id,
         days=days,
+        window_days=window_days,
         measured=len(posts),
         min_posts=BEST_TIME_MIN_POSTS,
         slots=ranked,
@@ -714,17 +818,29 @@ async def export_csv(
     db: Db,
     start: Annotated[date | None, Query()] = None,
     end: Annotated[date | None, Query()] = None,
+    audience_id: Annotated[uuid.UUID | None, Query()] = None,
+    window_days: WindowDays = WINDOW_DEFAULT_DAYS,
 ) -> StreamingResponse:
-    """One row per published post with its latest measurement. Values are plain; formulas cannot sneak in."""
-    ws = await db.get(Workspace, access.workspace_id)
-    tz = ZoneInfo(ws.time_zone if ws else "UTC")
+    """One row per published post with the measurement chosen by `window_days`. Values are plain; formulas
+    cannot sneak in. `published_at` is in the workspace zone, `published_local` in the post's audience
+    zone."""
+    tz = await _workspace_zone(db, access.workspace_id)
+    audiences = await AudienceMap.load(db, access.workspace_id, tz)
+    if audience_id is not None and audience_id not in audiences.by_id:
+        raise HTTPException(status.HTTP_404_NOT_FOUND, "audience_not_found")
     start, end, lo, hi = _range(start, end, tz)
-    posts = await _report_posts(db, access.workspace_id, lo, hi)
+    posts = await _report_posts(db, access.workspace_id, lo, hi, audiences, window_days)
+    if audience_id is not None:
+        posts = [p for p in posts if p.audience_id == audience_id]
     buf = io.StringIO()
     writer = csv.writer(buf)
     writer.writerow(
         [
             "published_at",
+            "audience",
+            "time_zone",
+            "published_local",
+            "weekend",
             "campaign",
             "media",
             "impressions",
@@ -738,6 +854,7 @@ async def export_csv(
             "engagement",
             "engagement_rate",
             "measured_at",
+            "measured_age_days",
             "text",
             "post_id",
         ]
@@ -746,6 +863,10 @@ async def export_csv(
         writer.writerow(
             [
                 p.published_at.astimezone(tz).strftime("%Y-%m-%d %H:%M"),
+                _csv_safe(p.audience_code or ""),
+                p.time_zone,
+                p.published_at.astimezone(ZoneInfo(p.time_zone)).strftime("%Y-%m-%d %H:%M"),
+                "yes" if p.weekend else "no",
                 _csv_safe(p.campaign_name or ""),
                 p.media_kind,
                 p.impressions if p.impressions is not None else "",
@@ -759,6 +880,7 @@ async def export_csv(
                 p.engagement if p.measured_at else "",
                 p.engagement_rate if p.engagement_rate is not None else "",
                 p.measured_at.astimezone(tz).strftime("%Y-%m-%d %H:%M") if p.measured_at else "",
+                p.measured_age_days if p.measured_age_days is not None else "",
                 _csv_safe(p.snippet),
                 str(p.post_id),
             ]

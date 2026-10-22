@@ -251,6 +251,94 @@ def _time_zones() -> frozenset[str]:
     return available_time_zones()
 
 
+# ---- Audiences (FR-28) ----
+
+_AUDIENCE_CODE = re.compile(r"^[A-Za-z0-9][A-Za-z0-9_-]{0,15}$")
+WEEKEND_MAX_DAYS = 3
+
+
+def _check_weekend(v: list[int] | None) -> list[int] | None:
+    if v is None:
+        return None
+    days = sorted(set(v))
+    if any(d < 0 or d > 6 for d in days):
+        raise ValueError("weekend_days: 0 (Monday) to 6 (Sunday)")
+    if len(days) > WEEKEND_MAX_DAYS:
+        raise ValueError(f"weekend_days: at most {WEEKEND_MAX_DAYS} days")
+    return days
+
+
+class _AudienceFields(Strict):
+    name: str | None = Field(default=None, min_length=1, max_length=80)
+    code: str | None = Field(default=None, min_length=1, max_length=16)
+    time_zone: str | None = Field(default=None, min_length=1, max_length=64)
+    weekend_days: list[int] | None = Field(default=None, max_length=7)
+    is_default: bool | None = None
+
+    @field_validator("name")
+    @classmethod
+    def _check_name(cls, v: str | None) -> str | None:
+        if v is None:
+            return v
+        v = _reject_controls(v).strip()
+        if not v:
+            raise ValueError("name must not be empty")
+        return v
+
+    @field_validator("code")
+    @classmethod
+    def _check_code(cls, v: str | None) -> str | None:
+        if v is None:
+            return v
+        v = v.strip().upper()
+        if not _AUDIENCE_CODE.match(v):
+            raise ValueError("code: letters, digits, '_' or '-', up to 16 characters")
+        return v
+
+    @field_validator("time_zone")
+    @classmethod
+    def _check_tz(cls, v: str | None) -> str | None:
+        if v is not None and v not in _time_zones():
+            raise ValueError("unknown time zone")
+        return v
+
+    @field_validator("weekend_days")
+    @classmethod
+    def _check_days(cls, v: list[int] | None) -> list[int] | None:
+        return _check_weekend(v)
+
+
+class AudienceCreate(_AudienceFields):
+    name: str = Field(min_length=1, max_length=80)
+    code: str = Field(min_length=1, max_length=16)
+    time_zone: str = Field(min_length=1, max_length=64)
+    weekend_days: list[int] = Field(default_factory=lambda: [5, 6], max_length=7)
+    is_default: bool = False
+
+
+class AudienceUpdate(_AudienceFields):
+    """Only the fields that are sent change. `is_default: true` moves the default to this audience."""
+
+
+class AudiencePreset(BaseModel):
+    code: str
+    name: str
+    time_zone: str
+    weekend_days: list[int]
+
+
+class AudienceOut(BaseModel):
+    id: uuid.UUID
+    code: str
+    name: str
+    time_zone: str
+    weekend_days: list[int]  # 0 = Monday ... 6 = Sunday
+    is_default: bool
+    position: int
+    post_count: int  # posts with this audience set directly (campaign inheritance not counted)
+    created_at: datetime
+
+
 class AuditEntryOut(BaseModel):
     id: int
     at: datetime
@@ -329,6 +417,7 @@ class PostCreate(Strict):
     account_id: uuid.UUID
     body: str = Field(max_length=POST_MAX_CHARS)
     campaign_id: uuid.UUID | None = None
+    audience_id: uuid.UUID | None = None  # the market this post targets; empty = the campaign's, else none
     media_ids: list[uuid.UUID] = Field(default_factory=list, max_length=1)  # one image per post for now
     link: LinkCard | None = None
 
@@ -343,6 +432,8 @@ class PostUpdate(Strict):
     account_id: uuid.UUID | None = None
     # Send `"campaign_id": null` to remove the post from its campaign; leave the field out to keep it.
     campaign_id: uuid.UUID | None = None
+    # Same rule for the audience (planning metadata: no new review, allowed on published posts).
+    audience_id: uuid.UUID | None = None
     # Same rule: null removes the link card, leaving it out keeps the current one.
     link: LinkCard | None = None
     media_ids: list[uuid.UUID] | None = Field(default=None, max_length=1)  # [] removes the image
@@ -439,6 +530,8 @@ class PostOut(BaseModel):
     account_name: str
     account_needs_reconnect_reason: str | None = None
     campaign_id: uuid.UUID | None
+    audience_id: uuid.UUID | None = None  # set on the post itself
+    effective_audience_id: uuid.UUID | None = None  # the post's, else its campaign's
     body: str
     media: list[MediaRef]
     link: LinkCard | None
@@ -494,6 +587,9 @@ def _clean_tags(v: list[str] | None) -> list[str] | None:
 class _CampaignFields(Strict):
     goal: str | None = Field(default=None, max_length=1000)
     audience: str | None = Field(default=None, max_length=1000)
+    audience_id: uuid.UUID | None = (
+        None  # the market; posts of the campaign inherit it unless they set their own
+    )
     start_date: date | None = None
     end_date: date | None = None
     tags: list[str] | None = Field(default=None, max_length=20)
@@ -548,6 +644,7 @@ class CampaignOut(BaseModel):
     name: str
     goal: str | None
     audience: str | None
+    audience_id: uuid.UUID | None = None
     start_date: date | None
     end_date: date | None
     tags: list[str]
@@ -581,7 +678,7 @@ class CalendarOut(BaseModel):
     truncated: bool = False  # more than MAX_ITEMS posts in the range
 
 
-# ---- Metrics and reports (FR-21 to FR-24) ----
+# ---- Metrics and reports (FR-21 to FR-28) ----
 
 METRIC_FIELDS = ("impressions", "reactions", "comments", "reposts", "clicks", "saves", "followers")
 
@@ -659,6 +756,12 @@ class ReportPost(BaseModel):
     snippet: str
     campaign_id: uuid.UUID | None
     campaign_name: str | None
+    audience_id: uuid.UUID | None = None  # the post's, else its campaign's
+    audience_code: str | None = None
+    time_zone: str = "UTC"  # the audience's zone (workspace zone without an audience)
+    local_weekday: int = 0  # 0 = Monday, in `time_zone`
+    local_hour: int = 0  # 0-23, in `time_zone`
+    weekend: bool = False  # published on the audience's weekend
     media_kind: str  # none | image | video | link
     impressions: int | None
     reactions: int | None
@@ -671,6 +774,8 @@ class ReportPost(BaseModel):
     engagement: int  # reactions + comments + reposts + saves (known values)
     engagement_rate: float | None  # engagement / impressions
     measured_at: datetime | None
+    measured_age_days: float | None = None  # measured_at - published_at, in days (one decimal)
+    off_window: bool = False  # the measurement is far from the requested window (see ReportOut)
 
 
 class ReportBucket(BaseModel):
@@ -684,18 +789,21 @@ class ReportBucket(BaseModel):
     followers_gained: int = 0
     avg_impressions: float | None
     avg_engagement_rate: float | None
+    weekend: bool | None = None  # weekday buckets only: a weekend day for the audience shown
 
 
 class BestTimeSlot(BaseModel):
-    weekday: int  # 0 = Monday, in the workspace time zone
-    hour: int  # 0-23, in the workspace time zone
+    weekday: int  # 0 = Monday, in `BestTimesOut.time_zone`
+    hour: int  # 0-23, in `BestTimesOut.time_zone`
     posts: int  # measured posts published in this slot
     avg_engagement_rate: float  # mean of (reactions+comments+reposts+saves) / impressions per post
 
 
 class BestTimesOut(BaseModel):
-    time_zone: str
+    time_zone: str  # the audience's zone, or the workspace zone for posts without an audience
+    audience_id: uuid.UUID | None = None
     days: int
+    window_days: int  # measurements compared at this age (0 = latest measurement)
     measured: int  # measured posts with impressions in the window
     min_posts: int  # a slot needs at least this many posts to be suggested
     slots: list[BestTimeSlot]  # best first, at most 3; empty when there is not enough data yet
@@ -704,11 +812,18 @@ class BestTimesOut(BaseModel):
 class ReportOut(BaseModel):
     start: date
     end: date
-    time_zone: str
+    time_zone: str  # workspace zone: the period's boundaries and times of posts without an audience
+    audience_id: uuid.UUID | None = None  # the filter, when one was given
+    time_zones: list[str]  # every zone used for weekday/hour buckets (one entry = like compared with like)
+    weekend_days: list[int]  # the weekend marked in `by_weekday` (filtered audience, else default audience)
+    window_days: int  # measurements are taken at this age after publishing (0 = latest)
+    window_tolerance_days: int  # a measurement further than this from the window is counted in `off_window`
+    off_window: int  # measured posts whose measurement age is outside window +/- tolerance
     totals: ReportBucket
     trend: list[ReportBucket]  # per week
     by_campaign: list[ReportBucket]
-    by_weekday: list[ReportBucket]  # 0 = Monday ... 6 = Sunday, in the workspace time zone
+    by_audience: list[ReportBucket]
+    by_weekday: list[ReportBucket]  # 0 = Monday ... 6 = Sunday, each post in its audience's time zone
     by_hour: list[ReportBucket]
     by_media: list[ReportBucket]
     top_posts: list[ReportPost]

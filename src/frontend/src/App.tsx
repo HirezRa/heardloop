@@ -107,6 +107,12 @@ function Shell({ me, onMeChange, onLoggedOut }: { me: Me; onMeChange: (me: Me) =
     setActive(id);
   }
 
+  /** Settings -> Workspace, where audiences are managed (the editor and the campaign form link here). */
+  function openAudiences() {
+    window.history.replaceState(null, '', '?section=settings&tab=workspace');
+    go('settings');
+  }
+
   useEffect(() => {
     const controller = new AbortController();
     const check = () => fetchHealth(controller.signal).then(setHealth);
@@ -247,7 +253,7 @@ function Shell({ me, onMeChange, onLoggedOut }: { me: Me; onMeChange: (me: Me) =
         ) : section.id === 'accounts' ? (
           <Accounts me={me} />
         ) : section.id === 'posts' ? (
-          <Posts me={me} focusPostId={focusPostId} />
+          <Posts me={me} focusPostId={focusPostId} onOpenAudiences={openAudiences} />
         ) : section.id === 'calendar' ? (
           <Calendar me={me} onOpenPost={openPost} />
         ) : section.id === 'approvals' ? (
@@ -257,7 +263,7 @@ function Shell({ me, onMeChange, onLoggedOut }: { me: Me; onMeChange: (me: Me) =
         ) : section.id === 'reports' ? (
           <Reports me={me} onOpenPost={openPost} />
         ) : section.id === 'campaigns' ? (
-          <Campaigns me={me} onOpenPost={openPost} />
+          <Campaigns me={me} onOpenPost={openPost} onOpenAudiences={openAudiences} />
         ) : section.id === 'templates' ? (
           <Templates me={me} />
         ) : (

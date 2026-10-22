@@ -3,9 +3,11 @@ import {
   ApiError,
   createCampaign,
   deleteCampaign,
+  listAudiences,
   listCampaigns,
   listPosts,
   updateCampaign,
+  type Audience,
   type Campaign,
   type CampaignInput,
   type CampaignStatus,
@@ -24,6 +26,7 @@ const empty = (): CampaignInput => ({
   name: '',
   goal: null,
   audience: null,
+  audience_id: null,
   start_date: null,
   end_date: null,
   tags: [],
@@ -41,11 +44,19 @@ function errorText(err: unknown): string {
 }
 
 function fromCampaign(c: Campaign): CampaignInput {
-  const { name, goal, audience, start_date, end_date, tags, color, status } = c;
-  return { name, goal, audience, start_date, end_date, tags, color, status };
+  const { name, goal, audience, audience_id, start_date, end_date, tags, color, status } = c;
+  return { name, goal, audience, audience_id, start_date, end_date, tags, color, status };
 }
 
-export default function Campaigns({ me, onOpenPost }: { me: Me; onOpenPost: (postId: string) => void }) {
+export default function Campaigns({
+  me,
+  onOpenPost,
+  onOpenAudiences,
+}: {
+  me: Me;
+  onOpenPost: (postId: string) => void;
+  onOpenAudiences?: () => void;
+}) {
   const membership = me.memberships[0];
   const wsId = membership?.workspace_id ?? '';
   const canWrite = membership?.role === 'owner' || membership?.role === 'editor' || membership?.role === 'approver';
@@ -56,6 +67,7 @@ export default function Campaigns({ me, onOpenPost }: { me: Me; onOpenPost: (pos
   const [form, setForm] = useState<CampaignInput>(empty);
   const [tagsText, setTagsText] = useState('');
   const [posts, setPosts] = useState<Post[]>([]);
+  const [audiences, setAudiences] = useState<Audience[]>([]);
   const [msg, setMsg] = useState<{ ok?: string; error?: string }>({});
   const [busy, setBusy] = useState(false);
 
@@ -70,6 +82,11 @@ export default function Campaigns({ me, onOpenPost }: { me: Me; onOpenPost: (pos
   }, [wsId, showArchived]);
 
   useEffect(load, [load]);
+
+  useEffect(() => {
+    if (!wsId) return;
+    listAudiences(wsId).then(setAudiences).catch(() => setAudiences([]));
+  }, [wsId]);
 
   useEffect(() => {
     if (!selected) {
@@ -206,6 +223,30 @@ export default function Campaigns({ me, onOpenPost }: { me: Me; onOpenPost: (pos
               onChange={(e) => setForm({ ...form, audience: e.target.value })}
             />
           </label>
+          {audiences.length === 0 && editable && (
+            <p className="muted small">
+              {t.posts.noAudiencesYet}{' '}
+              {onOpenAudiences && (
+                <button type="button" className="link" onClick={onOpenAudiences}>
+                  {t.posts.setUpAudiences}
+                </button>
+              )}
+            </p>
+          )}
+          {audiences.length > 0 && (
+            <label>
+              {t.campaigns.audienceSelect}
+              <select value={form.audience_id ?? ''} disabled={!editable} onChange={(e) => setForm({ ...form, audience_id: e.target.value || null })}>
+                <option value="">{t.posts.noAudience}</option>
+                {audiences.map((a) => (
+                  <option key={a.id} value={a.id}>
+                    {a.code} · {a.name} ({a.time_zone})
+                  </option>
+                ))}
+              </select>
+              <span className="muted small">{t.campaigns.audienceHint}</span>
+            </label>
+          )}
           <div className="row-fields">
             <label>
               {t.campaigns.start}

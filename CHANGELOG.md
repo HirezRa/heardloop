@@ -9,6 +9,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- Audiences: the markets you write for, each with its own time zone and weekend (Settings -> Workspace, presets for common markets). A post takes its audience from itself or its campaign. Reports and best-time suggestions read each post's publish time in its audience's zone, mark the audience's weekend, and show audiences side by side instead of averaging them; the CSV export gains `audience`, `time_zone`, `published_local`, `weekend` and `measured_age_days` columns.
+- Reports compare posts at the same age: each post is represented by the measurement closest to `window_days` after publishing (default 7; 7/14/30 or "latest" in the UI), and the report says how many measurements fall far from that window.
 - Optional AI writing assistant in the post editor (#11): improve, shorten, stronger opening, fix spelling, suggest hashtags, translate to English/Hebrew, optional tone. Works with any OpenAI-compatible server (self-hosted Ollama, LM Studio, vLLM recommended); off unless `AI_BASE_URL` and `AI_MODEL` are set. Suggestions only: nothing changes until you replace or insert, nothing is stored.
 - Best-time suggestions next to the scheduling field, from your own metrics (weekday + hour with the best engagement rate); `GET .../reports/best-times`.
 - `AUDIT_IP_RETENTION_DAYS` (#55): optional age-based clearing of IP addresses in the activity log.

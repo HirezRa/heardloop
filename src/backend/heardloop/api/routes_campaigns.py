@@ -10,7 +10,7 @@ from heardloop import audit
 from heardloop.api.deps import Db, WorkspaceAccess, client_ip, require_client_header, require_permission
 from heardloop.api.schemas import CampaignCreate, CampaignOut, CampaignUpdate
 from heardloop.auth.permissions import Permission
-from heardloop.models import Campaign, CampaignStatus, Post, Workspace
+from heardloop.models import Audience, Campaign, CampaignStatus, Post, Workspace
 from heardloop.timeutil import utcnow
 
 router = APIRouter(
@@ -45,6 +45,7 @@ def _out(c: Campaign, counts: dict[str, int]) -> CampaignOut:
         name=c.name,
         goal=c.goal,
         audience=c.audience,
+        audience_id=c.audience_id,
         start_date=c.start_date,
         end_date=c.end_date,
         tags=list(c.tags or []),
@@ -63,6 +64,20 @@ async def _get(db: Db, access: WorkspaceAccess, campaign_id: uuid.UUID, *, lock:
     if campaign is None:
         raise HTTPException(status.HTTP_404_NOT_FOUND, "campaign_not_found")
     return campaign
+
+
+async def _check_audience(db: Db, workspace_id: uuid.UUID, audience_id: uuid.UUID | None) -> None:
+    if audience_id is None:
+        return
+    found = (
+        await db.execute(
+            select(Audience.id)
+            .where(Audience.id == audience_id, Audience.workspace_id == workspace_id)
+            .with_for_update(key_share=True)
+        )
+    ).scalar_one_or_none()
+    if found is None:
+        raise HTTPException(status.HTTP_404_NOT_FOUND, "audience_not_found")
 
 
 def _check_dates(c: Campaign) -> None:
@@ -114,11 +129,13 @@ async def create_campaign(body: CampaignCreate, access: WriteAccess, request: Re
     ).scalar_one()
     if existing >= MAX_CAMPAIGNS:
         raise HTTPException(status.HTTP_409_CONFLICT, "too_many_campaigns")
+    await _check_audience(db, access.workspace_id, body.audience_id)
     campaign = Campaign(
         workspace_id=access.workspace_id,
         name=body.name,
         goal=body.goal,
         audience=body.audience,
+        audience_id=body.audience_id,
         start_date=body.start_date,
         end_date=body.end_date,
         tags=body.tags or [],
@@ -151,6 +168,8 @@ async def update_campaign(
         if new is None and field in ("name", "status", "tags", "color"):
             continue  # required columns: null means "no change"
         old = getattr(campaign, field)
+        if field == "audience_id":
+            await _check_audience(db, access.workspace_id, new)
         if new != old:
             # Free text stays out of the activity log; only that it changed.
             changes[field] = (
@@ -167,6 +186,8 @@ async def update_campaign(
 
 
 def _plain(value: Any) -> Any:
+    if isinstance(value, uuid.UUID):
+        return str(value)
     if hasattr(value, "isoformat"):
         return value.isoformat()
     if hasattr(value, "value"):

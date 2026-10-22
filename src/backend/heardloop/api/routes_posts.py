@@ -41,6 +41,7 @@ from heardloop.linkpreview import LinkPreviewError, fetch_preview
 from heardloop.models import (
     Approval,
     ApprovalDecision,
+    Audience,
     Campaign,
     CampaignStatus,
     Hashtag,
@@ -108,6 +109,11 @@ async def _out(db: Db, post: Post) -> PostOut:
         )
         mimes = dict(rows.all())
     account = await db.get(LinkedInAccount, post.account_id)
+    effective_audience = post.audience_id
+    if effective_audience is None and post.campaign_id is not None:
+        effective_audience = (
+            await db.execute(select(Campaign.audience_id).where(Campaign.id == post.campaign_id))
+        ).scalar_one_or_none()
     count = (
         await db.execute(select(func.count()).select_from(PostVersion).where(PostVersion.post_id == post.id))
     ).scalar_one()
@@ -126,6 +132,8 @@ async def _out(db: Db, post: Post) -> PostOut:
         account_name=account.display_name if account else "",
         account_needs_reconnect_reason=account.needs_reconnect_reason if account else None,
         campaign_id=post.campaign_id,
+        audience_id=post.audience_id,
+        effective_audience_id=effective_audience,
         body=version.body if version else "",
         media=[
             MediaRef(id=m, url=media_url(post.workspace_id, m), mime_type=mimes.get(m))
@@ -172,6 +180,20 @@ async def _campaign(db: Db, workspace_id: uuid.UUID, campaign_id: uuid.UUID) -> 
     if campaign.status == CampaignStatus.ARCHIVED:
         raise HTTPException(status.HTTP_409_CONFLICT, "campaign_archived")
     return campaign
+
+
+async def _audience(db: Db, workspace_id: uuid.UUID, audience_id: uuid.UUID) -> Audience:
+    """For assigning a post. KEY SHARE lock, like campaigns: a concurrent delete waits for us."""
+    audience = (
+        await db.execute(
+            select(Audience)
+            .where(Audience.id == audience_id, Audience.workspace_id == workspace_id)
+            .with_for_update(key_share=True)
+        )
+    ).scalar_one_or_none()
+    if audience is None:
+        raise HTTPException(status.HTTP_404_NOT_FOUND, "audience_not_found")
+    return audience
 
 
 def _resolve_local(local: datetime, tz: ZoneInfo) -> datetime:
@@ -260,11 +282,14 @@ async def create_post(body: PostCreate, access: WriteAccess, request: Request, d
     await _account(db, access.workspace_id, body.account_id)
     if body.campaign_id is not None:
         await _campaign(db, access.workspace_id, body.campaign_id)
+    if body.audience_id is not None:
+        await _audience(db, access.workspace_id, body.audience_id)
     now = utcnow()
     post = Post(
         workspace_id=access.workspace_id,
         account_id=body.account_id,
         campaign_id=body.campaign_id,
+        audience_id=body.audience_id,
         created_at=now,
         updated_at=now,
     )
@@ -463,7 +488,8 @@ async def update_post(
     # A post created by an import is already live and was never written here, so its text may be filled in
     # later (it stays published); media, link card and account stay frozen.
     imported_live = post.external_source is not None and post.status == PostStatus.PUBLISHED
-    allowed_when_frozen = {"body", "campaign_id"} if imported_live else {"campaign_id"}
+    planning = {"campaign_id", "audience_id"}
+    allowed_when_frozen = planning | {"body"} if imported_live else planning
     if post.status not in EDITABLE and not body.model_fields_set <= allowed_when_frozen:
         raise HTTPException(status.HTTP_409_CONFLICT, "post_not_editable")
     now = utcnow()
@@ -492,6 +518,28 @@ async def update_post(
             campaign_id={
                 "from": old_campaign.name if old_campaign else None,
                 "to": new_campaign.name if new_campaign else None,
+            },
+        )
+    # So is the audience: it only changes how the post is reported.
+    audience_changed = "audience_id" in body.model_fields_set and body.audience_id != post.audience_id
+    if audience_changed:
+        new_audience = (
+            await _audience(db, access.workspace_id, body.audience_id)
+            if body.audience_id is not None
+            else None
+        )
+        old_audience = await db.get(Audience, post.audience_id) if post.audience_id else None
+        post.audience_id = body.audience_id
+        post.updated_at = now
+        _record(
+            db,
+            access,
+            request,
+            "post.audience_changed",
+            post,
+            audience={
+                "from": old_audience.code if old_audience else None,
+                "to": new_audience.code if new_audience else None,
             },
         )
     if body.account_id is not None and body.account_id != post.account_id:
@@ -539,7 +587,7 @@ async def update_post(
             )
             post.scheduled_at = None
         _record(db, access, request, "post.edited", post)
-    if changed or campaign_changed:
+    if changed or campaign_changed or audience_changed:
         await db.commit()
     return await _out(db, post)
 

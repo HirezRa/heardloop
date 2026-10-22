@@ -4,13 +4,17 @@ import {
   getPost,
   getReport,
   importMetricsExport,
+  listAudiences,
   listCampaigns,
   reportCsvUrl,
+  type Audience,
   type Campaign,
   type Me,
   type Report,
   type ReportBucket,
+  type ReportFilter,
 } from './api';
+import { weekendLabel } from './AudienceSettings';
 import { DateInput } from './DateInputs';
 import { formatDate, formatDay } from './dates';
 import { DIR, LOCALE, t } from './i18n';
@@ -56,6 +60,9 @@ const PRESETS: { id: string; days: number }[] = [
   { id: '365', days: 365 },
 ];
 
+/** Measurement age the posts are compared at; 0 = each post's latest measurement. */
+const WINDOWS = [7, 14, 30, 0];
+
 /** Horizontal bars, pure SVG/CSS; `value` picks the measure. */
 function Bars({
   buckets,
@@ -74,7 +81,11 @@ function Bars({
       {buckets.map((b) => {
         const v = value(b);
         return (
-          <div key={b.key} className="bar-row" title={`${label(b)}: ${format(v)} · ${t.reports.postsCount(b.posts)}`}>
+          <div
+            key={b.key}
+            className={b.weekend ? 'bar-row weekend' : 'bar-row'}
+            title={`${label(b)}: ${format(v)} · ${t.reports.postsCount(b.posts)}${b.weekend ? ` · ${t.reports.weekend}` : ''}`}
+          >
             <span className="bar-label">{label(b)}</span>
             <span className="bar-track">
               <span className="bar-fill" style={{ width: `${(v / max) * 100}%` }} />
@@ -210,6 +221,9 @@ export default function Reports({ me, onOpenPost }: { me: Me; onOpenPost: (postI
   const [end, setEnd] = useState<string | null>(null);
   const [campaignId, setCampaignId] = useState('');
   const [campaigns, setCampaigns] = useState<Campaign[]>([]);
+  const [audienceId, setAudienceId] = useState('');
+  const [audiences, setAudiences] = useState<Audience[]>([]);
+  const [windowDays, setWindowDays] = useState(7);
   const [report, setReport] = useState<Report | null>(null);
   const [error, setError] = useState('');
   const [reloadKey, setReloadKey] = useState(0);
@@ -280,12 +294,18 @@ export default function Reports({ me, onOpenPost }: { me: Me; onOpenPost: (postI
   useEffect(() => {
     if (!wsId) return;
     listCampaigns(wsId, true).then(setCampaigns).catch(() => setCampaigns([]));
+    listAudiences(wsId).then(setAudiences).catch(() => setAudiences([]));
   }, [wsId]);
+
+  const filter: ReportFilter = useMemo(
+    () => ({ start: range.start, end: range.end, campaignId: campaignId || undefined, audienceId: audienceId || undefined, windowDays }),
+    [range.start, range.end, campaignId, audienceId, windowDays],
+  );
 
   useEffect(() => {
     if (!wsId || !range.start || !range.end) return;
     let cancelled = false;
-    getReport(wsId, range.start, range.end, campaignId || undefined)
+    getReport(wsId, filter)
       .then((r) => {
         if (!cancelled) {
           setReport(r);
@@ -296,7 +316,7 @@ export default function Reports({ me, onOpenPost }: { me: Me; onOpenPost: (postI
     return () => {
       cancelled = true;
     };
-  }, [wsId, range.start, range.end, campaignId, reloadKey]);
+  }, [wsId, filter, range.start, range.end, reloadKey]);
 
   if (!wsId) return <p className="muted">{t.settings.noWorkspace}</p>;
 
@@ -304,6 +324,7 @@ export default function Reports({ me, onOpenPost }: { me: Me; onOpenPost: (postI
   // Buckets are keyed 0 = Monday; build a date on a known Monday for the label.
   const weekdayLabel = (key: string) => weekday.format(new Date(2024, 0, 1 + Number(key)));
   const pct = (v: number | null) => (v === null ? '-' : `${(v * 100).toFixed(1)}%`);
+  const audienceLabel = (b: ReportBucket) => (b.key === 'none' ? t.reports.noAudience : (b.label ?? b.key));
 
   return (
     <div className="reports">
@@ -332,8 +353,28 @@ export default function Reports({ me, onOpenPost }: { me: Me; onOpenPost: (postI
             </option>
           ))}
         </select>
+        {audiences.length > 0 && (
+          <select value={audienceId} onChange={(e) => setAudienceId(e.target.value)} aria-label={t.posts.audience}>
+            <option value="">{t.reports.allAudiences}</option>
+            {audiences.map((a) => (
+              <option key={a.id} value={a.id}>
+                {a.code} · {a.name}
+              </option>
+            ))}
+          </select>
+        )}
+        <label className="window">
+          {t.reports.window}
+          <select value={windowDays} onChange={(e) => setWindowDays(Number(e.target.value))}>
+            {WINDOWS.map((w) => (
+              <option key={w} value={w}>
+                {w === 0 ? t.reports.windowLatest : t.reports.windowDays(w)}
+              </option>
+            ))}
+          </select>
+        </label>
         {range.start && range.end && (
-          <a className="link" href={reportCsvUrl(wsId, range.start, range.end)} download>
+          <a className="link" href={reportCsvUrl(wsId, filter)} download>
             {t.reports.exportCsv}
           </a>
         )}
@@ -407,7 +448,13 @@ export default function Reports({ me, onOpenPost }: { me: Me; onOpenPost: (postI
       {report && (
         <>
           <p className="muted small">
-            {formatDay(report.start)} - {formatDay(report.end)} · {t.reports.timeZone(report.time_zone)}
+            {formatDay(report.start)} - {formatDay(report.end)} ·{' '}
+            {report.time_zones.length === 1 ? t.reports.zoneOf(report.time_zones[0]) : report.time_zones.length === 0 ? t.reports.timeZone(report.time_zone) : t.reports.mixedZones}
+            {report.weekend_days.length > 0 && ` · ${t.reports.weekendHint(weekendLabel(report.weekend_days))}`}
+          </p>
+          <p className="notice">
+            {report.window_days === 0 ? t.reports.windowLatestHint : t.reports.windowHint(report.window_days)}
+            {report.off_window > 0 && ` ${t.reports.offWindow(report.off_window, report.window_days, report.window_tolerance_days)}`}
           </p>
           <div className="metric-cards wide">
             <div className="metric-card">
@@ -461,7 +508,10 @@ export default function Reports({ me, onOpenPost }: { me: Me; onOpenPost: (postI
                       <SnippetText snippet={p.snippet} />
                     </button>
                     <span className="muted small" dir="ltr">
-                      {formatDate(p.published_at)} · {p.impressions?.toLocaleString() ?? '-'} / {p.engagement} · {pct(p.engagement_rate)}
+                      {formatDate(p.published_at)}
+                      {p.audience_code ? ` · ${p.audience_code}` : ''} · {p.impressions?.toLocaleString() ?? '-'} / {p.engagement} · {pct(p.engagement_rate)}
+                      {p.measured_age_days !== null && ` · ${t.reports.measuredAfter(Math.round(p.measured_age_days))}`}
+                      {p.off_window ? ' ⚠' : ''}
                     </span>
                   </li>
                 ))}
@@ -471,6 +521,13 @@ export default function Reports({ me, onOpenPost }: { me: Me; onOpenPost: (postI
               <h2>{t.reports.byCampaign}</h2>
               <Bars buckets={report.by_campaign} value={(b) => b.engagement} label={(b) => b.label ?? t.reports.noCampaign} />
             </section>
+            {(audiences.length > 0 || report.by_audience.length > 1) && (
+              <section className="card">
+                <h2>{t.reports.byAudience}</h2>
+                <Bars buckets={report.by_audience} value={(b) => b.avg_engagement_rate ?? 0} label={audienceLabel} format={(v) => `${(v * 100).toFixed(1)}%`} />
+                <p className="muted small">{t.reports.audienceHint}</p>
+              </section>
+            )}
             <section className="card">
               <h2>{t.reports.byWeekday}</h2>
               <Bars buckets={report.by_weekday} value={(b) => b.avg_engagement_rate ?? 0} label={(b) => weekdayLabel(b.key)} format={(v) => `${(v * 100).toFixed(1)}%`} />

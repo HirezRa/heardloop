@@ -11,6 +11,7 @@ from fastapi.responses import JSONResponse
 from sqlalchemy import text
 
 from heardloop.api import (
+    routes_audiences,
     routes_auth,
     routes_calendar,
     routes_campaigns,
@@ -136,6 +137,7 @@ def create_app() -> FastAPI:
     app.include_router(routes_templates.posts_router)
     app.include_router(routes_media.router)
     app.include_router(routes_campaigns.router)
+    app.include_router(routes_audiences.router)
     app.include_router(routes_calendar.router)
     app.include_router(routes_notifications.router)
     app.include_router(routes_metrics.router)

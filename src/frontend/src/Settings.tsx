@@ -38,6 +38,7 @@ import { DateInput } from './DateInputs';
 import WebhookSettings from './WebhookSettings';
 import AppearanceSettings from './AppearanceSettings';
 import AboutSettings from './AboutSettings';
+import AudienceSettings from './AudienceSettings';
 
 const ROLES: Role[] = ['owner', 'editor', 'approver', 'viewer'];
 
@@ -89,6 +90,7 @@ export default function Settings({
         {tab === 'workspace' && (
           <>
             <WorkspaceSection workspaceId={wsId} />
+            <AudienceSettings workspaceId={wsId} canEdit={isOwner} />
             {isOwner && <BackupCard workspaceId={wsId} />}
           </>
         )}

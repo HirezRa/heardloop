@@ -179,6 +179,34 @@ class LinkedInAccount(Base):
     connected_at: Mapped[datetime] = _ts()
 
 
+class Audience(Base):
+    """A market a post is written for (FR-28): its own time zone and weekend, so reports compare like with
+    like.
+
+    A post's audience is the post's own, else its campaign's, else none (reported in the workspace time zone).
+    """
+
+    __tablename__ = "audiences"
+    __table_args__ = (
+        Index("uq_audiences_workspace_code", "workspace_id", text("lower(code)"), unique=True),
+        Index(
+            "uq_audiences_workspace_default",
+            "workspace_id",
+            unique=True,
+            postgresql_where=text("is_default"),
+        ),
+    )
+    id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    workspace_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("workspaces.id", ondelete="CASCADE"))
+    code: Mapped[str] = mapped_column(String(16))  # short label for reports and CSV, e.g. IL, US, GLOBAL
+    name: Mapped[str] = mapped_column(String(80))
+    time_zone: Mapped[str] = mapped_column(String(64))  # IANA name; publish times are reported in it
+    weekend_days: Mapped[list[int]] = mapped_column(ARRAY(Integer), default=list)  # 0 = Monday ... 6 = Sunday
+    is_default: Mapped[bool] = mapped_column(Boolean, default=False, server_default="false")
+    position: Mapped[int] = mapped_column(Integer, default=0, server_default="0")
+    created_at: Mapped[datetime] = _ts()
+
+
 class Campaign(Base):
     __tablename__ = "campaigns"
     __table_args__ = (Index("ix_campaigns_workspace_status", "workspace_id", "status"),)
@@ -186,7 +214,8 @@ class Campaign(Base):
     workspace_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("workspaces.id", ondelete="CASCADE"))
     name: Mapped[str] = mapped_column(String(200))
     goal: Mapped[str | None] = mapped_column(String(1000))
-    audience: Mapped[str | None] = mapped_column(String(1000))
+    audience: Mapped[str | None] = mapped_column(String(1000))  # free-text description, kept for notes
+    audience_id: Mapped[uuid.UUID | None] = mapped_column(ForeignKey("audiences.id", ondelete="SET NULL"))
     start_date: Mapped[date | None] = mapped_column(Date)
     end_date: Mapped[date | None] = mapped_column(Date)
     tags: Mapped[list[str]] = mapped_column(ARRAY(String(64)), default=list)
@@ -212,6 +241,8 @@ class Post(Base):
     id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
     workspace_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("workspaces.id", ondelete="CASCADE"))
     campaign_id: Mapped[uuid.UUID | None] = mapped_column(ForeignKey("campaigns.id", ondelete="SET NULL"))
+    # The market this post targets; empty means "the campaign's audience, else none".
+    audience_id: Mapped[uuid.UUID | None] = mapped_column(ForeignKey("audiences.id", ondelete="SET NULL"))
     account_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("linkedin_accounts.id", ondelete="RESTRICT"))
     status: Mapped[PostStatus] = mapped_column(_enum(PostStatus), default=PostStatus.DRAFT)
     current_version_id: Mapped[uuid.UUID | None] = mapped_column(UUID(as_uuid=True))
