@@ -17,7 +17,7 @@ from urllib.parse import urljoin, urlparse
 
 import httpx
 
-from heardloop.delivery import check_destination, peer_error
+from heardloop.delivery import BlockedDestinationError, check_destination, peer_error
 
 MAX_BYTES = 512 * 1024
 MAX_REDIRECTS = 3
@@ -180,6 +180,8 @@ async def fetch_preview(http: httpx.AsyncClient, url: str) -> LinkPreview:
         return await asyncio.wait_for(_follow(http, url), DEADLINE)
     except TimeoutError as exc:
         raise LinkPreviewError("timeout") from exc
+    except BlockedDestinationError as exc:  # pinned-IP check at connect time (DNS rebinding)
+        raise LinkPreviewError("blocked_destination") from exc
     except (httpx.HTTPError, httpx.InvalidURL, ValueError) as exc:
         raise LinkPreviewError(type(exc).__name__.lower()) from exc
 
