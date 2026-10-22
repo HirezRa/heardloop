@@ -51,10 +51,10 @@ def _common() -> frozenset[str]:
 
 
 def is_too_common(password: str, *, email: str | None = None) -> bool:
-    """True for listed passwords and for a listed word (or the e-mail name) padded with digits/symbols.
+    """True for listed passwords and for a listed word (or the e-mail name) padded with digits or symbols.
 
-    Examples refused: "password12345", "Summer2026!!!", "P@ssw0rd2026!", "123456789012", "qwertyuiop12".
-    Unrelated words ("correct horse battery") are fine.
+    Also refused: a dictionary word plus digits, a season plus a year, letter-substituted spellings,
+    a long run of digits, and a keyboard walk. A phrase of unrelated words is fine.
     """
     lower = password.lower()
     compact = re.sub(r"[^a-z0-9]", "", lower)
