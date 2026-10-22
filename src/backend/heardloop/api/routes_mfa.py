@@ -30,6 +30,12 @@ from heardloop.models import RecoveryCode, User
 from heardloop.security import totp
 from heardloop.security.crypto import TokenDecryptionError, TokenProtector, derive_key
 from heardloop.security.passwords import verify_password_async
+from heardloop.security_notice import (
+    MFA_DISABLED,
+    MFA_ENABLED,
+    RECOVERY_CODES_REGENERATED,
+    notify_security,
+)
 from heardloop.timeutil import utcnow
 
 log = logging.getLogger("heardloop.auth")
@@ -62,6 +68,12 @@ def _mfa_secret(request: Request, user: User) -> str | None:
 
 async def _locked_user(db: Db, user_id: object) -> User:
     return (await db.execute(select(User).where(User.id == user_id).with_for_update())).scalar_one()
+
+
+def _refuse_while_locked(user: User) -> None:
+    """Password/code checks wait out the lockout, like sign-in and the purge (even with the right secret)."""
+    if user.locked_until is not None and user.locked_until > utcnow():
+        raise HTTPException(status.HTTP_423_LOCKED, "account_locked")
 
 
 @dataclass(frozen=True, slots=True)
@@ -200,6 +212,7 @@ async def setup(
     user = await _locked_user(db, principal.user.id)
     if user.mfa_enabled_at is not None:
         raise HTTPException(status.HTTP_409_CONFLICT, "mfa_already_enabled")
+    _refuse_while_locked(user)
     await _check_password(db, user, body.password)
     secret = totp.generate_secret()
     user.mfa_secret_encrypted = _protector(request).protect(secret, _context(user))
@@ -248,6 +261,7 @@ async def enable(
         now=now,
         ip_address=client_ip(request),
     )
+    await notify_security(db, user.id, MFA_ENABLED, now)
     await db.commit()
     return RecoveryCodesOut(recovery_codes=codes)
 
@@ -260,20 +274,23 @@ async def regenerate_recovery_codes(
     user = await _locked_user(db, principal.user.id)
     if user.mfa_enabled_at is None:
         raise HTTPException(status.HTTP_409_CONFLICT, "mfa_not_enabled")
+    _refuse_while_locked(user)
     await _check_password(db, user, body.password)
     factor = await _check_second_factor(db, request, user, body.code)
     if factor is None or factor.method != "totp":
         raise await _fail(db, user)  # a recovery code posted here stays unused
     codes = await _new_recovery_codes(db, user)
+    now = utcnow()
     audit.record(
         db,
         action="auth.recovery_codes_regenerated",
         entity="user",
         entity_id=user.id,
         actor_id=user.id,
-        now=utcnow(),
+        now=now,
         ip_address=client_ip(request),
     )
+    await notify_security(db, user.id, RECOVERY_CODES_REGENERATED, now)
     await db.commit()
     return RecoveryCodesOut(recovery_codes=codes)
 
@@ -284,6 +301,7 @@ async def disable(body: MfaDisableRequest, principal: CurrentPrincipal, request:
     if user.mfa_enabled_at is None:
         raise HTTPException(status.HTTP_409_CONFLICT, "mfa_not_enabled")
     now = utcnow()
+    _refuse_while_locked(user)
     await _check_password(db, user, body.password)
     factor = await _check_second_factor(db, request, user, body.code)
     if factor is None:
@@ -303,4 +321,5 @@ async def disable(body: MfaDisableRequest, principal: CurrentPrincipal, request:
         now=now,
         ip_address=client_ip(request),
     )
+    await notify_security(db, user.id, MFA_DISABLED, now)
     await db.commit()

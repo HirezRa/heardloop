@@ -60,9 +60,19 @@ def test_secret_and_uri() -> None:
 def test_recovery_codes() -> None:
     codes = totp.generate_recovery_codes()
     assert len(codes) == len(set(codes)) == 10
-    assert all(len(c) == 11 and c[5] == "-" for c in codes)
+    assert all(len(c) == 19 and c[4] == c[9] == c[14] == "-" for c in codes)  # xxxx-xxxx-xxxx-xxxx, 80 bits
+    assert all(ch in totp.RECOVERY_ALPHABET for c in codes for ch in c.replace("-", ""))
     pepper = b"p" * 32
     assert totp.hash_recovery_code(codes[0].upper().replace("-", " "), pepper) == totp.hash_recovery_code(
         codes[0], pepper
     )
     assert totp.normalize_recovery_code("bad") == ""
+
+
+def test_older_ten_character_recovery_codes_still_normalise() -> None:
+    pepper = b"p" * 32
+    old = "ab3dk-9x2mp"  # format before 80-bit codes; stored hashes keep matching
+    assert totp.normalize_recovery_code("AB3DK 9X2MP") == old
+    assert totp.hash_recovery_code("ab3dk9x2mp", pepper) == totp.hash_recovery_code(old, pepper)
+    assert totp.normalize_recovery_code("abcd efgh ijkm npqr") == "abcd-efgh-ijkm-npqr"
+    assert totp.normalize_recovery_code("abcdefghijkm") == ""  # neither length

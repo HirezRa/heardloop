@@ -89,7 +89,7 @@ async def add_member(body: AddMemberRequest, access: ManageMembers, request: Req
         try:
             validate_password(body.initial_password, email=body.email)
         except PasswordPolicyError as exc:
-            raise HTTPException(status.HTTP_422_UNPROCESSABLE_CONTENT, str(exc)) from None
+            raise HTTPException(status.HTTP_422_UNPROCESSABLE_CONTENT, exc.code or str(exc)) from None
         user = User(
             email=body.email,
             display_name=body.display_name,
