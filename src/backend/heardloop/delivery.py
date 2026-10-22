@@ -110,6 +110,41 @@ def _header_safe(value: str) -> str:
     return _CONTROLS.sub(" ", value).strip()
 
 
+_SECURITY_EMAILS = {
+    "security.password_changed": ("Your Heardloop password was changed", "Your password was changed."),
+    "security.mfa_enabled": (
+        "Two-step verification was turned on",
+        "Two-step verification was turned on for your account.",
+    ),
+    "security.mfa_disabled": (
+        "Two-step verification was turned off",
+        "Two-step verification was turned off for your account.",
+    ),
+    "security.recovery_codes_regenerated": (
+        "New recovery codes were created",
+        "New recovery codes were created; the old ones no longer work.",
+    ),
+    "security.sessions_revoked": (
+        "Devices were signed out",
+        "Other devices were signed out of your account.",
+    ),
+}
+
+
+def _security_email(kind: str, d: dict[str, object]) -> tuple[str, list[str]]:
+    subject, first = _SECURITY_EMAILS.get(kind, ("Account security change", "Your sign-in settings changed."))
+    lines = [first]
+    if kind == "security.sessions_revoked" and isinstance(d.get("count"), int):
+        lines = [f"{d['count']} other device(s) were signed out of your account."]
+    lines += [
+        "",
+        "If this was you, nothing else to do.",
+        "If it was not: change your password, check Settings -> Sign-in & security,",
+        "and tell the workspace owner.",
+    ]
+    return subject, lines
+
+
 def render_email(n: Notification, workspace_name: str) -> tuple[str, str]:
     """Plain-text e-mail. Subjects are fixed strings plus the workspace name, stripped of line breaks."""
     d = n.data or {}
@@ -180,6 +215,9 @@ def render_email(n: Notification, workspace_name: str) -> tuple[str, str]:
         ]
         if d.get("url"):
             lines.append(f"Release: {d['url']}")
+    elif n.kind.startswith("security."):
+        subject, lines = _security_email(n.kind, d)
+        link = f"{get_settings().app_base_url}/?section=settings&tab=security"
     elif n.kind == "digest.weekly":
         subject = f"Your week on LinkedIn - {_header_safe(workspace_name)}"
         link = f"{get_settings().app_base_url}/?section=reports"

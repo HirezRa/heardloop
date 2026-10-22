@@ -187,3 +187,18 @@ def test_reject_comment_refuses_control_characters_but_keeps_line_feeds() -> Non
     for bad in ("bell\x07", "cr\r\nlf", "esc\x1b[31m"):
         with pytest.raises(ValidationError):
             schemas.RejectRequest(comment=bad)
+
+
+@pytest.mark.parametrize(
+    ("kind", "subject"),
+    [
+        ("security.password_changed", "Your Heardloop password was changed"),
+        ("security.mfa_disabled", "Two-step verification was turned off"),
+        ("security.sessions_revoked", "Devices were signed out"),
+    ],
+)
+def test_security_notice_emails(kind: str, subject: str) -> None:
+    n = Notification(kind=kind, data={"count": 2}, user_id=uuid.uuid4(), workspace_id=uuid.uuid4())
+    got_subject, body = delivery.render_email(n, "Acme")
+    assert got_subject == subject
+    assert "If it was not: change your password" in body and "tab=security" in body

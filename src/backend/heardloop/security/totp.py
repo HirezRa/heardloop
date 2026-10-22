@@ -64,19 +64,27 @@ def provisioning_uri(secret_b32: str, account: str, issuer: str = "Heardloop") -
     return f"otpauth://totp/{label}?{query}"
 
 
+RECOVERY_ALPHABET = "abcdefghijkmnpqrstuvwxyz23456789"  # 32 symbols, no 0/o/1/l confusion
+RECOVERY_LENGTH = 16  # 80 bits
+
+
 def generate_recovery_codes(count: int = 10) -> list[str]:
-    """Format xxxxx-xxxxx (base32, ~50 bits each). Shown once; only hashes are stored."""
-    alphabet = "abcdefghijkmnpqrstuvwxyz23456789"  # no 0/o/1/l confusion
+    """Format xxxx-xxxx-xxxx-xxxx (16 base32 characters, 80 bits each). Shown once; only hashes are stored."""
     codes = []
     for _ in range(count):
-        raw = "".join(secrets.choice(alphabet) for _ in range(10))
-        codes.append(f"{raw[:5]}-{raw[5:]}")
+        raw = "".join(secrets.choice(RECOVERY_ALPHABET) for _ in range(RECOVERY_LENGTH))
+        codes.append("-".join(raw[i : i + 4] for i in range(0, RECOVERY_LENGTH, 4)))
     return codes
 
 
 def normalize_recovery_code(code: str) -> str:
+    """Canonical form for hashing. Older sets (xxxxx-xxxxx, 10 characters) keep working."""
     raw = "".join(ch for ch in code.lower() if ch.isascii() and ch.isalnum())
-    return f"{raw[:5]}-{raw[5:]}" if len(raw) == 10 else ""
+    if len(raw) == 10:
+        return f"{raw[:5]}-{raw[5:]}"
+    if len(raw) == RECOVERY_LENGTH:
+        return "-".join(raw[i : i + 4] for i in range(0, RECOVERY_LENGTH, 4))
+    return ""
 
 
 def hash_recovery_code(code: str, pepper: bytes) -> str:
