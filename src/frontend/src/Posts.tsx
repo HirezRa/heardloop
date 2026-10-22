@@ -902,40 +902,41 @@ export default function Posts({
                 ))}
             </select>
           </label>
-          {audiences.length === 0 ? (
-            canWrite && (
-              <p className="muted small">
+          <label>
+            {t.posts.audience}
+            <select
+              value={selected ? (selected.audience_id ?? '') : newAudienceId}
+              disabled={!canWrite || busy || status === 'publishing' || audiences.length === 0}
+              onChange={(e) => {
+                const value = e.target.value;
+                if (!selected) return setNewAudienceId(value);
+                void run(() => updatePost(wsId, selected.id, { audience_id: value || null }), t.posts.audienceSaved);
+              }}
+            >
+              <option value="">
+                {audiences.length === 0
+                  ? t.posts.noAudiencesOption
+                  : inheritedAudience
+                    ? t.posts.inheritedAudience(`${inheritedAudience.code} · ${inheritedAudience.name}`)
+                    : t.posts.noAudience}
+              </option>
+              {audiences.map((a) => (
+                <option key={a.id} value={a.id}>
+                  {a.code} · {a.name} ({a.time_zone})
+                </option>
+              ))}
+            </select>
+            {audiences.length === 0 && canWrite && (
+              <span className="muted small">
                 {t.posts.noAudiencesYet}{' '}
                 {onOpenAudiences && (
                   <button type="button" className="link" onClick={onOpenAudiences}>
                     {t.posts.setUpAudiences}
                   </button>
                 )}
-              </p>
-            )
-          ) : (
-            <label>
-              {t.posts.audience}
-              <select
-                value={selected ? (selected.audience_id ?? '') : newAudienceId}
-                disabled={!canWrite || busy || status === 'publishing'}
-                onChange={(e) => {
-                  const value = e.target.value;
-                  if (!selected) return setNewAudienceId(value);
-                  void run(() => updatePost(wsId, selected.id, { audience_id: value || null }), t.posts.audienceSaved);
-                }}
-              >
-                <option value="">
-                  {inheritedAudience ? t.posts.inheritedAudience(`${inheritedAudience.code} · ${inheritedAudience.name}`) : t.posts.noAudience}
-                </option>
-                {audiences.map((a) => (
-                  <option key={a.id} value={a.id}>
-                    {a.code} · {a.name} ({a.time_zone})
-                  </option>
-                ))}
-              </select>
-            </label>
-          )}
+              </span>
+            )}
+          </label>
           {importedLive && canWrite && <p className="muted small">{t.posts.importedHint}</p>}
           <label>
             {t.posts.text}

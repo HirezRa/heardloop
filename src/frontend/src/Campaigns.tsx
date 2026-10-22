@@ -223,30 +223,35 @@ export default function Campaigns({
               onChange={(e) => setForm({ ...form, audience: e.target.value })}
             />
           </label>
-          {audiences.length === 0 && editable && (
-            <p className="muted small">
-              {t.posts.noAudiencesYet}{' '}
-              {onOpenAudiences && (
-                <button type="button" className="link" onClick={onOpenAudiences}>
-                  {t.posts.setUpAudiences}
-                </button>
-              )}
-            </p>
-          )}
-          {audiences.length > 0 && (
-            <label>
-              {t.campaigns.audienceSelect}
-              <select value={form.audience_id ?? ''} disabled={!editable} onChange={(e) => setForm({ ...form, audience_id: e.target.value || null })}>
-                <option value="">{t.posts.noAudience}</option>
-                {audiences.map((a) => (
-                  <option key={a.id} value={a.id}>
-                    {a.code} · {a.name} ({a.time_zone})
-                  </option>
-                ))}
-              </select>
+          <label>
+            {t.campaigns.audienceSelect}
+            <select
+              value={form.audience_id ?? ''}
+              disabled={!editable || audiences.length === 0}
+              onChange={(e) => setForm({ ...form, audience_id: e.target.value || null })}
+            >
+              <option value="">{audiences.length === 0 ? t.posts.noAudiencesOption : t.posts.noAudience}</option>
+              {audiences.map((a) => (
+                <option key={a.id} value={a.id}>
+                  {a.code} · {a.name} ({a.time_zone})
+                </option>
+              ))}
+            </select>
+            {audiences.length === 0 ? (
+              editable && (
+                <span className="muted small">
+                  {t.posts.noAudiencesYet}{' '}
+                  {onOpenAudiences && (
+                    <button type="button" className="link" onClick={onOpenAudiences}>
+                      {t.posts.setUpAudiences}
+                    </button>
+                  )}
+                </span>
+              )
+            ) : (
               <span className="muted small">{t.campaigns.audienceHint}</span>
-            </label>
-          )}
+            )}
+          </label>
           <div className="row-fields">
             <label>
               {t.campaigns.start}
