@@ -4,13 +4,16 @@
 #   powershell -ExecutionPolicy Bypass -File scripts/update.ps1 -Tag v0.9.0 -Yes
 #   powershell -ExecutionPolicy Bypass -File scripts/update.ps1 -WhatIf
 #   powershell -ExecutionPolicy Bypass -File scripts/update.ps1 -DryRun
+#   powershell -ExecutionPolicy Bypass -File scripts/update.ps1 -VerifyTag   (or HEARDLOOP_VERIFY_TAG=1)
 # Compares the RUNNING API version (image label or app_version()), not only VERSION on disk.
 # Never prints environment variables. Never touches .env.
 param(
     [string]$Tag = "",
     [switch]$Yes,
     [Alias('DryRun')]
-    [switch]$WhatIf
+    [switch]$WhatIf,
+    # Refuse tags without a valid signature (git verify-tag). Also on with HEARDLOOP_VERIFY_TAG=1.
+    [switch]$VerifyTag
 )
 
 $ErrorActionPreference = 'Stop'
@@ -127,6 +130,12 @@ if (-not $Tag) {
 }
 if ($Tag -notmatch '^v\d+\.\d+\.\d+$') {
     Fail "Tag must look like v1.2.3 (got: $Tag)."
+}
+if ($VerifyTag -or $env:HEARDLOOP_VERIFY_TAG -eq '1') {
+    # Signed release tags: git checks the signature against the keys you trust (gpg or ssh allowed signers).
+    git verify-tag $Tag *> $null
+    if ($LASTEXITCODE -ne 0) { Fail "Tag $Tag has no valid signature you trust. Nothing was changed." }
+    Write-Host "Signature of ${Tag}: OK"
 }
 
 $runningTag = Get-RunningVersionTag

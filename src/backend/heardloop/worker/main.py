@@ -11,6 +11,7 @@ import httpx
 from sqlalchemy import text
 from sqlalchemy.ext.asyncio import AsyncEngine
 
+from heardloop.audit import clear_old_ip_addresses
 from heardloop.auth.service import prune_expired_sessions
 from heardloop.backup import check_backup_alerts
 from heardloop.config import get_settings
@@ -124,6 +125,12 @@ async def main() -> None:
             # Housekeeping, guarded separately so one failing job never blocks the others.
             jobs: list[tuple[str, Callable[[], Awaitable[object]]]] = [
                 ("session sweep", lambda: prune_expired_sessions(factory, utcnow())),
+                (
+                    "audit IP retention",
+                    lambda: clear_old_ip_addresses(
+                        factory, utcnow(), retention_days=settings.audit_ip_retention_days
+                    ),
+                ),
                 ("media sweep", lambda: sweep_media(factory, settings.media_root, utcnow)),
                 ("service address refresh", refresh_blocked_service_ips),
             ]

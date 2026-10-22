@@ -194,6 +194,7 @@ All settings live in `.env` (git-ignored). `.env.example` lists them all.
 | `SESSION_IDLE_HOURS` / `SESSION_ABSOLUTE_DAYS` | `12` / `7` | Sign-in session idle timeout (hours) and absolute lifetime (days) |
 | `WORKER_POLL_SECONDS` | `15` | How often the worker looks for due posts |
 | `UPDATE_CHECK` / `UPDATE_CHECK_REPO` | `true` / `HirezRa/heardloop` | Optional notice when a newer GitHub release exists (never installs from the app) |
+| `AUDIT_IP_RETENTION_DAYS` | `0` | Clear IP addresses from activity-log entries older than this many days (0 = keep until purged) |
 | `AI_BASE_URL` / `AI_MODEL` / `AI_API_KEY` / `AI_TIMEOUT_SECONDS` | empty / empty / empty / `60` | Optional AI writing assistant: an OpenAI-compatible server, e.g. `http://ollama:11434/v1` ([INSTALL §13](docs/INSTALL.md#13-optional-ai-writing-assistant)). Post text is sent there when the assistant is used |
 | `BACKUP_DIR` | `./backups` | Host folder for the nightly backup files (git-ignored) |
 | `BACKUP_HOUR_UTC` | `01` | Hour (UTC, 0-23) of the nightly backup |

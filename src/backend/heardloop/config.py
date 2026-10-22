@@ -60,6 +60,10 @@ class Settings(BaseSettings):
     ai_api_key: SecretStr = Field(default=SecretStr(""), alias="AI_API_KEY")
     ai_timeout_seconds: float = Field(default=60.0, alias="AI_TIMEOUT_SECONDS", gt=0, le=300)
 
+    # Activity log: clear the IP address of entries older than this many days (hourly, by the worker).
+    # 0 = keep them until the owner purges the log.
+    audit_ip_retention_days: int = Field(default=0, alias="AUDIT_IP_RETENTION_DAYS", ge=0, le=3650)
+
     # Sessions. Browsers accept Secure cookies on http://localhost, so keep this on.
     cookie_secure: bool = Field(default=True, alias="COOKIE_SECURE")
     session_idle_hours: int = Field(default=12, alias="SESSION_IDLE_HOURS", gt=0)

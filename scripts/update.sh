@@ -3,6 +3,7 @@
 # Usage:  ./scripts/update.sh
 #         ./scripts/update.sh v0.9.0 -y
 #         ./scripts/update.sh --dry-run
+#         ./scripts/update.sh --verify-tag      (or HEARDLOOP_VERIFY_TAG=1): refuse tags without a valid signature
 # Compares the RUNNING API version (image label or app_version()), not only VERSION on disk.
 # Never prints environment variables. Never touches .env.
 set -euo pipefail
@@ -13,11 +14,13 @@ cd "$ROOT"
 YES=0
 DRY=0
 TAG=""
+VERIFY="${HEARDLOOP_VERIFY_TAG:-0}"
 
 for arg in "$@"; do
   case "$arg" in
     -y|--yes) YES=1 ;;
     -n|--dry-run|--what-if) DRY=1 ;;
+    --verify-tag) VERIFY=1 ;;
     v*.*.*) TAG="$arg" ;;
     *) echo "Unknown argument: $arg" >&2; exit 1 ;;
   esac
@@ -119,6 +122,11 @@ if [[ -z "$TAG" ]]; then
   [[ -n "$TAG" ]] || TAG="$files_tag"
 fi
 [[ "$TAG" =~ ^v[0-9]+\.[0-9]+\.[0-9]+$ ]] || fail "Tag must look like v1.2.3 (got: $TAG)."
+if [[ "$VERIFY" == "1" ]]; then
+  # Signed release tags: git checks the signature against the keys you trust (gpg or ssh allowed signers).
+  git verify-tag "$TAG" >/dev/null 2>&1 || fail "Tag $TAG has no valid signature you trust. Nothing was changed."
+  echo "Signature of ${TAG}: OK"
+fi
 
 running_tag="$(running_version_tag)"
 stack_down=0

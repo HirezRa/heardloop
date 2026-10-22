@@ -4,7 +4,8 @@
 !.env.example
 backups/
 docs/reports/
-docs/cursor-prompts/  # privacy-allow: path segment only; folder is git-excluded
+# Local prompt files (any docs/<name>-prompts/ folder); never committed or sent to Docker.
+docs/*-prompts/
 .git/
 .venv/
 **/__pycache__/

@@ -51,6 +51,7 @@ x-backend: &backend
     UPDATE_CHECK: "${UPDATE_CHECK:-true}"
     UPDATE_CHECK_REPO: "${UPDATE_CHECK_REPO:-HirezRa/heardloop}"
     UPDATE_CHECK_TOKEN: "${UPDATE_CHECK_TOKEN:-}"
+    AUDIT_IP_RETENTION_DAYS: "${AUDIT_IP_RETENTION_DAYS:-0}"
     EXTRA_CA_CERT_FILE: "${EXTRA_CA_CERT_FILE:-}"
     AI_BASE_URL: "${AI_BASE_URL:-}"
     AI_MODEL: "${AI_MODEL:-}"
@@ -74,7 +75,7 @@ x-backend: &backend
 
 services:
   db:
-    image: postgres:17-alpine
+    image: postgres:17-alpine@sha256:b0f9560a2de083e2cc7382e75f808c7381a32852a7ec49117deedb300e552b24
     restart: unless-stopped
     environment:
       POSTGRES_DB: heardloop
