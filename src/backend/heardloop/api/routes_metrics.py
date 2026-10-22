@@ -15,7 +15,7 @@ import uuid
 from collections import defaultdict
 from collections.abc import Iterable
 from datetime import UTC, date, datetime, time, timedelta
-from typing import Annotated, Any
+from typing import Annotated, Any, Literal
 from zoneinfo import ZoneInfo
 
 from fastapi import APIRouter, Depends, HTTPException, Query, Request, status
@@ -38,6 +38,7 @@ from heardloop.api.schemas import (
     ReportBucket,
     ReportOut,
     ReportPost,
+    ReportTimeGroup,
     TopFieldsOut,
 )
 from heardloop.audiences import AudienceMap, weekend_for_zone
@@ -584,6 +585,7 @@ async def _report_posts(
             ).all()
         )
     tolerance = _tolerance(window_days)
+    now = utcnow()
     out: list[ReportPost] = []
     for post, body, mids, link_url, campaign_name, campaign_audience_id in rows:
         if post.published_at is None:
@@ -598,6 +600,8 @@ async def _report_posts(
         resolved = audiences.resolve(post.audience_id, campaign_audience_id)
         local = post.published_at.astimezone(resolved.tz)
         age = (metric.captured_at - post.published_at) / timedelta(days=1) if metric else None
+        # Younger than the window: no measurement at that age can exist yet. Early, not an outlier.
+        young = window_days > 0 and now - post.published_at < timedelta(days=window_days - tolerance)
         out.append(
             ReportPost(
                 post_id=post.id,
@@ -624,7 +628,11 @@ async def _report_posts(
                 engagement_rate=_rate(engagement, metric.impressions) if metric else None,
                 measured_at=metric.captured_at if metric else None,
                 measured_age_days=round(age, 1) if age is not None else None,
-                off_window=age is not None and window_days > 0 and abs(age - window_days) > tolerance,
+                preliminary=metric is not None and young,
+                off_window=age is not None
+                and window_days > 0
+                and not young
+                and abs(age - window_days) > tolerance,
             )
         )
     return out
@@ -657,6 +665,65 @@ def _weekend_shown(audiences: AudienceMap, audience_id: uuid.UUID | None) -> lis
 WindowDays = Annotated[int, Query(ge=0, le=MAX_WINDOW_DAYS)]
 
 
+def _time_group(
+    key: str, label: str | None, zone: str, weekend: list[int], slots: list[tuple[int, int, ReportPost]]
+) -> ReportTimeGroup:
+    by_weekday: dict[int, list[ReportPost]] = defaultdict(list)
+    by_hour: dict[int, list[ReportPost]] = defaultdict(list)
+    for weekday, hour, p in slots:
+        by_weekday[weekday].append(p)
+        by_hour[hour].append(p)
+    weekdays = []
+    for d in range(7):
+        bucket = _bucket(str(d), by_weekday.get(d, []))
+        bucket.weekend = d in weekend
+        weekdays.append(bucket)
+    return ReportTimeGroup(
+        key=key,
+        label=label,
+        time_zone=zone,
+        weekend_days=list(weekend),
+        posts=len(slots),
+        by_weekday=weekdays,
+        by_hour=[_bucket(str(h), by_hour.get(h, [])) for h in range(24)],
+    )
+
+
+def _time_groups(
+    posts: list[ReportPost], audiences: AudienceMap, clock: str, rank: dict[str, int]
+) -> list[ReportTimeGroup]:
+    """Weekday/hour buckets that never mix clocks: per audience in its zone, or all on the workspace clock."""
+    if clock == "workspace":
+        tz = audiences.workspace_tz
+        default = audiences.default
+        weekend = list(default.weekend_days) if default else weekend_for_zone(tz.key)
+        slots = []
+        for p in posts:
+            local = p.published_at.astimezone(tz)
+            slots.append((local.weekday(), local.hour, p))
+        return [_time_group("workspace", None, tz.key, weekend, slots)] if posts else []
+    grouped: dict[str, list[tuple[int, int, ReportPost]]] = defaultdict(list)
+    for p in posts:
+        grouped[str(p.audience_id) if p.audience_id else "none"].append((p.local_weekday, p.local_hour, p))
+    out = []
+    for key in sorted(grouped, key=lambda k: rank.get(k, len(rank))):
+        audience = audiences.by_id.get(uuid.UUID(key)) if key != "none" else None
+        if audience is not None:
+            out.append(
+                _time_group(
+                    key,
+                    audience.code,
+                    audiences.zone(audience).key,
+                    list(audience.weekend_days),
+                    grouped[key],
+                )
+            )
+        else:
+            tz = audiences.workspace_tz
+            out.append(_time_group(key, None, tz.key, weekend_for_zone(tz.key), grouped[key]))
+    return out
+
+
 @router.get("/reports")
 async def report(
     access: ReadAccess,
@@ -666,11 +733,14 @@ async def report(
     campaign_id: Annotated[uuid.UUID | None, Query()] = None,
     audience_id: Annotated[uuid.UUID | None, Query()] = None,
     window_days: WindowDays = WINDOW_DEFAULT_DAYS,
+    clock: Annotated[Literal["audience", "workspace"], Query()] = "audience",
 ) -> ReportOut:
     """Published posts in the range (default: last 90 days), grouped in several ways.
 
     Each post is measured at about `window_days` after publishing (0 = its latest measurement) and its
     publish time is read in its audience's time zone, so weekday and hour buckets compare like with like.
+    `by_time` keeps one group per audience (clock=audience) or one group on the workspace clock
+    (clock=workspace: "when did I press publish here"), so an hour bucket never mixes two clocks.
     """
     tz = await _workspace_zone(db, access.workspace_id)
     audiences = await AudienceMap.load(db, access.workspace_id, tz)
@@ -705,6 +775,9 @@ async def report(
         by_media[p.media_kind].append(p)
 
     weekend_days = _weekend_shown(audiences, audience_id)
+    audience_order = list(audiences.by_id)  # settings order; posts without an audience last
+    audience_rank = {str(aid): i for i, aid in enumerate(audience_order)}
+    by_time = _time_groups(posts, audiences, clock, audience_rank)
     measured = [p for p in posts if p.measured_at is not None]
     top = sorted(measured, key=lambda p: (p.engagement, p.impressions or 0), reverse=True)[:10]
     unmeasured = [p for p in posts if p.measured_at is None][-20:]
@@ -713,8 +786,6 @@ async def report(
         bucket = _bucket(str(d), by_weekday.get(str(d), []))
         bucket.weekend = d in weekend_days
         weekday_buckets.append(bucket)
-    audience_order = list(audiences.by_id)  # settings order; posts without an audience last
-    audience_rank = {str(aid): i for i, aid in enumerate(audience_order)}
     return ReportOut(
         start=start,
         end=end,
@@ -725,6 +796,7 @@ async def report(
         window_days=window_days,
         window_tolerance_days=_tolerance(window_days),
         off_window=sum(1 for p in measured if p.off_window),
+        preliminary=sum(1 for p in measured if p.preliminary),
         totals=_bucket("total", posts),
         trend=[_bucket(k, by_week[k]) for k in sorted(by_week)],
         by_campaign=sorted(
@@ -736,6 +808,8 @@ async def report(
             _bucket(k, by_audience[k], audience_labels.get(k))
             for k in sorted(by_audience, key=lambda k: audience_rank.get(k, len(audience_rank)))
         ],
+        clock=clock,
+        by_time=by_time,
         by_weekday=weekday_buckets,
         by_hour=[_bucket(str(h), by_hour.get(str(h), [])) for h in range(24)],
         by_media=[_bucket(k, by_media[k]) for k in ("none", "image", "video", "link") if k in by_media],

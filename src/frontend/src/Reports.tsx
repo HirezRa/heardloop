@@ -12,7 +12,9 @@ import {
   type Me,
   type Report,
   type ReportBucket,
+  type ReportClock,
   type ReportFilter,
+  type ReportTimeGroup,
 } from './api';
 import { weekendLabel } from './AudienceSettings';
 import { DateInput } from './DateInputs';
@@ -224,6 +226,7 @@ export default function Reports({ me, onOpenPost }: { me: Me; onOpenPost: (postI
   const [audienceId, setAudienceId] = useState('');
   const [audiences, setAudiences] = useState<Audience[]>([]);
   const [windowDays, setWindowDays] = useState(7);
+  const [clock, setClock] = useState<ReportClock>('audience');
   const [report, setReport] = useState<Report | null>(null);
   const [error, setError] = useState('');
   const [reloadKey, setReloadKey] = useState(0);
@@ -298,8 +301,15 @@ export default function Reports({ me, onOpenPost }: { me: Me; onOpenPost: (postI
   }, [wsId]);
 
   const filter: ReportFilter = useMemo(
-    () => ({ start: range.start, end: range.end, campaignId: campaignId || undefined, audienceId: audienceId || undefined, windowDays }),
-    [range.start, range.end, campaignId, audienceId, windowDays],
+    () => ({
+      start: range.start,
+      end: range.end,
+      campaignId: campaignId || undefined,
+      audienceId: audienceId || undefined,
+      windowDays,
+      clock,
+    }),
+    [range.start, range.end, campaignId, audienceId, windowDays, clock],
   );
 
   useEffect(() => {
@@ -325,6 +335,12 @@ export default function Reports({ me, onOpenPost }: { me: Me; onOpenPost: (postI
   const weekdayLabel = (key: string) => weekday.format(new Date(2024, 0, 1 + Number(key)));
   const pct = (v: number | null) => (v === null ? '-' : `${(v * 100).toFixed(1)}%`);
   const audienceLabel = (b: ReportBucket) => (b.key === 'none' ? t.reports.noAudience : (b.label ?? b.key));
+  /** "IL · Asia/Jerusalem", "No audience · …" or "Workspace clock · …": every chart says which clock it uses. */
+  const groupTitle = (g: ReportTimeGroup) =>
+    g.key === 'workspace'
+      ? t.reports.workspaceClock(g.time_zone)
+      : `${g.key === 'none' ? t.reports.noAudience : (g.label ?? g.key)} · ${g.time_zone}`;
+  const rate = (v: number) => `${(v * 100).toFixed(1)}%`;
 
   return (
     <div className="reports">
@@ -373,6 +389,14 @@ export default function Reports({ me, onOpenPost }: { me: Me; onOpenPost: (postI
             ))}
           </select>
         </label>
+        <div className="segmented" role="group" aria-label={t.reports.clock}>
+          <button type="button" aria-pressed={clock === 'audience'} onClick={() => setClock('audience')} title={t.reports.clockAudienceHint}>
+            {t.reports.clockAudience}
+          </button>
+          <button type="button" aria-pressed={clock === 'workspace'} onClick={() => setClock('workspace')} title={t.reports.clockWorkspaceHint}>
+            {t.reports.clockWorkspace}
+          </button>
+        </div>
         {range.start && range.end && (
           <a className="link" href={reportCsvUrl(wsId, filter)} download>
             {t.reports.exportCsv}
@@ -454,6 +478,7 @@ export default function Reports({ me, onOpenPost }: { me: Me; onOpenPost: (postI
           </p>
           <p className="notice">
             {report.window_days === 0 ? t.reports.windowLatestHint : t.reports.windowHint(report.window_days)}
+            {report.preliminary > 0 && ` ${t.reports.preliminary(report.preliminary, report.window_days)}`}
             {report.off_window > 0 && ` ${t.reports.offWindow(report.off_window, report.window_days, report.window_tolerance_days)}`}
           </p>
           <div className="metric-cards wide">
@@ -511,7 +536,8 @@ export default function Reports({ me, onOpenPost }: { me: Me; onOpenPost: (postI
                       {formatDate(p.published_at)}
                       {p.audience_code ? ` · ${p.audience_code}` : ''} · {p.impressions?.toLocaleString() ?? '-'} / {p.engagement} · {pct(p.engagement_rate)}
                       {p.measured_age_days !== null && ` · ${t.reports.measuredAfter(Math.round(p.measured_age_days))}`}
-                      {p.off_window ? ' ⚠' : ''}
+                      {p.preliminary ? ` · ${t.reports.preliminaryTag}` : ''}
+                      {p.off_window ? ` · ⚠ ${t.reports.offWindowTag}` : ''}
                     </span>
                   </li>
                 ))}
@@ -530,13 +556,37 @@ export default function Reports({ me, onOpenPost }: { me: Me; onOpenPost: (postI
             )}
             <section className="card">
               <h2>{t.reports.byWeekday}</h2>
-              <Bars buckets={report.by_weekday} value={(b) => b.avg_engagement_rate ?? 0} label={(b) => weekdayLabel(b.key)} format={(v) => `${(v * 100).toFixed(1)}%`} />
-              <p className="muted small">{t.reports.rateHint}</p>
+              {report.by_time.length === 0 && <p className="muted small">{t.reports.noData}</p>}
+              {report.by_time.map((g) => (
+                <div key={g.key} className="time-group">
+                  <h3 className="time-group-title" dir="auto">
+                    {groupTitle(g)} <span className="muted small">· {t.reports.postsCount(g.posts)}</span>
+                  </h3>
+                  <Bars buckets={g.by_weekday} value={(b) => b.avg_engagement_rate ?? 0} label={(b) => weekdayLabel(b.key)} format={rate} />
+                </div>
+              ))}
+              <p className="muted small">
+                {t.reports.rateHint} {clock === 'audience' ? t.reports.clockAudienceHint : t.reports.clockWorkspaceHint}
+              </p>
             </section>
             <section className="card">
               <h2>{t.reports.byHour}</h2>
-              <Bars buckets={report.by_hour.filter((b) => b.posts > 0)} value={(b) => b.avg_impressions ?? 0} label={(b) => `${b.key.padStart(2, '0')}:00`} />
-              <p className="muted small">{t.reports.impressionsHint}</p>
+              {report.by_time.length === 0 && <p className="muted small">{t.reports.noData}</p>}
+              {report.by_time.map((g) => (
+                <div key={g.key} className="time-group">
+                  <h3 className="time-group-title" dir="auto">
+                    {groupTitle(g)} <span className="muted small">· {t.reports.postsCount(g.posts)}</span>
+                  </h3>
+                  <Bars
+                    buckets={g.by_hour.filter((b) => b.posts > 0)}
+                    value={(b) => b.avg_impressions ?? 0}
+                    label={(b) => `${b.key.padStart(2, '0')}:00`}
+                  />
+                </div>
+              ))}
+              <p className="muted small">
+                {t.reports.impressionsHint} {clock === 'audience' ? t.reports.clockAudienceHint : t.reports.clockWorkspaceHint}
+              </p>
             </section>
             <section className="card">
               <h2>{t.reports.byMedia}</h2>

@@ -279,6 +279,22 @@ def test_reports_use_each_audience_zone(client: TestClient, world: World) -> Non
         and by_post[posts["none"]]["time_zone"] == "Asia/Jerusalem"
     )
 
+    # by_time never mixes clocks: one group per audience, each with its own zone and weekend.
+    groups = {g["key"]: g for g in rep["by_time"]}
+    assert rep["clock"] == "audience" and list(groups) == [il["id"], us["id"], "none"]
+    assert groups[us["id"]]["time_zone"] == "America/New_York" and groups[us["id"]]["weekend_days"] == [5, 6]
+    assert {b["key"] for b in groups[us["id"]]["by_hour"] if b["posts"]} == {str(us_hour)}
+    assert groups[us["id"]]["by_weekday"][6]["posts"] == 1 and groups[us["id"]]["by_weekday"][6]["weekend"]
+    assert groups[il["id"]]["label"] == "IL" and groups[il["id"]]["by_weekday"][6]["weekend"] is False
+    assert {b["key"] for b in groups["none"]["by_hour"] if b["posts"]} == {str(il_hour)}
+    # The workspace clock puts every post on one clock: "when did I press publish".
+    ws_clock = client.get(f"{_ws(world)}/reports", params={"clock": "workspace"}).json()
+    assert ws_clock["clock"] == "workspace" and len(ws_clock["by_time"]) == 1
+    only = ws_clock["by_time"][0]
+    assert only["key"] == "workspace" and only["time_zone"] == "Asia/Jerusalem" and only["posts"] == 3
+    assert {b["key"]: b["posts"] for b in only["by_hour"] if b["posts"]} == {str(il_hour): 3}
+    assert client.get(f"{_ws(world)}/reports", params={"clock": "mars"}).status_code == 422
+
     only_us = client.get(f"{_ws(world)}/reports", params={"audience_id": us["id"]}).json()
     assert only_us["totals"]["posts"] == 1 and only_us["weekend_days"] == [5, 6]
     assert only_us["time_zones"] == ["America/New_York"] and only_us["audience_id"] == us["id"]
@@ -380,6 +396,17 @@ def test_measurement_window(client: TestClient, world: World) -> None:  # noqa: 
     assert two["totals"]["impressions"] == 1000 and two["off_window"] == 1  # 6 is outside 2 +/- 1
     assert two["top_posts"][0]["off_window"] is True
     assert client.get(f"{_ws(world)}/reports", params={"window_days": 91}).status_code == 422
+
+    # A post younger than the window is preliminary (its numbers still grow), not an outlier.
+    young = _published(client, world, acc, "Two days old", days_ago=2)
+    client.post(
+        f"{_base(world)}/{young}/metrics", json={"impressions": 50, "reactions": 1}, headers=_h(client)
+    )
+    rep = totals()
+    assert rep["preliminary"] == 1 and rep["off_window"] == 0
+    row = next(p for p in rep["top_posts"] if p["post_id"] == young)
+    assert row["preliminary"] is True and row["off_window"] is False
+    assert totals(window_days=0)["preliminary"] == 0  # "latest" has no window to be early for
 
     csv_text = client.get(f"{_ws(world)}/reports/export.csv", params={"window_days": 0}).content.decode(
         "utf-8-sig"

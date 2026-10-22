@@ -818,7 +818,8 @@ export interface ReportPost {
   engagement_rate: number | null;
   measured_at: string | null;
   measured_age_days: number | null; // measured_at - published_at, in days
-  off_window: boolean; // the measurement is far from the requested window
+  off_window: boolean; // old enough, but the measurement is far from the requested window
+  preliminary: boolean; // younger than the window: numbers still growing
 }
 
 export interface ReportBucket {
@@ -835,6 +836,19 @@ export interface ReportBucket {
   weekend: boolean | null; // weekday buckets only
 }
 
+/** Weekday/hour buckets of posts that share one clock (one audience, or all posts on the workspace clock). */
+export interface ReportTimeGroup {
+  key: string; // audience id, 'none' or 'workspace'
+  label: string | null; // audience code
+  time_zone: string;
+  weekend_days: number[];
+  posts: number;
+  by_weekday: ReportBucket[];
+  by_hour: ReportBucket[];
+}
+
+export type ReportClock = 'audience' | 'workspace';
+
 export interface Report {
   start: string;
   end: string;
@@ -844,11 +858,14 @@ export interface Report {
   weekend_days: number[]; // the weekend marked in by_weekday
   window_days: number; // measurements are compared at this age (0 = latest)
   window_tolerance_days: number;
-  off_window: number; // measured posts whose measurement age is outside the window +/- tolerance
+  off_window: number; // measured posts old enough for the window, measured far from it
+  preliminary: number; // measured posts younger than the window
   totals: ReportBucket;
   trend: ReportBucket[];
   by_campaign: ReportBucket[];
   by_audience: ReportBucket[];
+  clock: ReportClock;
+  by_time: ReportTimeGroup[]; // never mixes clocks inside one group
   by_weekday: ReportBucket[];
   by_hour: ReportBucket[];
   by_media: ReportBucket[];
@@ -862,6 +879,7 @@ export interface ReportFilter {
   campaignId?: string;
   audienceId?: string;
   windowDays?: number; // 0 = latest measurement; omitted = the server default (7)
+  clock?: ReportClock; // weekday/hour per audience zone (default) or all on the workspace clock
 }
 
 function reportQuery(f: ReportFilter): URLSearchParams {
@@ -871,12 +889,13 @@ function reportQuery(f: ReportFilter): URLSearchParams {
   if (f.campaignId) q.set('campaign_id', f.campaignId);
   if (f.audienceId) q.set('audience_id', f.audienceId);
   if (f.windowDays !== undefined) q.set('window_days', String(f.windowDays));
+  if (f.clock) q.set('clock', f.clock);
   return q;
 }
 
 export const getReport = (id: string, f: ReportFilter = {}) => request<Report>('GET', `${ws(id)}/reports?${reportQuery(f)}`);
 export const reportCsvUrl = (id: string, f: ReportFilter = {}) =>
-  `${ws(id)}/reports/export.csv?${reportQuery({ ...f, campaignId: undefined })}`; // the CSV has no campaign filter
+  `${ws(id)}/reports/export.csv?${reportQuery({ ...f, campaignId: undefined, clock: undefined })}`; // the CSV has no campaign filter
 
 export interface BestTimeSlot {
   weekday: number; // 0 = Monday, in BestTimes.time_zone

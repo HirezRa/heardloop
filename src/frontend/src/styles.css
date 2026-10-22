@@ -582,3 +582,5 @@ textarea.has-placeholders { outline: 1px solid #ca8a04; }
 .reports .notice { font-size: var(--fs-sm); color: var(--muted); margin: 0 0 8px; }
 .audience-time { color: var(--muted); font-size: var(--fs-xs); }
 .badge.audience { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; letter-spacing: 0.02em; border: 1px solid var(--border); background: var(--bg); color: var(--accent); }
+.time-group + .time-group { margin-top: 14px; padding-top: 10px; border-top: 1px dashed var(--border); }
+.time-group-title { font-size: var(--fs-sm); font-weight: 600; margin: 0 0 6px; }

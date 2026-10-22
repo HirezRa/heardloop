@@ -775,7 +775,8 @@ class ReportPost(BaseModel):
     engagement_rate: float | None  # engagement / impressions
     measured_at: datetime | None
     measured_age_days: float | None = None  # measured_at - published_at, in days (one decimal)
-    off_window: bool = False  # the measurement is far from the requested window (see ReportOut)
+    off_window: bool = False  # old enough, but the measurement is far from the requested window
+    preliminary: bool = False  # the post is younger than the window: its numbers will still grow
 
 
 class ReportBucket(BaseModel):
@@ -809,6 +810,18 @@ class BestTimesOut(BaseModel):
     slots: list[BestTimeSlot]  # best first, at most 3; empty when there is not enough data yet
 
 
+class ReportTimeGroup(BaseModel):
+    """Weekday and hour buckets of posts that share one clock: one audience, or all on the workspace clock."""
+
+    key: str  # audience id, "none" (posts without an audience) or "workspace"
+    label: str | None = None  # audience code
+    time_zone: str  # the zone the weekday and hour are read in
+    weekend_days: list[int]
+    posts: int
+    by_weekday: list[ReportBucket]  # 0 = Monday ... 6 = Sunday
+    by_hour: list[ReportBucket]  # 0-23
+
+
 class ReportOut(BaseModel):
     start: date
     end: date
@@ -818,12 +831,19 @@ class ReportOut(BaseModel):
     weekend_days: list[int]  # the weekend marked in `by_weekday` (filtered audience, else default audience)
     window_days: int  # measurements are taken at this age after publishing (0 = latest)
     window_tolerance_days: int  # a measurement further than this from the window is counted in `off_window`
-    off_window: int  # measured posts whose measurement age is outside window +/- tolerance
+    off_window: (
+        int  # measured posts old enough for the window whose measurement is outside window +/- tolerance
+    )
+    preliminary: int = 0  # measured posts younger than the window (numbers still growing; not comparable yet)
     totals: ReportBucket
     trend: list[ReportBucket]  # per week
     by_campaign: list[ReportBucket]
     by_audience: list[ReportBucket]
-    by_weekday: list[ReportBucket]  # 0 = Monday ... 6 = Sunday, each post in its audience's time zone
+    clock: Literal["audience", "workspace"] = "audience"  # how `by_time` reads publish times
+    # One group per audience (each in its own zone) with clock=audience; a single workspace group otherwise.
+    # Never mixes zones inside a group, so an hour always means the same clock.
+    by_time: list[ReportTimeGroup] = []
+    by_weekday: list[ReportBucket]  # all posts together, each in its audience's zone (kept for API users)
     by_hour: list[ReportBucket]
     by_media: list[ReportBucket]
     top_posts: list[ReportPost]
