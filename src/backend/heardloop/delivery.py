@@ -324,6 +324,11 @@ _SERVICE_HOSTS = ("db", "api", "web", "worker")
 _blocked_ips: set[ipaddress.IPv4Address | ipaddress.IPv6Address] = set()
 
 
+class BlockedDestinationError(Exception):
+    """Raised by `safehttp` when a name resolves to an address the server must not call. Not an httpx error on
+    purpose: callers record it as `blocked_destination` and never retry it."""
+
+
 def _unwrap(
     addr: ipaddress.IPv4Address | ipaddress.IPv6Address,
 ) -> ipaddress.IPv4Address | ipaddress.IPv6Address:
@@ -342,14 +347,16 @@ def _parse_ip(raw: object) -> ipaddress.IPv4Address | ipaddress.IPv6Address | No
 _RESOLVE_TIMEOUT = 0.4  # short: outside Docker, "db"/"api" are not real DNS names and must not hang startup
 
 
-async def _resolve_host(host: str) -> list[ipaddress.IPv4Address | ipaddress.IPv6Address]:
+async def _resolve_host(
+    host: str, *, deadline: float = _RESOLVE_TIMEOUT
+) -> list[ipaddress.IPv4Address | ipaddress.IPv6Address]:
     """Resolves one host with a deadline. Empty on timeout, NXDOMAIN, or literal parse failure."""
     direct = _parse_ip(host)
     if direct is not None:
         return [direct]
     loop = asyncio.get_running_loop()
     try:
-        infos = await asyncio.wait_for(loop.getaddrinfo(host, None), timeout=_RESOLVE_TIMEOUT)
+        infos = await asyncio.wait_for(loop.getaddrinfo(host, None), timeout=deadline)
     except (OSError, TimeoutError):
         return []
     out: list[ipaddress.IPv4Address | ipaddress.IPv6Address] = []
@@ -392,7 +399,7 @@ def _address_error(addr: ipaddress.IPv4Address | ipaddress.IPv6Address, *, allow
 def peer_error(response: httpx.Response, *, allow_private: bool = True) -> str | None:
     """Peer re-check after connect: the address the socket really reached must pass the same rules.
 
-    Closes the DNS-rebinding window between `check_destination` and the connection. Not available with
+    A last check on the socket; the pinning itself is done by `safehttp` at connect time. Not available with
     mocked transports (no network stream), where it does nothing.
     """
     stream = response.extensions.get("network_stream")
@@ -421,8 +428,10 @@ async def check_destination(url: str, *, allow_private: bool = True) -> str | No
     loopback, link-local (incl. the cloud metadata address), unspecified, multicast, reserved, and the
     addresses of this stack's own services (see `refresh_blocked_service_ips`).
 
-    The name is resolved here, and the peer is re-checked after connect (`peer_error`), so a DNS change
-    between the check and the connection is caught as well.
+    This is the early, friendly check (clear error codes before any request). The connection itself goes
+    through `safehttp.guarded_client`, which resolves once more, checks again and connects only to the
+    address it checked (IP pinning), so DNS rebinding between this check and the connection cannot reach a
+    blocked address. `peer_error` stays as a last check on the socket.
     """
     try:
         host = (urlparse(url).hostname or "").lower().rstrip(".")
@@ -516,6 +525,10 @@ async def _send_one(
             error = "timeout"
         except httpx.HTTPError as exc:
             error = type(exc).__name__[:200]
+        except (
+            BlockedDestinationError
+        ):  # pinned-IP check at connect time: the name now points somewhere forbidden
+            error = "blocked_destination"
 
     async with factory() as db:
         d = (

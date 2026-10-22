@@ -30,6 +30,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - `scripts/backup-now.sh` only does arithmetic on numeric manifest values.
 - Containers: `db` gets `no-new-privileges` and a PID limit, `web` a read-only root; nginx sends `Permissions-Policy` and logs paths without query strings.
 - CI: release checkout does not keep credentials; Dependabot also watches `src/backup` and the compose file images.
+- Webhooks and link previews pin the vetted IP address (#55): the name is resolved and checked at connect time and only a checked address is dialled, so DNS rebinding cannot make the server call a private or internal address.
 
 ## [0.9.6] - 2026-10-19
 

@@ -315,7 +315,7 @@ async def link_preview(body: LinkPreviewRequest, access: WriteAccess, request: R
         raise HTTPException(status.HTTP_429_TOO_MANY_REQUESTS, "too_many_requests")
     try:
         async with _PREVIEW_SLOTS:
-            preview = await fetch_preview(request.app.state.http, body.url)
+            preview = await fetch_preview(request.app.state.preview_http, body.url)
     except LinkPreviewError as exc:
         raise HTTPException(
             status.HTTP_422_UNPROCESSABLE_CONTENT, f"link_preview_failed:{exc.code}"
