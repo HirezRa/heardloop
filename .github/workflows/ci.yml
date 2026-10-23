@@ -11,7 +11,7 @@ permissions:
 
 jobs:
   privacy:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
@@ -31,7 +31,7 @@ jobs:
           docker run --rm -v "$PWD:/repo" ghcr.io/gitleaks/gitleaks:v8.24.2 git /repo --redact --verbose
 
   backend:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     defaults:
       run:
         working-directory: src/backend
@@ -78,7 +78,7 @@ jobs:
   backup-smoke:
     # Builds src/backup and runs scripts/backup-smoke.sh against a throwaway PostgreSQL: backup, verify,
     # restore into a second database (plain and encrypted), failure manifest, retention, clean stop.
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     timeout-minutes: 8
     services:
       postgres:
@@ -100,7 +100,7 @@ jobs:
         run: bash scripts/backup-smoke.sh
 
   frontend:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     defaults:
       run:
         working-directory: src/frontend
@@ -115,6 +115,9 @@ jobs:
       - run: npm run test:update-copy
       - run: npm run build
       - name: Install Chromium for smoke test
+        # Pinned runner: on the ubuntu-latest image that moved to Ubuntu 26 this step (apt deps for the
+        # browser) went from seconds to ~13 minutes. The timeout makes a repeat fail fast instead.
+        timeout-minutes: 5
         run: npx playwright install --with-deps chromium
       - name: Frontend smoke (login form mounts)
         run: npm run smoke
@@ -123,7 +126,7 @@ jobs:
   stack-smoke:
     # Real docker compose images: health through the web port + login page. Catches
     # image/runtime breaks that unit tests and the static frontend smoke miss.
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     timeout-minutes: 20
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
