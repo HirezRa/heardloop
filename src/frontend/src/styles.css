@@ -565,3 +565,22 @@ textarea.has-placeholders { outline: 1px solid #ca8a04; }
 .sessions { list-style: none; padding: 0; margin: 8px 0; display: flex; flex-direction: column; gap: 8px; }
 .sessions li { display: flex; justify-content: space-between; align-items: center; gap: 12px; border: 1px solid var(--border); border-radius: 8px; padding: 8px 10px; }
 .sessions li .badge { margin-inline-start: 8px; }
+
+/* Audiences (Settings) and audience-aware reports */
+.audiences .table td .chip { margin-inline-end: 6px; cursor: default; }
+.audience-form { max-width: none; margin-top: 12px; }
+.audience-form .row.wrap { display: flex; flex-wrap: wrap; gap: 12px; }
+.audience-form .row.wrap label { flex: 1 1 160px; }
+.audience-form .row.gap { display: flex; gap: 12px; align-items: center; }
+.weekend-days { border: 1px solid var(--border); border-radius: 8px; padding: 8px 12px; display: flex; flex-wrap: wrap; gap: 6px 14px; }
+.weekend-days legend { font-size: var(--fs-sm); color: var(--muted); padding: 0 4px; }
+.weekend-days label.check { font-size: var(--fs-sm); }
+.audiences .row.wrap { display: flex; flex-wrap: wrap; gap: 12px; align-items: end; margin-top: 12px; }
+.bar-row.weekend .bar-label { color: var(--muted); font-style: italic; }
+.bar-row.weekend .bar-fill { opacity: 0.6; }
+.filters .window { display: inline-flex; align-items: center; gap: 6px; font-size: var(--fs-sm); }
+.reports .notice { font-size: var(--fs-sm); color: var(--muted); margin: 0 0 8px; }
+.audience-time { color: var(--muted); font-size: var(--fs-xs); }
+.badge.audience { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; letter-spacing: 0.02em; border: 1px solid var(--border); background: var(--bg); color: var(--accent); }
+.time-group + .time-group { margin-top: 14px; padding-top: 10px; border-top: 1px dashed var(--border); }
+.time-group-title { font-size: var(--fs-sm); font-weight: 600; margin: 0 0 6px; }

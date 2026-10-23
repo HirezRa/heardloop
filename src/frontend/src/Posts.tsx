@@ -6,6 +6,7 @@ import {
   getPost,
   getSettings,
   listAccounts,
+  listAudiences,
   listCampaigns,
   listPosts,
   listPostVersions,
@@ -21,6 +22,7 @@ import {
   MAX_IMAGE_BYTES,
   MAX_VIDEO_BYTES,
   MIN_VIDEO_BYTES,
+  type Audience,
   type Campaign,
   type LinkCard,
   type LinkedInAccount,
@@ -37,7 +39,7 @@ import EditorToolbar from './EditorToolbar';
 import LinkCardEditor from './LinkCardEditor';
 import HashtagPicker from './HashtagPicker';
 import AiAssistant from './AiAssistant';
-import BestTimes from './BestTimes';
+import BestTimes, { shiftZone } from './BestTimes';
 import MetricsPanel from './MetricsPanel';
 import { countCharacters, styledRatio, utf16Length } from './unicodeFormat';
 import { formatDateTime } from './dates';
@@ -503,7 +505,15 @@ function TemplatePicker({
   );
 }
 
-export default function Posts({ me, focusPostId }: { me: Me; focusPostId?: string | null }) {
+export default function Posts({
+  me,
+  focusPostId,
+  onOpenAudiences,
+}: {
+  me: Me;
+  focusPostId?: string | null;
+  onOpenAudiences?: () => void;
+}) {
   const membership = me.memberships[0];
   const role = membership?.role;
   const canWrite = role === 'owner' || role === 'editor' || role === 'approver';
@@ -513,6 +523,8 @@ export default function Posts({ me, focusPostId }: { me: Me; focusPostId?: strin
   const [accounts, setAccounts] = useState<LinkedInAccount[]>([]);
   const [campaigns, setCampaigns] = useState<Campaign[]>([]);
   const [newCampaignId, setNewCampaignId] = useState('');
+  const [audiences, setAudiences] = useState<Audience[]>([]);
+  const [newAudienceId, setNewAudienceId] = useState('');
   const [requireApproval, setRequireApproval] = useState(true);
   const [timeZone, setTimeZone] = useState('UTC');
   const [selected, setSelected] = useState<Post | null>(null);
@@ -550,6 +562,12 @@ export default function Posts({ me, focusPostId }: { me: Me; focusPostId?: strin
     load();
     listAccounts(wsId).then(setAccounts).catch(() => setAccounts([]));
     listCampaigns(wsId).then(setCampaigns).catch(() => setCampaigns([]));
+    listAudiences(wsId)
+      .then((list) => {
+        setAudiences(list);
+        setNewAudienceId((cur) => cur || (list.find((a) => a.is_default)?.id ?? ''));
+      })
+      .catch(() => setAudiences([]));
     getSettings(wsId)
       .then((s) => {
         setRequireApproval(s.require_approval);
@@ -597,6 +615,7 @@ export default function Posts({ me, focusPostId }: { me: Me; focusPostId?: strin
   function startNew() {
     setSelected(null);
     setNewCampaignId('');
+    setNewAudienceId(audiences.find((a) => a.is_default)?.id ?? '');
     setDraft({ account_id: active[0]?.id ?? '', body: '', media: [], link: null });
     setPlaceholdersLeft([]);
     setMsg({});
@@ -690,6 +709,7 @@ export default function Posts({ me, focusPostId }: { me: Me; focusPostId?: strin
               body: draft.body,
               media_ids: draft.media.map((m) => m.id),
               campaign_id: newCampaignId || null,
+              audience_id: newAudienceId || null,
               link: draft.link,
             }),
       t.posts.saved,
@@ -704,6 +724,21 @@ export default function Posts({ me, focusPostId }: { me: Me; focusPostId?: strin
 
   const fmt = { format: (d: Date) => formatDateTime(d, timeZone) };
   const canSchedule = status === 'approved' || status === 'failed' || (status === 'draft' && !requireApproval);
+  // The audience the post is reported under: its own, else its campaign's (for a new post: the pick, else the
+  // chosen campaign's). Used for the best-time suggestions and the "for the audience that is …" note.
+  const inheritedAudience = selected
+    ? selected.audience_id
+      ? null
+      : (audiences.find((a) => a.id === selected.effective_audience_id) ?? null)
+    : (audiences.find((a) => a.id === campaigns.find((c) => c.id === newCampaignId)?.audience_id) ?? null);
+  const effectiveAudience = selected
+    ? (audiences.find((a) => a.id === selected.effective_audience_id) ?? null)
+    : (audiences.find((a) => a.id === newAudienceId) ?? inheritedAudience);
+  const audienceCodeOf = (p: Post) => audiences.find((a) => a.id === p.effective_audience_id)?.code ?? null;
+  const audienceWhen = effectiveAudience && effectiveAudience.time_zone !== timeZone ? shiftZone(when, timeZone, effectiveAudience.time_zone) : null;
+  const audienceTimeNote = audienceWhen ? (
+    <span className="audience-time">{t.posts.audienceTime(audienceWhen.replace('T', ' '), effectiveAudience?.time_zone ?? '')}</span>
+  ) : null;
   const unknownOutcome = !!selected?.last_error && /unknown_outcome|timeout/.test(selected.last_error);
 
   return (
@@ -743,6 +778,11 @@ export default function Posts({ me, focusPostId }: { me: Me; focusPostId?: strin
                   >
                     {t.posts.statuses[p.status]}
                   </span>
+                  {audienceCodeOf(p) && (
+                    <span className="badge audience" title={t.posts.audience}>
+                      {audienceCodeOf(p)}
+                    </span>
+                  )}
                   {p.external_source === 'linkedin_export' && (
                     <span className="badge imported" title={t.posts.importedTitle}>
                       {t.posts.imported}
@@ -861,6 +901,41 @@ export default function Posts({ me, focusPostId }: { me: Me; focusPostId?: strin
                   </option>
                 ))}
             </select>
+          </label>
+          <label>
+            {t.posts.audience}
+            <select
+              value={selected ? (selected.audience_id ?? '') : newAudienceId}
+              disabled={!canWrite || busy || status === 'publishing' || audiences.length === 0}
+              onChange={(e) => {
+                const value = e.target.value;
+                if (!selected) return setNewAudienceId(value);
+                void run(() => updatePost(wsId, selected.id, { audience_id: value || null }), t.posts.audienceSaved);
+              }}
+            >
+              <option value="">
+                {audiences.length === 0
+                  ? t.posts.noAudiencesOption
+                  : inheritedAudience
+                    ? t.posts.inheritedAudience(`${inheritedAudience.code} · ${inheritedAudience.name}`)
+                    : t.posts.noAudience}
+              </option>
+              {audiences.map((a) => (
+                <option key={a.id} value={a.id}>
+                  {a.code} · {a.name} ({a.time_zone})
+                </option>
+              ))}
+            </select>
+            {audiences.length === 0 && canWrite && (
+              <span className="muted small">
+                {t.posts.noAudiencesYet}{' '}
+                {onOpenAudiences && (
+                  <button type="button" className="link" onClick={onOpenAudiences}>
+                    {t.posts.setUpAudiences}
+                  </button>
+                )}
+              </span>
+            )}
           </label>
           {importedLive && canWrite && <p className="muted small">{t.posts.importedHint}</p>}
           <label>
@@ -1042,7 +1117,8 @@ export default function Posts({ me, focusPostId }: { me: Me; focusPostId?: strin
             {selected && !dirty && canSchedule && (
               <>
                 <DateTimeInput value={when} onChange={setWhen} label={t.posts.scheduleAt} />
-                <BestTimes workspaceId={wsId} timeZone={timeZone} onPick={setWhen} disabled={busy} />
+                {audienceTimeNote}
+                <BestTimes workspaceId={wsId} timeZone={timeZone} audienceId={effectiveAudience?.id} audienceCode={effectiveAudience?.code} onPick={setWhen} disabled={busy} />
                 <button
                   type="button"
                   disabled={busy || !when}
@@ -1071,7 +1147,8 @@ export default function Posts({ me, focusPostId }: { me: Me; focusPostId?: strin
             {selected && !dirty && status === 'scheduled' && (
               <>
                 <DateTimeInput value={when} onChange={setWhen} label={t.posts.scheduleAt} />
-                <BestTimes workspaceId={wsId} timeZone={timeZone} onPick={setWhen} disabled={busy} />
+                {audienceTimeNote}
+                <BestTimes workspaceId={wsId} timeZone={timeZone} audienceId={effectiveAudience?.id} audienceCode={effectiveAudience?.code} onPick={setWhen} disabled={busy} />
                 <button
                   type="button"
                   disabled={busy || !when}

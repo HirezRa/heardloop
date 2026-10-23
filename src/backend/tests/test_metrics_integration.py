@@ -144,12 +144,15 @@ def test_report_groups_and_csv(client: TestClient, world: World) -> None:  # noq
     assert csv_res.headers["content-disposition"].startswith('attachment; filename="heardloop-posts-')
     text = csv_res.content.decode("utf-8-sig")
     lines = text.splitlines()
-    assert lines[0].startswith("published_at,campaign,media,impressions")
+    assert lines[0].startswith(
+        "published_at,audience,time_zone,published_local,weekend,campaign,media,impressions"
+    )
     assert len(lines) == 4
     assert (
         "'=SUM(1)" not in text and "Post A '=SUM" not in text
     )  # text starts with "Post", no formula at cell start
     row_a = next(line for line in lines if "Post A" in line)
+    assert ",,Asia/Jerusalem," in row_a  # no audience: the workspace zone
     assert ",Launch,none,2000,80,20,,,," in row_a
 
     client.cookies.clear()

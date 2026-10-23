@@ -330,6 +330,8 @@ export interface Post {
   account_name: string;
   account_needs_reconnect_reason: string | null;
   campaign_id: string | null;
+  audience_id: string | null; // set on the post itself
+  effective_audience_id: string | null; // the post's, else its campaign's
   body: string;
   media: { id: string; url: string; mime_type?: string }[];
   link: LinkCard | null;
@@ -361,13 +363,27 @@ export const listPosts = (
 export const getPost = (id: string, postId: string) => request<Post>('GET', post(id, postId));
 export const createPost = (
   id: string,
-  body: { account_id: string; body: string; media_ids: string[]; campaign_id?: string | null; link?: LinkCard | null },
+  body: {
+    account_id: string;
+    body: string;
+    media_ids: string[];
+    campaign_id?: string | null;
+    audience_id?: string | null;
+    link?: LinkCard | null;
+  },
 ) => request<Post>('POST', posts(id), body);
-/** campaign_id / link: null removes it; leave the field out to keep the current value. */
+/** campaign_id / audience_id / link: null removes it; leave the field out to keep the current value. */
 export const updatePost = (
   id: string,
   postId: string,
-  body: { account_id?: string; body?: string; media_ids?: string[]; campaign_id?: string | null; link?: LinkCard | null },
+  body: {
+    account_id?: string;
+    body?: string;
+    media_ids?: string[];
+    campaign_id?: string | null;
+    audience_id?: string | null;
+    link?: LinkCard | null;
+  },
 ) => request<Post>('PATCH', post(id, postId), body);
 export const fetchLinkPreview = (id: string, url: string) =>
   request<LinkPreview>('POST', `${posts(id)}/link-preview`, { url });
@@ -482,6 +498,7 @@ export interface Campaign {
   name: string;
   goal: string | null;
   audience: string | null;
+  audience_id: string | null;
   start_date: string | null; // YYYY-MM-DD
   end_date: string | null;
   tags: string[];
@@ -495,6 +512,7 @@ export type CampaignInput = {
   name: string;
   goal: string | null;
   audience: string | null;
+  audience_id: string | null;
   start_date: string | null;
   end_date: string | null;
   tags: string[];
@@ -511,6 +529,45 @@ export const updateCampaign = (id: string, campaignId: string, body: Partial<Cam
   request<Campaign>('PATCH', `${campaigns(id)}/${encodeURIComponent(campaignId)}`, body);
 export const deleteCampaign = (id: string, campaignId: string) =>
   request<void>('DELETE', `${campaigns(id)}/${encodeURIComponent(campaignId)}`);
+
+// ---- Audiences (markets with their own time zone and weekend) ----
+
+export interface Audience {
+  id: string;
+  code: string; // short label, e.g. IL, US-E, GLOBAL
+  name: string;
+  time_zone: string;
+  weekend_days: number[]; // 0 = Monday ... 6 = Sunday
+  is_default: boolean;
+  position: number;
+  post_count: number;
+  created_at: string;
+}
+
+export interface AudiencePreset {
+  code: string;
+  name: string;
+  time_zone: string;
+  weekend_days: number[];
+}
+
+export type AudienceInput = {
+  code: string;
+  name: string;
+  time_zone: string;
+  weekend_days: number[];
+  is_default?: boolean;
+};
+
+const audiences = (id: string) => `${ws(id)}/audiences`;
+
+export const listAudiences = (id: string) => request<Audience[]>('GET', audiences(id));
+export const listAudiencePresets = (id: string) => request<AudiencePreset[]>('GET', `${audiences(id)}/presets`);
+export const createAudience = (id: string, body: AudienceInput) => request<Audience>('POST', audiences(id), body);
+export const updateAudience = (id: string, audienceId: string, body: Partial<AudienceInput>) =>
+  request<Audience>('PATCH', `${audiences(id)}/${encodeURIComponent(audienceId)}`, body);
+export const deleteAudience = (id: string, audienceId: string) =>
+  request<void>('DELETE', `${audiences(id)}/${encodeURIComponent(audienceId)}`);
 
 // ---- Templates ----
 
@@ -742,6 +799,12 @@ export interface ReportPost {
   snippet: string;
   campaign_id: string | null;
   campaign_name: string | null;
+  audience_id: string | null; // the post's, else its campaign's
+  audience_code: string | null;
+  time_zone: string; // the audience's zone (workspace zone without an audience)
+  local_weekday: number; // 0 = Monday, in time_zone
+  local_hour: number;
+  weekend: boolean; // published on the audience's weekend
   media_kind: 'none' | 'image' | 'video' | 'link';
   impressions: number | null;
   reactions: number | null;
@@ -754,6 +817,9 @@ export interface ReportPost {
   engagement: number;
   engagement_rate: number | null;
   measured_at: string | null;
+  measured_age_days: number | null; // measured_at - published_at, in days
+  off_window: boolean; // old enough, but the measurement is far from the requested window
+  preliminary: boolean; // younger than the window: numbers still growing
 }
 
 export interface ReportBucket {
@@ -767,15 +833,39 @@ export interface ReportBucket {
   followers_gained: number;
   avg_impressions: number | null;
   avg_engagement_rate: number | null;
+  weekend: boolean | null; // weekday buckets only
 }
+
+/** Weekday/hour buckets of posts that share one clock (one audience, or all posts on the workspace clock). */
+export interface ReportTimeGroup {
+  key: string; // audience id, 'none' or 'workspace'
+  label: string | null; // audience code
+  time_zone: string;
+  weekend_days: number[];
+  posts: number;
+  by_weekday: ReportBucket[];
+  by_hour: ReportBucket[];
+}
+
+export type ReportClock = 'audience' | 'workspace';
 
 export interface Report {
   start: string;
   end: string;
-  time_zone: string;
+  time_zone: string; // workspace zone: the period's boundaries and posts without an audience
+  audience_id: string | null;
+  time_zones: string[]; // every zone used for the weekday/hour buckets
+  weekend_days: number[]; // the weekend marked in by_weekday
+  window_days: number; // measurements are compared at this age (0 = latest)
+  window_tolerance_days: number;
+  off_window: number; // measured posts old enough for the window, measured far from it
+  preliminary: number; // measured posts younger than the window
   totals: ReportBucket;
   trend: ReportBucket[];
   by_campaign: ReportBucket[];
+  by_audience: ReportBucket[];
+  clock: ReportClock;
+  by_time: ReportTimeGroup[]; // never mixes clocks inside one group
   by_weekday: ReportBucket[];
   by_hour: ReportBucket[];
   by_media: ReportBucket[];
@@ -783,32 +873,48 @@ export interface Report {
   unmeasured: ReportPost[];
 }
 
-export const getReport = (id: string, start?: string | null, end?: string | null, campaignId?: string) => {
+export interface ReportFilter {
+  start?: string | null;
+  end?: string | null;
+  campaignId?: string;
+  audienceId?: string;
+  windowDays?: number; // 0 = latest measurement; omitted = the server default (7)
+  clock?: ReportClock; // weekday/hour per audience zone (default) or all on the workspace clock
+}
+
+function reportQuery(f: ReportFilter): URLSearchParams {
   const q = new URLSearchParams();
-  if (start) q.set('start', start);
-  if (end) q.set('end', end);
-  if (campaignId) q.set('campaign_id', campaignId);
-  return request<Report>('GET', `${ws(id)}/reports?${q}`);
-};
-export const reportCsvUrl = (id: string, start?: string | null, end?: string | null) => {
-  const q = new URLSearchParams();
-  if (start) q.set('start', start);
-  if (end) q.set('end', end);
-  return `${ws(id)}/reports/export.csv?${q}`;
-};
+  if (f.start) q.set('start', f.start);
+  if (f.end) q.set('end', f.end);
+  if (f.campaignId) q.set('campaign_id', f.campaignId);
+  if (f.audienceId) q.set('audience_id', f.audienceId);
+  if (f.windowDays !== undefined) q.set('window_days', String(f.windowDays));
+  if (f.clock) q.set('clock', f.clock);
+  return q;
+}
+
+export const getReport = (id: string, f: ReportFilter = {}) => request<Report>('GET', `${ws(id)}/reports?${reportQuery(f)}`);
+export const reportCsvUrl = (id: string, f: ReportFilter = {}) =>
+  `${ws(id)}/reports/export.csv?${reportQuery({ ...f, campaignId: undefined, clock: undefined })}`; // the CSV has no campaign filter
 
 export interface BestTimeSlot {
-  weekday: number; // 0 = Monday, workspace time zone
+  weekday: number; // 0 = Monday, in BestTimes.time_zone
   hour: number;
   posts: number;
   avg_engagement_rate: number;
 }
 export interface BestTimes {
-  time_zone: string;
+  time_zone: string; // the audience's zone, or the workspace zone for posts without an audience
+  audience_id: string | null;
   days: number;
+  window_days: number;
   measured: number;
   min_posts: number;
   slots: BestTimeSlot[];
 }
-/** Best weekday + hour slots from your own metrics (no AI); empty until there is enough data. */
-export const getBestTimes = (id: string) => request<BestTimes>('GET', `${ws(id)}/reports/best-times`);
+/** Best weekday + hour slots from your own metrics (no AI) for one audience; empty until there is enough data. */
+export const getBestTimes = (id: string, audienceId?: string | null) => {
+  const q = new URLSearchParams();
+  if (audienceId) q.set('audience_id', audienceId);
+  return request<BestTimes>('GET', `${ws(id)}/reports/best-times?${q}`);
+};

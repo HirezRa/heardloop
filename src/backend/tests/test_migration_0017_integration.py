@@ -1,4 +1,4 @@
-"""Migration 0017 (app_meta.value Text) up / check / down / up. Needs TEST_DATABASE_URL."""
+"""Migration 0017 (app_meta.value Text) up / down / up. Needs TEST_DATABASE_URL."""
 
 import asyncio
 import os
@@ -44,13 +44,12 @@ async def _wipe() -> None:
     await engine.dispose()
 
 
-def test_0017_up_check_down_up(world: World) -> None:  # noqa: F811
+def test_0017_up_down_up(world: World) -> None:  # noqa: F811
     assert URL
     asyncio.run(_wipe())
     cfg = _config()
     command.upgrade(cfg, "0016")
     command.upgrade(cfg, "0017")
-    command.check(cfg)
     cols = asyncio.run(
         _sql(
             "SELECT data_type FROM information_schema.columns "
@@ -67,4 +66,4 @@ def test_0017_up_check_down_up(world: World) -> None:  # noqa: F811
     )
     assert cols[0][0] == 256
     command.upgrade(cfg, "0017")
-    command.check(cfg)
+    # Full-model check lives on head (0018); 0017 alone leaves the audience columns behind the models.

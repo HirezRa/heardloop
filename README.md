@@ -66,7 +66,8 @@ and posting "at 8:00 tomorrow" depends on someone remembering. Heardloop puts th
 | 🕘 | Version history with word-level diff and restore | ✅ |
 | 🔔 | Notifications in the app and by e-mail (SMTP), weekly digest, plus a signed webhook for n8n/Zapier ([docs](docs/WEBHOOKS.md)) | ✅ |
 | 🔌 | n8n example workflow ([examples/n8n](examples/n8n/README.md)) | ✅ |
-| 📈 | Post metrics (entered from LinkedIn's numbers), reports by week, campaign, weekday and media, CSV export, weekly digest | ✅ |
+| 📈 | Post metrics (entered from LinkedIn's numbers), reports by week, campaign, audience, weekday and media, CSV export, weekly digest | ✅ |
+| 🌐 | Audiences: markets with their own time zone and weekend, so reports and best-time suggestions compare like with like, at the same measurement age | ✅ |
 | 📥 | Import LinkedIn analytics exports (.xlsx): numbers and audience per post, one file or many, posts created on the fly | ✅ |
 | 💾 | Nightly backups with verified restore: database and media, retention, optional AES-256 encryption, staleness alert ([guide](docs/GUIDE.md#10-backups-and-restore)) | ✅ |
 | ✨ | AI writing assistant (optional, self-hosted OpenAI-compatible model such as Ollama) and best-time suggestions from your own metrics | ✅ |
