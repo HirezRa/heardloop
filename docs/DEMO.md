@@ -5,7 +5,7 @@ stack: own project name (`heardloop-demo`), own env file, own ports (**8390** / 
 worker does not run, so nothing can be published.
 
 `seed_demo` creates workspace **Acme Studio**, people `alex@example.com` (owner, password + TOTP),
-`sam@example.com`, `robin@example.com`, LinkedIn account **Alex Demo**, posts, a campaign, a template,
+`sam@example.com`, `robin@example.com`, LinkedIn account **Alex Demo**, posts, a campaign, audiences **IL** and **US-E**, a template,
 metrics, a webhook URL `https://hooks.example.com/heardloop`, and an `update_check` row for the banner.
 The screenshot script captures `update-banner.png` first, then dismisses the banner (writes
 `dismissed_update` in the owner's `ui_prefs`) so every other shot is free of it.

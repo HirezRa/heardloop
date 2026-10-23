@@ -129,6 +129,11 @@ await go('approvals');
 await shot('approvals');
 
 await go('campaigns');
+const launch = page.getByText('Launch week', { exact: true }).first();
+if (await launch.count()) {
+  await launch.click();
+  await page.waitForTimeout(400);
+}
 await shot('campaigns');
 
 await go('templates');
@@ -144,7 +149,14 @@ await go('settings', 'appearance');
 await shot('settings-appearance');
 
 await go('settings', 'security');
-await page.locator('text=/two-step|authenticator/i').first().waitFor({ timeout: 5000 }).catch(() => null);
+await page.locator('.sessions bdi').first().waitFor({ timeout: 8000 }).catch(() => null);
+await page.locator('.sessions bdi').evaluateAll((nodes) => {
+  for (const el of nodes) {
+    const sep = el.previousSibling;
+    if (sep && sep.textContent) sep.textContent = sep.textContent.replace(/\s*·\s*$/, '');
+    el.remove();
+  }
+});
 await shot('settings-security');
 
 await go('settings', 'webhook');
@@ -158,6 +170,11 @@ await page
 await shot('settings-webhook');
 
 await go('settings', 'workspace');
+const audiencesCard = page.getByRole('heading', { name: /^Audiences$/ }).first();
+if (await audiencesCard.count()) await audiencesCard.scrollIntoViewIfNeeded();
+await shot('settings-workspace');
+const backupsCard = page.getByRole('heading', { name: /backup/i }).first();
+if (await backupsCard.count()) await backupsCard.scrollIntoViewIfNeeded();
 await shot('settings-backups');
 
 await browser.close();

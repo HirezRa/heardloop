@@ -20,6 +20,7 @@ import sys
 import uuid
 import zlib
 from datetime import timedelta
+from zoneinfo import ZoneInfo
 
 from sqlalchemy import func, select
 
@@ -32,6 +33,7 @@ from heardloop.models import (
     AppMeta,
     Approval,
     ApprovalDecision,
+    Audience,
     Campaign,
     CampaignStatus,
     LinkedInAccount,
@@ -175,11 +177,35 @@ async def main() -> int:
                 ]
             )
 
+            il = Audience(
+                workspace_id=ws.id,
+                code="IL",
+                name="Israel",
+                time_zone="Asia/Jerusalem",
+                weekend_days=[4, 5],
+                is_default=True,
+                position=0,
+                created_at=now,
+            )
+            us = Audience(
+                workspace_id=ws.id,
+                code="US-E",
+                name="US East Coast",
+                time_zone="America/New_York",
+                weekend_days=[5, 6],
+                is_default=False,
+                position=1,
+                created_at=now,
+            )
+            s.add_all([il, us])
+            await s.flush()
+
             campaign = Campaign(
                 workspace_id=ws.id,
                 name="Launch week",
                 goal="Introduce Heardloop to our network",
                 audience="Ops and marketing leads",
+                audience_id=il.id,
                 start_date=now.date() - timedelta(days=7),
                 end_date=now.date() + timedelta(days=21),
                 tags=["launch", "product"],
@@ -243,6 +269,7 @@ async def main() -> int:
                     workspace_id=ws.id,
                     account_id=acc.id,
                     campaign_id=campaign.id if index < 2 else None,
+                    audience_id=us.id if index >= 2 else None,
                     created_at=created,
                     updated_at=created,
                 )
@@ -308,6 +335,121 @@ async def main() -> int:
                         reposts=5,
                         clicks=140,
                         saves=9,
+                        followers=1200,
+                        note="Demo numbers",
+                        recorded_by=owner.id,
+                        source=MetricSource.MANUAL,
+                    )
+                )
+
+            # Older published posts so the 7-day window and the per-audience charts have data.
+            # IL posts inherit the campaign audience; US-E posts set the audience themselves.
+            measured: list[tuple[uuid.UUID | None, uuid.UUID | None, str, int, int, int, int, str]] = [
+                (
+                    campaign.id,
+                    None,
+                    "Asia/Jerusalem",
+                    20,
+                    10,
+                    3100,
+                    70,
+                    "A short update for readers in Israel.",
+                ),
+                (
+                    campaign.id,
+                    None,
+                    "Asia/Jerusalem",
+                    16,
+                    14,
+                    2800,
+                    40,
+                    "What we learned shipping last week's post.",
+                ),
+                (
+                    campaign.id,
+                    None,
+                    "Asia/Jerusalem",
+                    12,
+                    18,
+                    1900,
+                    22,
+                    "An evening note for the Israel audience.",
+                ),
+                (
+                    None,
+                    us.id,
+                    "America/New_York",
+                    21,
+                    9,
+                    5400,
+                    110,
+                    "A morning post for the US East audience.",
+                ),
+                (
+                    None,
+                    us.id,
+                    "America/New_York",
+                    18,
+                    11,
+                    4700,
+                    95,
+                    "A late-morning post for the US East audience.",
+                ),
+                (
+                    None,
+                    us.id,
+                    "America/New_York",
+                    14,
+                    15,
+                    3600,
+                    60,
+                    "An afternoon post for the US East audience.",
+                ),
+            ]
+            for camp_id, aud_id, zone, days_ago, hour, impressions, reactions, body in measured:
+                local = (now - timedelta(days=days_ago)).astimezone(ZoneInfo(zone))
+                when = local.replace(hour=hour, minute=0, second=0, microsecond=0).astimezone(now.tzinfo)
+                post = Post(
+                    workspace_id=ws.id,
+                    account_id=acc.id,
+                    campaign_id=camp_id,
+                    audience_id=aud_id,
+                    created_at=when,
+                    updated_at=when,
+                )
+                s.add(post)
+                await s.flush()
+                version = PostVersion(
+                    post_id=post.id, body=body, media_ids=[], author_id=owner.id, created_at=when
+                )
+                s.add(version)
+                await s.flush()
+                post.current_version_id = version.id
+                post.transition_to(PostStatus.PENDING_APPROVAL, require_approval=True, now=when)
+                post.transition_to(PostStatus.APPROVED, require_approval=True, now=when)
+                s.add(
+                    Approval(
+                        post_id=post.id,
+                        version_id=version.id,
+                        reviewer_id=approver.id,
+                        decision=ApprovalDecision.APPROVED,
+                        decided_at=when,
+                    )
+                )
+                post.transition_to(PostStatus.SCHEDULED, require_approval=True, now=when)
+                post.scheduled_at = when
+                post.transition_to(PostStatus.PUBLISHING, require_approval=True, now=when)
+                post.mark_published(f"urn:li:share:{uuid.uuid4().int % 10**19}", when)
+                s.add(
+                    PostMetric(
+                        post_id=post.id,
+                        captured_at=when + timedelta(days=7),
+                        impressions=impressions,
+                        reactions=reactions,
+                        comments=4,
+                        reposts=1,
+                        clicks=30,
+                        saves=2,
                         followers=1200,
                         note="Demo numbers",
                         recorded_by=owner.id,
