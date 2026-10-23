@@ -50,7 +50,7 @@ docker compose version
 ```powershell
 git clone https://github.com/HirezRa/heardloop.git
 cd heardloop
-git checkout v<latest>   # הגרסה החדשה ביותר מדף ה-Releases, למשל v0.9.6
+git checkout v<latest>   # הגרסה החדשה ביותר מדף ה-Releases, למשל v0.10.0
 ```
 
 עבודה עם תג גרסה (ולא עם הענף `main`) אומרת שאתם מריצים גרסה שנבדקה, וגם שהודעת העדכון באפליקציה עובדת.

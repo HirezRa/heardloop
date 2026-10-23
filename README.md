@@ -66,7 +66,7 @@ and posting "at 8:00 tomorrow" depends on someone remembering. Heardloop puts th
 | 🕘 | Version history with word-level diff and restore | ✅ |
 | 🔔 | Notifications in the app and by e-mail (SMTP), weekly digest, plus a signed webhook for n8n/Zapier ([docs](docs/WEBHOOKS.md)) | ✅ |
 | 🔌 | n8n example workflow ([examples/n8n](examples/n8n/README.md)) | ✅ |
-| 📈 | Post metrics (entered from LinkedIn's numbers), reports by week, campaign, audience, weekday and media, CSV export, weekly digest | ✅ |
+| 📈 | Post metrics (entered from LinkedIn's numbers), reports by week, campaign, audience, weekday and media at the same measurement age, CSV export, weekly digest | ✅ |
 | 🌐 | Audiences: markets with their own time zone and weekend, so reports and best-time suggestions compare like with like, at the same measurement age | ✅ |
 | 📥 | Import LinkedIn analytics exports (.xlsx): numbers and audience per post, one file or many, posts created on the fly | ✅ |
 | 💾 | Nightly backups with verified restore: database and media, retention, optional AES-256 encryption, staleness alert ([guide](docs/GUIDE.md#10-backups-and-restore)) | ✅ |
@@ -79,7 +79,7 @@ and posting "at 8:00 tomorrow" depends on someone remembering. Heardloop puts th
 | | |
 | --- | --- |
 | <img src="docs/assets/screenshots/posts-editor.png" alt="Post editor with LinkedIn-style preview" width="100%"><br><sub>Post editor with LinkedIn-style preview</sub> | <img src="docs/assets/screenshots/calendar.png" alt="Calendar month view" width="100%"><br><sub>Calendar month with scheduled posts</sub> |
-| <img src="docs/assets/screenshots/approvals.png" alt="Approvals queue" width="100%"><br><sub>Approvals queue for reviewers</sub> | <img src="docs/assets/screenshots/reports.png" alt="Reports" width="100%"><br><sub>Reports by week and campaign</sub> |
+| <img src="docs/assets/screenshots/approvals.png" alt="Approvals queue" width="100%"><br><sub>Approvals queue for reviewers</sub> | <img src="docs/assets/screenshots/reports.png" alt="Reports" width="100%"><br><sub>Reports by audience, with each market on its own clock</sub> |
 | <img src="docs/assets/screenshots/templates.png" alt="Templates" width="100%"><br><sub>Reusable post templates</sub> | <img src="docs/assets/screenshots/post-history.png" alt="Version history" width="100%"><br><sub>Version history with word-level diff</sub> |
 
 ## How it works

@@ -28,6 +28,7 @@ Posts → **New post**.
 
 - **Account**: the LinkedIn profile that will publish.
 - **Campaign** (optional): groups the post with others; changing it never resets a post's approval.
+- **Audience** (optional, below Campaign): the market this post is written for. Leave it empty to use the campaign's audience, or none when the campaign has none either. Each audience's code is shown as a badge. Changing it never resets approval, and it is allowed on a published post: it only changes how the post is reported. When the workspace has no audiences, the field is disabled and offers a **Set up audiences** link.
 - **Text**: plain text, exactly what LinkedIn receives. The toolbar offers:
   - *Bold, italic, script, monospace*: these swap Latin letters and digits for look-alike Unicode characters.
     LinkedIn has no real formatting, so this is the only way. Hebrew and other scripts have no such characters
@@ -85,9 +86,12 @@ The life cycle is: Draft → Waiting for approval → Approved → Scheduled →
   network failure mid-call), the post is marked failed and you are asked to check LinkedIn before retrying.
   LinkedIn's API terms restrict automated posting; see [LinkedIn's terms](../README.md#linkedins-terms) in the
   README for how Heardloop's scheduled publishing relates to them.
-- **Best times** next to the scheduling field: up to three weekday + hour slots whose posts had the best
-  engagement rate in your own metrics (last 180 days, workspace time zone). A click puts the next such time in
-  the field. They appear once at least five posts have numbers and a slot has two posts; no AI is involved.
+- **Best times** next to the scheduling field: up to three weekday and hour slots for this post's audience, in
+  that audience's time zone, taken from your own metrics (last 180 days). A click fills the picker with the next
+  such time, converted to the workspace time zone. A note next to the field says what that moment is for the
+  audience, for example "For the audience that is 09:00 (America/New_York)". Posts with no audience get
+  suggestions from other posts that have none. They appear once at least five posts have numbers and a slot has
+  two posts; no AI is involved.
 - The **Calendar** shows scheduled and published posts by month or week. Drag a scheduled post to another day to
   move it (same time of day).
 
@@ -99,9 +103,11 @@ reconnect, Accounts can offer to reschedule the failed posts for that account (a
 
 ## 5. Campaigns
 
-Campaigns → **New campaign**: name, goal, audience, dates, tags and a colour. The colour marks the campaign's
-posts in the calendar. Each campaign shows how many posts it has in each status. Archived campaigns are hidden by
-default and accept no new posts; a campaign with posts cannot be deleted, archive it instead.
+Campaigns → **New campaign**: name, goal, dates, tags and a colour. **Audience (market)** is the audience the
+campaign's posts inherit when a post does not set its own. **Audience notes** is free text (who you are writing
+for) and is separate from the market. The colour marks the campaign's posts in the calendar. Each campaign shows
+how many posts it has in each status. Archived campaigns are hidden by default and accept no new posts; a
+campaign with posts cannot be deleted, archive it instead.
 
 ![Campaigns](assets/screenshots/campaigns.png)
 
@@ -131,7 +137,11 @@ LinkedIn does not give this app read access to your post analytics, so numbers a
 a minute per post: open a published post in Heardloop, click **Add measurement** under the preview, copy the
 numbers from the post's analytics on LinkedIn (impressions, reactions, comments, reposts, clicks, saves, and your
 follower count that day) and save. Add a new measurement whenever you check again, for example after a day, a
-week and a month; the latest one is used in reports and the history shows how the post grew.
+week and a month. Reports use the measurement closest to 7 days after publishing, so posts are compared at the
+same age. The selector offers 7, 14 or 30 days, or **Latest measurement**. **preliminary** means the post is
+younger than the window and its numbers will still grow. **far from the window** (with a warning mark) means the
+post is old enough, but the measurement used was taken much earlier or later than the window. The history still
+shows how the post grew.
 
 Typing is not the only way: LinkedIn lets you export a post's analytics as an `.xlsx` file (open the post on
 LinkedIn, then **Analytics**, then **Export**). Heardloop reads the numbers from that file, and the file itself is
@@ -155,10 +165,20 @@ the post is created as already published, marked **imported** in the post list, 
 A post created without text shows "Text not available - paste it from LinkedIn"; open it and paste the original
 text, then save. The post stays published (nothing is sent to LinkedIn); only its text and campaign can be changed.
 
-**Reports** shows a period (30/90/180/365 days or custom), optionally one campaign: totals, a week-by-week
-trend, the strongest posts, and how posts perform by campaign, day of week, hour of publishing and media type.
-Posts published without metrics are listed so you can fill them in. **Export CSV** gives one row per post for a
-spreadsheet.
+**Reports** shows a period (30/90/180/365 days or custom), optionally one campaign and one audience: totals, a
+week-by-week trend, the strongest posts, and how posts perform by campaign and by media type. The **By audience**
+card lines markets up side by side and never averages them, because reach differs between markets. Weekday and
+hour charts are split per audience, each titled with its time zone. **Times by** switches between **Audience's
+clock** (when the readers saw the post) and **Workspace clock** (when it went out from here). Weekend days are
+marked for each audience. Posts published without metrics are listed so you can fill them in. **Export CSV**
+gives one row per post, including the columns `audience`, `time_zone`, `published_local`, `weekend` and
+`measured_age_days`.
+
+### Several markets: reading the reports
+
+A post published at 16:35 Israel time for the US East audience shows at 09:00 under "US-E · America/New_York"
+on the audience's clock, and at 16:00 on the workspace clock. Same post, two questions: when its readers saw it,
+and when it left here.
 
 Every Monday morning the **weekly digest** (in-app and by e-mail where enabled) sums up last week: published,
 scheduled this week, waiting for approval, the strongest recent post and how many posts still need metrics.
@@ -181,8 +201,14 @@ is signed; see [WEBHOOKS.md](WEBHOOKS.md) for the payload and how to verify the 
 - **Appearance** (per person): language, light/dark theme, text size, accent colour, date and time format.
 
 ![Appearance settings](assets/screenshots/settings-appearance.png)
-- **Workspace**: name, time zone, whether posts need approval, weekly digest on/off. Owners also see the
-  **Backups** card (see section 10).
+- **Workspace**: name, time zone, whether posts need approval, weekly digest on/off. The **Audiences** card is
+  the list of markets you write for. Owners add and edit them; members can read them. Start from a preset, or
+  enter a code, a name, a time zone and weekend days (up to 3). One audience can be the default: it is
+  preselected for new posts, and its weekend is the one shaded in reports when no audience is filtered. Deleting
+  an audience is refused while posts or campaigns still use it. Owners also see the **Backups** card (see
+  section 10).
+
+![Audiences on the workspace settings](assets/screenshots/settings-workspace.png)
 - **Members**: add people with an initial password they must change (they get no e-mail notifications until they
   switch them on), set roles, remove people. **Deactivate and anonymise** (owners, confirmed with a two-step code)
   closes a member's account for good: the name becomes "Former member", sign-in, sessions, notifications and
@@ -333,6 +359,8 @@ that counts as amber.
 Owners may see a banner when a newer GitHub release is available (Settings → About has the same status and a
 **Check now** button). Heardloop never installs an update from the browser: that would need the Docker socket
 inside a web-facing container. On the host, after a backup, run `scripts/update.ps1` (Windows) or
-`scripts/update.sh` (Linux/macOS). Full steps: [INSTALL §11](INSTALL.md#11-backups-and-updates).
+`scripts/update.sh` (Linux/macOS). v0.10.0 adds a database migration that runs automatically, adds no audiences,
+and switches reports to the 7-day window, so numbers can differ from v0.9.x (**Latest measurement** in the
+selector shows the old view). Full steps: [INSTALL §11](INSTALL.md#11-backups-and-updates).
 
 ![Update available banner](assets/screenshots/update-banner.png)

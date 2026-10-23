@@ -48,7 +48,7 @@ Pick the folder where Heardloop will live (it keeps its files there), then:
 ```powershell
 git clone https://github.com/HirezRa/heardloop.git
 cd heardloop
-git checkout v<latest>   # the newest version from the Releases page, for example v0.9.6
+git checkout v<latest>   # the newest version from the Releases page, for example v0.10.0
 ```
 
 Using a release tag (not the `main` branch) means you run a tested version, and the in-app update notice works.

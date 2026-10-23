@@ -7,17 +7,27 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.10.0] - 2026-10-23
+
 ### Added
 
-- Audiences: the markets you write for, each with its own time zone and weekend (Settings -> Workspace, presets for common markets). A post takes its audience from itself or its campaign. Reports and best-time suggestions read each post's publish time in its audience's zone, mark the audience's weekend, and show audiences side by side instead of averaging them; the CSV export gains `audience`, `time_zone`, `published_local`, `weekend` and `measured_age_days` columns.
-- Reports: the weekday and hour charts are split per audience, each titled with its time zone, so an hour always means one clock; a toggle switches to the workspace clock (the hour the post went out here). Posts younger than the measurement window are marked preliminary instead of being flagged.
-- Reports compare posts at the same age: each post is represented by the measurement closest to `window_days` after publishing (default 7; 7/14/30 or "latest" in the UI), and the report says how many measurements fall far from that window.
-- Optional AI writing assistant in the post editor (#11): improve, shorten, stronger opening, fix spelling, suggest hashtags, translate to English/Hebrew, optional tone. Works with any OpenAI-compatible server (self-hosted Ollama, LM Studio, vLLM recommended); off unless `AI_BASE_URL` and `AI_MODEL` are set. Suggestions only: nothing changes until you replace or insert, nothing is stored.
-- Best-time suggestions next to the scheduling field, from your own metrics (weekday + hour with the best engagement rate); `GET .../reports/best-times`.
-- `AUDIT_IP_RETENTION_DAYS` (#55): optional age-based clearing of IP addresses in the activity log.
+- Audiences (#59): the markets you write for, each with its own time zone and weekend (Settings -> Workspace, with presets). A post uses its own audience, or its campaign's, or none. Owners manage them; members can read them. Deleting one that posts or campaigns still use is refused.
+- Reports and best-time suggestions follow the audience (#59). Charts and suggestions use that audience's clock and weekend, and audiences are shown side by side instead of averaged. The CSV export adds `audience`, `time_zone`, `published_local`, `weekend` and `measured_age_days`.
+- Measurement window (#59): each post is represented by the measurement closest to a chosen age (7, 14 or 30 days, or the latest). Posts younger than the window are marked preliminary. A measurement taken much earlier or later is marked far from the window.
+- Optional AI writing assistant in the post editor (#11): improve, shorten, stronger opening, fix spelling, suggest hashtags, translate to English or Hebrew, optional tone. Works with any OpenAI-compatible server; off unless `AI_BASE_URL` and `AI_MODEL` are set. Suggestions only: nothing changes until you replace or insert, and nothing is stored.
+- Best-time suggestions next to the scheduling field (#11), from your own metrics: the weekday and hour with the best engagement rate.
+- Signed-in devices (#55): see where you are signed in and sign out one device or all the others (Settings -> Sign-in & security).
+- `AUDIT_IP_RETENTION_DAYS` (#55): optional age-based clearing of IP addresses in the activity log. The entries stay.
 - Update scripts: optional signed-tag check (`-VerifyTag` / `--verify-tag` / `HEARDLOOP_VERIFY_TAG=1`) (#55).
 - Webhook settings warn about plain `http://` to a public address (#55).
 - Base images pinned by digest (Dependabot keeps them current) (#55).
+
+### Changed
+
+- Reports default to the 7-day measurement window instead of the latest measurement (#59). Choose "Latest measurement" for the previous view, so numbers can differ from v0.9.x.
+- Weekday and hour charts are split per audience, each titled with its time zone (#59). A toggle switches to the workspace clock (the hour the post went out here).
+- Best-time suggestions are per audience and in that audience's time zone; choosing one fills the picker in the workspace time zone (#59).
+- CI runners are pinned to Ubuntu 24.04, and the browser install in CI has a timeout (#61).
 
 ### Security
 
