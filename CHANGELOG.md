@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.11.0] - 2026-10-24
+
 ### Added
 
 - Import from LinkedIn (#66): bring in a post you published directly on LinkedIn from its address plus its analytics export (Posts -> Import from LinkedIn). The file must belong to the post in the address; since only a post's author can export its analytics, only your own posts come in. Choose account, campaign and audience in the same step. Nothing is fetched from LinkedIn and the file is not kept.
