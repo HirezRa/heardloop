@@ -744,6 +744,10 @@ export interface ImportOptions {
   createMissing?: boolean;
   accountId?: string;
   text?: string;
+  /** The post's address on linkedin.com; the export must belong to that post. */
+  postLink?: string;
+  /** Activity id read from the export's file name in the browser; the name itself is never sent. */
+  fileActivityId?: string;
 }
 
 /**
@@ -759,6 +763,8 @@ export async function importMetricsExport(id: string, file: File, opts: ImportOp
     if (opts.accountId) form.append('account_id', opts.accountId);
     if (opts.text?.trim()) form.append('text', opts.text);
   }
+  if (opts.postLink?.trim()) form.append('post_link', opts.postLink.trim());
+  if (opts.fileActivityId) form.append('file_activity_id', opts.fileActivityId);
   let res: Response;
   try {
     res = await fetch(`${ws(id)}/metrics/import`, {

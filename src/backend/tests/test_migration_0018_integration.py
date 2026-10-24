@@ -1,4 +1,4 @@
-"""Migration 0018 (audiences) up / check / down / up. Needs TEST_DATABASE_URL."""
+"""Migration 0018 (audiences) up / down / up. Needs TEST_DATABASE_URL."""
 
 import asyncio
 import os
@@ -44,13 +44,12 @@ async def _wipe() -> None:
     await engine.dispose()
 
 
-def test_0018_up_check_down_up(world: World) -> None:  # noqa: F811
+def test_0018_up_down_up(world: World) -> None:  # noqa: F811
     assert URL
     asyncio.run(_wipe())
     cfg = _config()
     command.upgrade(cfg, "0017")
     command.upgrade(cfg, "0018")
-    command.check(cfg)
     cols = asyncio.run(
         _sql(
             "SELECT table_name FROM information_schema.columns "
@@ -68,4 +67,4 @@ def test_0018_up_check_down_up(world: World) -> None:  # noqa: F811
     cols = asyncio.run(_sql("SELECT 1 FROM information_schema.columns WHERE column_name='audience_id'"))
     assert cols == []
     command.upgrade(cfg, "0018")
-    command.check(cfg)
+    # Full-model check lives on head (0019); 0018 alone leaves posts.linkedin_activity_urn behind the models.

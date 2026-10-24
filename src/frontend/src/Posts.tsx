@@ -40,6 +40,7 @@ import LinkCardEditor from './LinkCardEditor';
 import HashtagPicker from './HashtagPicker';
 import AiAssistant from './AiAssistant';
 import BestTimes, { shiftZone } from './BestTimes';
+import LinkImport from './LinkImport';
 import MetricsPanel from './MetricsPanel';
 import { countCharacters, styledRatio, utf16Length } from './unicodeFormat';
 import { formatDateTime } from './dates';
@@ -539,6 +540,7 @@ export default function Posts({
   const [fullPreview, setFullPreview] = useState(false);
   const [showHistory, setShowHistory] = useState(false);
   const [showTemplates, setShowTemplates] = useState(false);
+  const [showLinkImport, setShowLinkImport] = useState(false);
   const [placeholdersLeft, setPlaceholdersLeft] = useState<string[]>([]);
   const [when, setWhen] = useState(() => defaultScheduleValue('UTC'));
   const [msg, setMsg] = useState<{ ok?: string; error?: string }>({});
@@ -750,6 +752,9 @@ export default function Posts({
             <div className="row gap">
               <button type="button" className="primary" onClick={startNew}>
                 {t.posts.new}
+              </button>
+              <button type="button" onClick={() => setShowLinkImport(true)} title={t.linkImport.buttonHint}>
+                {t.linkImport.button}
               </button>
             </div>
           )}
@@ -1222,6 +1227,22 @@ export default function Posts({
             setMsg(leftovers.length ? { error: t.posts.placeholdersRemain(leftovers) } : { ok: t.posts.fromTemplateOk });
           }}
           onClose={() => setShowTemplates(false)}
+        />
+      )}
+      {showLinkImport && (
+        <LinkImport
+          workspaceId={wsId}
+          onCancel={() => setShowLinkImport(false)}
+          onImported={(postId, created) => {
+            setShowLinkImport(false);
+            load();
+            getPost(wsId, postId)
+              .then((p) => {
+                setSelected(p);
+                setMsg({ ok: created ? t.linkImport.created : t.linkImport.matched });
+              })
+              .catch((e) => setMsg({ error: errorText(e) }));
+          }}
         />
       )}
     </div>
