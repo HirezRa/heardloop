@@ -3,7 +3,7 @@
 The full functional spec is kept outside the repo (owner's document). This file holds the decisions
 the code depends on. Keep it in English and up to date.
 
-## Decisions (current as of v0.10.0)
+## Decisions (current as of v0.11.0)
 
 | Topic | Decision |
 | --- | --- |
