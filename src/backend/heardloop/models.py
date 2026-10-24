@@ -237,6 +237,14 @@ class Post(Base):
             unique=True,
             postgresql_where=text("linkedin_post_urn IS NOT NULL"),
         ),
+        # Same post imported twice from its address (the activity id differs from the share/ugcPost id).
+        Index(
+            "ux_posts_workspace_activity_urn",
+            "workspace_id",
+            "linkedin_activity_urn",
+            unique=True,
+            postgresql_where=text("linkedin_activity_urn IS NOT NULL"),
+        ),
     )
     id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
     workspace_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("workspaces.id", ondelete="CASCADE"))
@@ -249,6 +257,8 @@ class Post(Base):
     scheduled_at: Mapped[datetime | None] = _ts(nullable=True)
     published_at: Mapped[datetime | None] = _ts(nullable=True)
     linkedin_post_urn: Mapped[str | None] = mapped_column(String(128))
+    # urn:li:activity:<id> from the post's address, when the post was imported from its link (FR-29).
+    linkedin_activity_urn: Mapped[str | None] = mapped_column(String(128))
     # Set (to "linkedin_export") on posts that were not published through Heardloop but created by an import.
     external_source: Mapped[str | None] = mapped_column(String(32))
     # Stable per post; prevents double publishing (FR-18).

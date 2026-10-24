@@ -165,6 +165,16 @@ the post is created as already published, marked **imported** in the post list, 
 A post created without text shows "Text not available - paste it from LinkedIn"; open it and paste the original
 text, then save. The post stays published (nothing is sent to LinkedIn); only its text and campaign can be changed.
 
+**A post you published directly on LinkedIn** can be brought in from its address: Posts → **Import from
+LinkedIn**. Open the post on LinkedIn and copy the address from the browser bar (a short `lnkd.in` link does not
+work: open it first), then under the post click **View analytics → Export → Confirm** and choose that file
+without renaming it. Heardloop checks that the file belongs to the post in the address; because LinkedIn lets
+only the author export a post's analytics, only your own posts can come in this way. Pick the account, and
+optionally a campaign and an audience, and paste the text (LinkedIn does not let apps read it; you can also add it
+later). The post is created as published with its numbers, and **Open on LinkedIn** goes to the post itself.
+If the post is already in Heardloop, the numbers are added to it instead. Nothing is fetched from LinkedIn and the
+file is not kept.
+
 **Reports** shows a period (30/90/180/365 days or custom), optionally one campaign and one audience: totals, a
 week-by-week trend, the strongest posts, and how posts perform by campaign and by media type. The **By audience**
 card lines markets up side by side and never averages them, because reach differs between markets. Weekday and

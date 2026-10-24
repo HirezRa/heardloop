@@ -584,3 +584,8 @@ textarea.has-placeholders { outline: 1px solid #ca8a04; }
 .badge.audience { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; letter-spacing: 0.02em; border: 1px solid var(--border); background: var(--bg); color: var(--accent); }
 .time-group + .time-group { margin-top: 14px; padding-top: 10px; border-top: 1px dashed var(--border); }
 .time-group-title { font-size: var(--fs-sm); font-weight: 600; margin: 0 0 6px; }
+/* Import a post from its LinkedIn link */
+dialog.link-import label { display: flex; flex-direction: column; gap: 6px; font-size: var(--fs-sm); }
+dialog.link-import input[type="url"], dialog.link-import select, dialog.link-import textarea { font: inherit; padding: 8px 10px; border: 1px solid var(--border); border-radius: 8px; background: var(--bg); color: var(--text); }
+dialog.link-import .row.gap { display: flex; gap: 12px; align-items: center; }
+.link-import-steps { margin: 0; padding-inline-start: 20px; display: flex; flex-direction: column; gap: 4px; }

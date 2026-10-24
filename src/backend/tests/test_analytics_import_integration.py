@@ -416,3 +416,110 @@ def test_concurrent_import_of_a_new_post_ends_with_one_post(
     assert len(client.get(f"{_base(world)}/{rival['id']}/metrics").json()) == 1
     actions = [a for a, _ in _audit_actions()]
     assert "post.imported" not in actions and actions.count("metrics.imported") == 1
+
+
+# ---- import from the post's LinkedIn link (FR-29) ----
+
+LINK_ACTIVITY = "7519065369198620675"
+LINK_UGC = "7518638656480395265"
+
+
+async def _post_ids(urn_like: str) -> list[tuple[str | None, str | None, str | None]]:
+    assert URL
+    engine = create_async_engine(URL)
+    async with engine.connect() as conn:
+        rows = (
+            await conn.execute(
+                select(Post.linkedin_post_urn, Post.linkedin_activity_urn, Post.external_source).where(
+                    Post.linkedin_post_urn.like(f"%{urn_like}")
+                )
+            )
+        ).all()
+    await engine.dispose()
+    return [tuple(r) for r in rows]
+
+
+def test_import_from_post_link(client: TestClient, world: World) -> None:  # noqa: F811
+    acc = asyncio.run(_add_account(world))
+    login(client, "editor@example.com")
+    link = f"https://www.linkedin.com/feed/update/urn:li:activity:{LINK_ACTIVITY}/"
+    data = layout_b(LINK_UGC, vanity="ugcPost")
+    create = {"create_missing": "true", "account_id": str(acc), "text": "My own post"}
+
+    short = _import(client, world, data, post_link="https://lnkd.in/p/d9-544yc", **create)
+    assert short.status_code == 422 and short.json()["detail"] == "short_link"
+    other_site = _import(client, world, data, post_link="https://example.com/x", **create)
+    assert other_site.json()["detail"] == "not_linkedin"
+    renamed = _import(client, world, data, post_link=link, **create)  # no id from the file name
+    assert renamed.status_code == 422 and renamed.json()["detail"] == "export_not_for_link"
+    wrong = _import(client, world, data, post_link=link, file_activity_id="7519065369198620999", **create)
+    assert wrong.json()["detail"] == "export_not_for_link"
+    bad_id = _import(client, world, data, post_link=link, file_activity_id="abc", **create)
+    assert bad_id.json()["detail"] == "invalid_file_activity_id"
+    other_share = _import(
+        client,
+        world,
+        data,
+        post_link=f"https://www.linkedin.com/feed/update/urn:li:share:{LINK_ACTIVITY}",
+        **create,
+    )
+    assert other_share.json()["detail"] == "export_not_for_link"
+    assert asyncio.run(_post_ids(LINK_UGC)) == []  # nothing was created by the refused attempts
+
+    res = _import(client, world, data, post_link=link, file_activity_id=LINK_ACTIVITY, **create)
+    assert res.status_code == 201, res.text
+    body = res.json()
+    assert body["created"] is True and body["impressions"] == 2500
+    post = client.get(f"{_base(world)}/{body['post_id']}").json()
+    assert post["status"] == "published" and post["body"] == "My own post"
+    assert post["linkedin_url"] == f"https://www.linkedin.com/feed/update/urn:li:activity:{LINK_ACTIVITY}/"
+    assert asyncio.run(_post_ids(LINK_UGC)) == [
+        (f"urn:li:ugcPost:{LINK_UGC}", f"urn:li:activity:{LINK_ACTIVITY}", "linkedin_export")
+    ]
+
+    # The same link again matches that post instead of creating a second one.
+    again = _import(client, world, data, post_link=link, file_activity_id=LINK_ACTIVITY, **create)
+    assert again.status_code == 409 and again.json()["detail"] == "already_imported"
+    yesterday = (datetime.now(UTC) - timedelta(days=1)).isoformat()
+    later = _import(
+        client,
+        world,
+        data,
+        post_link=f"https://www.linkedin.com/posts/someone_topic-ugcPost-{LINK_UGC}-ls-K",
+        captured_at=yesterday,
+        **create,
+    )
+    assert later.status_code == 201 and later.json()["created"] is False
+    assert later.json()["post_id"] == body["post_id"]
+    assert len(asyncio.run(_post_ids(LINK_UGC))) == 1
+
+    audit = [d for a, d in _audit_actions() if a == "metrics.imported"]
+    assert audit[0] is not None and audit[0]["via_link"] == "activity"
+    assert "My own post" not in str(_audit_actions())  # post text never reaches the activity log
+
+
+def test_older_imports_get_the_right_id_kind(client: TestClient, world: World) -> None:  # noqa: F811
+    acc = asyncio.run(_add_account(world))
+    login(client, "editor@example.com")
+    old_id = "7518638656480395266"
+    pid = _published(client, world, acc, f"urn:li:share:{old_id}")
+
+    async def mark_imported() -> None:
+        assert URL
+        engine = create_async_engine(URL)
+        async with engine.begin() as conn:
+            await conn.execute(
+                update(Post).where(Post.id == uuid.UUID(pid)).values(external_source="linkedin_export")
+            )
+        await engine.dispose()
+
+    asyncio.run(mark_imported())
+    res = _import(client, world, layout_b(old_id, vanity="ugcPost"))
+    assert res.status_code == 201 and res.json()["post_id"] == pid
+    assert asyncio.run(_post_ids(old_id)) == [(f"urn:li:ugcPost:{old_id}", None, "linkedin_export")]
+
+    # A post published through Heardloop keeps the id LinkedIn's API returned.
+    own = _published(client, world, acc, "urn:li:share:7518638656480395267")
+    res = _import(client, world, layout_b("7518638656480395267", vanity="ugcPost"))
+    assert res.status_code == 201 and res.json()["post_id"] == own
+    assert asyncio.run(_post_ids("7518638656480395267"))[0][0] == "urn:li:share:7518638656480395267"

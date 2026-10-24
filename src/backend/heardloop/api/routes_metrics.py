@@ -11,6 +11,7 @@ If LinkedIn access is ever granted, a fetcher only has to insert rows with `sour
 import csv
 import dataclasses
 import io
+import re
 import uuid
 from collections import defaultdict
 from collections.abc import Iterable
@@ -21,7 +22,7 @@ from zoneinfo import ZoneInfo
 from fastapi import APIRouter, Depends, HTTPException, Query, Request, status
 from fastapi.concurrency import run_in_threadpool
 from fastapi.responses import StreamingResponse
-from sqlalchemy import func, select
+from sqlalchemy import ColumnElement, func, or_, select
 from sqlalchemy.exc import IntegrityError
 
 from heardloop import analytics_import, audit
@@ -45,6 +46,8 @@ from heardloop.audiences import AudienceMap, weekend_for_zone
 from heardloop.auth.permissions import Permission
 from heardloop.domain.workflow import PostStatus
 from heardloop.formdata import parse_multipart
+from heardloop.linkedin.post_link import KINDS as POST_LINK_KINDS
+from heardloop.linkedin.post_link import PostLink, PostLinkError, parse_post_link
 from heardloop.models import (
     Campaign,
     LinkedInAccount,
@@ -189,7 +192,15 @@ async def delete_metrics(
 
 # ---- import of LinkedIn "Post analytics" exports ----
 
-IMPORT_FORM_FIELDS = {"file", "captured_at", "create_missing", "account_id", "text"}
+IMPORT_FORM_FIELDS = {
+    "file",
+    "captured_at",
+    "create_missing",
+    "account_id",
+    "text",
+    "post_link",
+    "file_activity_id",
+}
 IMPORT_BODY_CAP = analytics_import.MAX_FILE_BYTES + 64 * 1024  # file plus the small form fields
 IMPORT_NOTE = "Imported from LinkedIn export"
 IMPORT_PARSE_STATUS = {
@@ -198,6 +209,7 @@ IMPORT_PARSE_STATUS = {
     "unrecognised_layout": status.HTTP_422_UNPROCESSABLE_CONTENT,
     "no_share_id": status.HTTP_422_UNPROCESSABLE_CONTENT,
 }
+_ACTIVITY_ID = re.compile(r"^\d{15,25}$")
 _CLOCK_SKEW = timedelta(minutes=5)
 
 
@@ -273,12 +285,18 @@ def _localised(naive: datetime | None, tz: ZoneInfo) -> datetime | None:
     return (naive.replace(tzinfo=tz) if naive.tzinfo is None else naive).astimezone(UTC)
 
 
-async def _post_by_urn(db: Db, workspace_id: uuid.UUID, urns: list[str]) -> Post | None:
+async def _post_by_urn(
+    db: Db, workspace_id: uuid.UUID, urns: list[str], activity_urn: str | None = None
+) -> Post | None:
+    """The post with one of `urns` as its LinkedIn id, or with `activity_urn` from an earlier link import."""
+    match: ColumnElement[bool] = Post.linkedin_post_urn.in_(urns)
+    if activity_urn is not None:
+        match = or_(match, Post.linkedin_activity_urn == activity_urn)
     return (
         (
             await db.execute(
                 select(Post)
-                .where(Post.workspace_id == workspace_id, Post.linkedin_post_urn.in_(urns))
+                .where(Post.workspace_id == workspace_id, match)
                 .order_by(Post.created_at)
                 .limit(1)
             )
@@ -288,12 +306,69 @@ async def _post_by_urn(db: Db, workspace_id: uuid.UUID, urns: list[str]) -> Post
     )
 
 
+async def _complete_ids(
+    db: Db, post: Post, primary: str, urns: list[str], activity_urn: str | None
+) -> dict[str, str]:
+    """Fills in what an earlier import could not know, without touching ids LinkedIn's API returned.
+
+    An imported post saved before v0.11 always got `urn:li:share:<id>`, also for ugcPost ids; the export says
+    which it is. A link import adds the activity id. Nothing changes when another post already holds the id.
+    """
+    changed: dict[str, str] = {}
+    if (
+        post.external_source is not None
+        and post.linkedin_post_urn in urns
+        and post.linkedin_post_urn != primary
+    ):
+        taken = await db.execute(
+            select(Post.id).where(Post.workspace_id == post.workspace_id, Post.linkedin_post_urn == primary)
+        )
+        if taken.first() is None:
+            post.linkedin_post_urn = primary
+            changed["linkedin_post_urn"] = primary
+    if activity_urn is not None and post.linkedin_activity_urn is None:
+        taken = await db.execute(
+            select(Post.id).where(
+                Post.workspace_id == post.workspace_id, Post.linkedin_activity_urn == activity_urn
+            )
+        )
+        if taken.first() is None:
+            post.linkedin_activity_urn = activity_urn
+            changed["linkedin_activity_urn"] = activity_urn
+    return changed
+
+
+def _form_post_link(raw: bytes | None) -> PostLink | None:
+    value = (_form_text(raw, "invalid_post_link") or "").strip()
+    if not value:
+        return None
+    try:
+        return parse_post_link(value)
+    except PostLinkError as exc:
+        raise HTTPException(status.HTTP_422_UNPROCESSABLE_CONTENT, exc.code) from None
+
+
+def _form_activity_id(raw: bytes | None) -> str | None:
+    """The activity id the browser read from the export's file name (the name itself is never sent)."""
+    value = (_form_text(raw, "invalid_file_activity_id") or "").strip()
+    if not value:
+        return None
+    if not _ACTIVITY_ID.match(value):
+        raise HTTPException(status.HTTP_422_UNPROCESSABLE_CONTENT, "invalid_file_activity_id")
+    return value
+
+
 @router.post("/metrics/import", status_code=status.HTTP_201_CREATED)
 async def import_metrics(access: WriteAccess, request: Request, db: Db) -> ImportResultOut:
     """Reads one LinkedIn "Post analytics" .xlsx (multipart `file`) and stores it as a measurement.
 
     The file itself is never kept; only the numbers and aggregated audience fields are stored. A post that
     Heardloop did not publish can be created on the fly (`create_missing` with an `account_id`).
+
+    With `post_link` (the post's address on linkedin.com, FR-29) the export must belong to that post: a share
+    or ugcPost link must carry the export's own id; an activity link must equal `file_activity_id`, the id
+    LinkedIn writes into the export's file name. Ownership is proven by the export itself, which LinkedIn
+    offers only to the post's author; the link check catches a file picked for the wrong post.
     """
     raw_body = await _read_capped(request)
     try:
@@ -309,6 +384,8 @@ async def import_metrics(access: WriteAccess, request: Request, db: Db) -> Impor
     create_missing = _form_flag(fields.get("create_missing"))
     account_id = _form_uuid(fields.get("account_id"))
     text = _form_post_text(fields.get("text"))
+    link = _form_post_link(fields.get("post_link"))
+    file_activity_id = _form_activity_id(fields.get("file_activity_id"))
     if create_missing and account_id is None:
         raise HTTPException(status.HTTP_422_UNPROCESSABLE_CONTENT, "account_required")
 
@@ -332,8 +409,19 @@ async def import_metrics(access: WriteAccess, request: Request, db: Db) -> Impor
     else:
         captured = now
 
-    urns = [f"urn:li:share:{parsed.share_id}", f"urn:li:ugcPost:{parsed.share_id}"]
-    post = await _post_by_urn(db, access.workspace_id, urns)
+    if link is not None:
+        expected = file_activity_id if link.kind == "activity" else parsed.share_id
+        if parsed.post_kind == "activity":
+            expected = parsed.share_id  # the export itself names the activity
+        if link.id != expected:
+            raise HTTPException(status.HTTP_422_UNPROCESSABLE_CONTENT, "export_not_for_link")
+    # The id kind as LinkedIn wrote it (share or ugcPost), so "Open on LinkedIn" points at the real post.
+    primary = f"urn:li:{parsed.post_kind}:{parsed.share_id}"
+    urns = [primary, *(f"urn:li:{k}:{parsed.share_id}" for k in POST_LINK_KINDS if k != parsed.post_kind)]
+    activity_urn = link.urn if link is not None and link.kind == "activity" else None
+    if activity_urn is None and parsed.post_kind == "activity":
+        activity_urn = primary
+    post = await _post_by_urn(db, access.workspace_id, urns, activity_urn)
     created = False
     if post is None:
         if not create_missing:
@@ -358,7 +446,8 @@ async def import_metrics(access: WriteAccess, request: Request, db: Db) -> Impor
             account_id=account.id,
             status=PostStatus.PUBLISHED,
             published_at=published_at,
-            linkedin_post_urn=urns[0],
+            linkedin_post_urn=primary,
+            linkedin_activity_urn=activity_urn,
             external_source=MetricSource.LINKEDIN_EXPORT.value,
             created_at=now,
             updated_at=now,
@@ -382,7 +471,7 @@ async def import_metrics(access: WriteAccess, request: Request, db: Db) -> Impor
             post = new_post
             created = True
         except IntegrityError:
-            raced = await _post_by_urn(db, access.workspace_id, urns)
+            raced = await _post_by_urn(db, access.workspace_id, urns, activity_urn)
             if raced is None:
                 raise
             post = raced
@@ -392,7 +481,9 @@ async def import_metrics(access: WriteAccess, request: Request, db: Db) -> Impor
             raise HTTPException(status.HTTP_422_UNPROCESSABLE_CONTENT, "captured_before_publish")
         captured = post.published_at  # a derived time (noon of the export day) can precede an afternoon post
 
+    linked: dict[str, str] = {}
     if not created:
+        linked = await _complete_ids(db, post, primary, urns, activity_urn)
         existing = (
             await db.execute(
                 select(PostMetric.captured_at).where(
@@ -467,6 +558,8 @@ async def import_metrics(access: WriteAccess, request: Request, db: Db) -> Impor
             "captured_at": captured.isoformat(),
             "layout": parsed.layout,
             "audience_rows": len(parsed.demographics),
+            **({"via_link": link.kind} if link is not None else {}),
+            **linked,
         },
         now=now,
     )

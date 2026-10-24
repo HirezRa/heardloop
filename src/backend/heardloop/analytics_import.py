@@ -23,6 +23,8 @@ from xml.etree import (
 )
 from xml.parsers import expat
 
+from heardloop.linkedin.post_link import kind_of_url
+
 MAX_FILE_BYTES = 2 * 1024 * 1024
 MAX_MEMBERS = 50
 MAX_MEMBER_BYTES = 5 * 1024 * 1024
@@ -98,6 +100,8 @@ class ParsedExport:
     metrics: dict[str, int | None]
     demographics: list[Demographic] = field(default_factory=list)
     top: dict[str, str | None] = field(default_factory=dict)
+    # Which LinkedIn id `share_id` is: "share", "ugcPost" or "activity" (as written in the Post URL).
+    post_kind: str = "share"
 
 
 # ---- zip and XML plumbing ----
@@ -439,6 +443,7 @@ def _finish(
         layout=layout,
         share_id=share_id,
         post_url=url[:2048],
+        post_kind=kind_of_url(url),
         published_at_hint=_published(head, utc=layout == "A"),
         captured_on=captured_on if layout == "A" else None,
         metrics=metrics,

@@ -144,7 +144,8 @@ async def _out(db: Db, post: Post) -> PostOut:
         scheduled_at=post.scheduled_at,
         published_at=post.published_at,
         linkedin_post_urn=post.linkedin_post_urn,
-        linkedin_url=_linkedin_url(post.linkedin_post_urn),
+        # The activity id is the address LinkedIn itself shows; imports from a link know it.
+        linkedin_url=_linkedin_url(post.linkedin_activity_urn or post.linkedin_post_urn),
         external_source=post.external_source,
         last_error=post.last_error,
         last_review_comment=review if post.status == PostStatus.DRAFT else None,
