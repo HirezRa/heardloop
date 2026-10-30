@@ -46,9 +46,6 @@ SKIP_DOCKER=0
 NO_OWNER=0
 YES=0
 
-# apt-get with a lock wait: fresh Ubuntu holds the lock for unattended-upgrades.
-APT=(apt-get -o DPkg::Lock::Timeout=300)
-
 # ---------- output ----------
 if [[ -t 1 ]]; then
   C_B=$'\033[1m'; C_G=$'\033[32m'; C_Y=$'\033[33m'; C_R=$'\033[31m'; C_0=$'\033[0m'
@@ -141,6 +138,8 @@ pkg_family() {
 
 is_wsl() { [[ "$OS" == "Linux" ]] && grep -qi microsoft /proc/version 2>/dev/null; }
 
+APT=(apt-get -o DPkg::Lock::Timeout=300)
+
 install_packages() {
   # install_packages <package...>
   case "$(pkg_family)" in
@@ -197,7 +196,6 @@ install_docker_apt() {
 
 install_docker_dnf() {
   local repo
-  # Exact ID only: Rocky/Alma list "fedora" in ID_LIKE and must use the centos rebuild repo.
   case "$DISTRO" in
     fedora) repo="fedora" ;;
     rhel) repo="rhel" ;;
@@ -278,7 +276,6 @@ ensure_docker() {
 
 # ---------- source ----------
 latest_tag() {
-  # Portable sort: macOS may lack sort -V.
   git ls-remote --tags --refs "$REPO_URL" 2>/dev/null | awk -F/ '{print $3}' \
     | grep -E '^v[0-9]+\.[0-9]+\.[0-9]+$' | sed 's/^v//' | sort -t. -k1,1n -k2,2n -k3,3n | tail -n1 | sed 's/^/v/'
 }
@@ -317,7 +314,9 @@ get_source() {
   ok "Heardloop ${REF} in $DIR"
 }
 
-# Refuse a second folder against the same compose project / DB volume (name: heardloop is fixed).
+# ---------- one Heardloop per machine ----------
+# The compose file fixes the project name (heardloop), so a second folder would take over the running
+# containers and the existing database volume with a different .env (other password and key).
 check_existing_install() {
   local wd
   wd="$("${DOCKER[@]}" ps -a --filter label=com.docker.compose.project=heardloop \
@@ -433,7 +432,7 @@ setup_ai() {
       ok "docker-compose.override.yml already has an ollama service"
     else
       warn "docker-compose.override.yml exists; not changing it. Add the ollama service from docs/INSTALL.md, section 13, then run this again."
-      return 0
+      return
     fi
   else
     cat > "$override" <<EOF
@@ -518,7 +517,7 @@ create_owner() {
         --email "$email" --name "$name" --workspace "$workspace" --time-zone "$tz" < /dev/tty; then
     warn "The owner was not created. Run it again later from $DIR:"
     warn "  docker compose exec api python -m heardloop.devtools.create_owner --email <e-mail> --name \"<name>\" --workspace \"<workspace>\""
-    return 0
+    return
   fi
   ok "Owner account created"
 }

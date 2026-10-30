@@ -10,7 +10,7 @@
 
   Review it before you run it:
     cd $HOME
-    Invoke-WebRequest https://raw.githubusercontent.com/HirezRa/heardloop/main/scripts/install.ps1 -OutFile heardloop-install.ps1
+    Invoke-WebRequest https://raw.githubusercontent.com/HirezRa/heardloop/main/scripts/install.ps1 -OutFile heardloop-install.ps1 -UseBasicParsing
     notepad .\heardloop-install.ps1
     powershell -ExecutionPolicy Bypass -File .\heardloop-install.ps1
 
@@ -51,20 +51,6 @@ function Ok([string]$m) { Write-Host "    $m" -ForegroundColor Green }
 function Warn([string]$m) { Write-Host "    $m" -ForegroundColor Yellow }
 function Fail([string]$m) { Write-Host ''; Write-Host "Error: $m" -ForegroundColor Red; exit 1 }
 
-# Windows PowerShell 5.1: with $ErrorActionPreference = 'Stop', redirecting a native command's stderr
-# (*> $null / 2>$null) turns stderr into a terminating NativeCommandError. Soften only for that call.
-function Invoke-Native([scriptblock]$Block) {
-    $old = $ErrorActionPreference
-    $ErrorActionPreference = 'Continue'
-    try { & $Block *> $null } catch { } finally { $ErrorActionPreference = $old }
-    return $LASTEXITCODE
-}
-function Get-NativeOutput([scriptblock]$Block) {
-    $old = $ErrorActionPreference
-    $ErrorActionPreference = 'Continue'
-    try { return @(& $Block 2>$null | ForEach-Object { "$_" }) } catch { return @() } finally { $ErrorActionPreference = $old }
-}
-
 function Ask([string]$q, [string]$def = '') {
     if ($Yes) { return $def }
     $prompt = if ($def) { "    $q [$def]" } else { "    $q" }
@@ -85,6 +71,19 @@ function Refresh-Path {
     $env:Path = "$m;$u"
     $dockerBin = Join-Path $env:ProgramFiles 'Docker\Docker\resources\bin'
     if ((Test-Path $dockerBin) -and ($env:Path -notlike "*$dockerBin*")) { $env:Path = "$env:Path;$dockerBin" }
+}
+# Windows PowerShell 5.1 turns redirected stderr of a native command into a terminating error when
+# $ErrorActionPreference is Stop. Run native commands whose stderr we redirect through these helpers.
+function Invoke-Native([scriptblock]$Block) {
+    $old = $ErrorActionPreference
+    $ErrorActionPreference = 'Continue'
+    try { & $Block *> $null } catch { } finally { $ErrorActionPreference = $old }
+    return $LASTEXITCODE
+}
+function Get-NativeOutput([scriptblock]$Block) {
+    $old = $ErrorActionPreference
+    $ErrorActionPreference = 'Continue'
+    try { return @(& $Block 2>$null | ForEach-Object { "$_" }) } catch { return @() } finally { $ErrorActionPreference = $old }
 }
 function Has([string]$cmd) { return [bool](Get-Command $cmd -ErrorAction SilentlyContinue) }
 function Winget-Install([string]$id, [string]$label) {
@@ -141,8 +140,7 @@ if (-not (Docker-Ready)) {
     }
 }
 if ((Invoke-Native { docker compose version }) -ne 0) { Fail 'Docker Compose is missing. Update Docker Desktop and run this again.' }
-$composeShort = ((Get-NativeOutput { docker compose version --short }) -join '').Trim()
-Ok "Docker Desktop is running (Compose $composeShort)"
+Ok "Docker Desktop is running (Compose $((& docker compose version --short) -join ''))"
 
 # ---------- source ----------
 Step 'Getting Heardloop'
@@ -179,7 +177,8 @@ if ($useHere -and -not $Ref) {
 }
 Set-Location $Dir
 
-# Refuse a second folder against the same compose project / DB volume (name: heardloop is fixed).
+# One Heardloop per machine: the compose file fixes the project name (heardloop), so a second folder would take
+# over the running containers and the existing database volume with a different .env (other password and key).
 $existing = Get-NativeOutput { docker ps -a --filter label=com.docker.compose.project=heardloop --format '{{.Label "com.docker.compose.project.working_dir"}}' } |
     Where-Object { $_ } | Select-Object -Unique -First 1
 if ($existing -and ($existing.TrimEnd('\', '/') -ne $Dir.TrimEnd('\', '/'))) {
