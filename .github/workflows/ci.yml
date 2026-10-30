@@ -147,14 +147,14 @@ jobs:
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
       - name: Installer (first run)
-        run: bash scripts/install.sh --yes --skip-docker --no-owner
+        run: bash scripts/install.sh --yes --skip-docker --no-owner < /dev/null
       - name: Health through the installer web port
         run: |
           body="$(curl -fsS http://localhost:8380/api/v1/health)"
           echo "$body"
           echo "$body" | grep -q '"status"[[:space:]]*:[[:space:]]*"healthy"'
       - name: Installer (re-run)
-        run: bash scripts/install.sh --yes --skip-docker --no-owner
+        run: bash scripts/install.sh --yes --skip-docker --no-owner < /dev/null
       - name: Health after re-run
         run: |
           body="$(curl -fsS http://localhost:8380/api/v1/health)"
