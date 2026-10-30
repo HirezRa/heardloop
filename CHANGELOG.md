@@ -7,6 +7,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- One-command installers: `scripts/install.sh` (Linux, macOS) and `scripts/install.ps1` (Windows). They install Git and Docker when missing, clone the newest release, create `.env` with random secrets, ask for the LinkedIn app keys, start the stack, wait until it is healthy and create the owner account. Optional local Ollama for the AI assistant (`--with-ai` / `-WithAi`). Safe to run again.
+- `scripts/new-env.sh`, the Linux/macOS twin of `scripts/new-env.ps1`.
+- `docs/ROADMAP.md`: planned improvements, known report issues and their order.
+
+### Changed
+
+- README quick start leads with the installers and shows the manual steps for every system; the feature list includes importing a post from its LinkedIn link; the roadmap section no longer lists two "Phase 5" entries.
+- The install guides (English and Hebrew) point to the installers and to `scripts/new-env.sh`.
+
 ## [0.11.0] - 2026-10-24
 
 ### Added
