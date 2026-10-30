@@ -149,6 +149,8 @@ your owner account. Run it again any time: it keeps your clone, `.env` and data.
 
 ```bash
 curl -fsSLo heardloop-install.sh https://raw.githubusercontent.com/HirezRa/heardloop/main/scripts/install.sh
+# if curl is missing:
+# wget -O heardloop-install.sh https://raw.githubusercontent.com/HirezRa/heardloop/main/scripts/install.sh
 less heardloop-install.sh
 bash heardloop-install.sh
 ```
@@ -157,7 +159,7 @@ bash heardloop-install.sh
 
 ```powershell
 cd $HOME
-Invoke-WebRequest https://raw.githubusercontent.com/HirezRa/heardloop/main/scripts/install.ps1 -OutFile heardloop-install.ps1
+Invoke-WebRequest https://raw.githubusercontent.com/HirezRa/heardloop/main/scripts/install.ps1 -OutFile heardloop-install.ps1 -UseBasicParsing
 notepad .\heardloop-install.ps1
 powershell -ExecutionPolicy Bypass -File .\heardloop-install.ps1
 ```

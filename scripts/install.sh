@@ -46,6 +46,9 @@ SKIP_DOCKER=0
 NO_OWNER=0
 YES=0
 
+# apt-get with a lock wait: fresh Ubuntu holds the lock for unattended-upgrades.
+APT=(apt-get -o DPkg::Lock::Timeout=300)
+
 # ---------- output ----------
 if [[ -t 1 ]]; then
   C_B=$'\033[1m'; C_G=$'\033[32m'; C_Y=$'\033[33m'; C_R=$'\033[31m'; C_0=$'\033[0m'
@@ -141,7 +144,7 @@ is_wsl() { [[ "$OS" == "Linux" ]] && grep -qi microsoft /proc/version 2>/dev/nul
 install_packages() {
   # install_packages <package...>
   case "$(pkg_family)" in
-    apt) need_root "$*"; $SUDO apt-get update -qq; $SUDO env DEBIAN_FRONTEND=noninteractive apt-get install -y -qq "$@" ;;
+    apt) need_root "$*"; $SUDO "${APT[@]}" update -qq; $SUDO env DEBIAN_FRONTEND=noninteractive "${APT[@]}" install -y -qq "$@" ;;
     dnf) need_root "$*"; $SUDO dnf install -y -q "$@" ;;
     *) die "Unsupported Linux distribution (${DISTRO:-unknown}). Install $* by hand and run this again." ;;
   esac
@@ -180,24 +183,25 @@ install_docker_apt() {
   fi
   [[ -n "$codename" ]] || die "Cannot tell the ${dist} release name. Install Docker by hand: https://docs.docker.com/engine/install/"
   info "Adding Docker's official apt repository (${dist} ${codename})"
-  $SUDO apt-get update -qq
-  $SUDO env DEBIAN_FRONTEND=noninteractive apt-get install -y -qq ca-certificates curl
+  $SUDO "${APT[@]}" update -qq
+  $SUDO env DEBIAN_FRONTEND=noninteractive "${APT[@]}" install -y -qq ca-certificates curl
   $SUDO install -m 0755 -d /etc/apt/keyrings
   $SUDO curl -fsSL "https://download.docker.com/linux/${dist}/gpg" -o /etc/apt/keyrings/docker.asc
   $SUDO chmod a+r /etc/apt/keyrings/docker.asc
   printf 'deb [arch=%s signed-by=/etc/apt/keyrings/docker.asc] https://download.docker.com/linux/%s %s stable\n' \
     "$(dpkg --print-architecture)" "$dist" "$codename" | $SUDO tee /etc/apt/sources.list.d/docker.list >/dev/null
-  $SUDO apt-get update -qq
-  $SUDO env DEBIAN_FRONTEND=noninteractive apt-get install -y -qq \
+  $SUDO "${APT[@]}" update -qq
+  $SUDO env DEBIAN_FRONTEND=noninteractive "${APT[@]}" install -y -qq \
     docker-ce docker-ce-cli containerd.io docker-buildx-plugin docker-compose-plugin
 }
 
 install_docker_dnf() {
   local repo
-  case " $DISTRO $DISTRO_LIKE " in
-    *" fedora "*) repo="fedora" ;;
-    *" rhel "*) [[ "$DISTRO" == "rhel" ]] && repo="rhel" || repo="centos" ;;
-    *) repo="centos" ;;
+  # Exact ID only: Rocky/Alma list "fedora" in ID_LIKE and must use the centos rebuild repo.
+  case "$DISTRO" in
+    fedora) repo="fedora" ;;
+    rhel) repo="rhel" ;;
+    *) repo="centos" ;;  # CentOS Stream, Rocky, AlmaLinux and other RHEL rebuilds
   esac
   info "Adding Docker's official dnf repository (${repo})"
   $SUDO curl -fsSL "https://download.docker.com/linux/${repo}/docker-ce.repo" -o /etc/yum.repos.d/docker-ce.repo
@@ -311,6 +315,20 @@ get_source() {
   ok "Heardloop ${REF} in $DIR"
 }
 
+# Refuse a second folder against the same compose project / DB volume (name: heardloop is fixed).
+check_existing_install() {
+  local wd
+  wd="$("${DOCKER[@]}" ps -a --filter label=com.docker.compose.project=heardloop \
+        --format '{{.Label "com.docker.compose.project.working_dir"}}' 2>/dev/null | sort -u | head -n1 || true)"
+  if [[ -n "$wd" && "$wd" != "$DIR" ]]; then
+    die "Heardloop is already installed on this machine, in $wd. Run the installer from that folder (--dir $wd), or update it with $wd/scripts/update.sh."
+  fi
+  if [[ -z "$wd" && ! -f "$DIR/.env" ]] && "${DOCKER[@]}" volume inspect heardloop_db-data >/dev/null 2>&1; then
+    die "A Heardloop database (Docker volume heardloop_db-data) already exists on this machine, but $DIR has no .env. Use the folder and .env it was created with; a new .env cannot open it."
+  fi
+  return 0
+}
+
 # ---------- .env ----------
 ENV_FILE=""
 
@@ -396,7 +414,7 @@ configure_env() {
 setup_ai() {
   if [[ $WITH_AI -eq 0 ]]; then
     [[ $YES -eq 1 ]] && return
-    confirm "Add the optional AI writing assistant with a local Ollama model? (needs several GB of disk and memory)" n || return
+    confirm "Add the optional AI writing assistant with a local Ollama model? (needs several GB of disk and memory)" n || return 0
     WITH_AI=1
   fi
   step "AI writing assistant (Ollama, local)"
@@ -406,7 +424,7 @@ setup_ai() {
       ok "docker-compose.override.yml already has an ollama service"
     else
       warn "docker-compose.override.yml exists; not changing it. Add the ollama service from docs/INSTALL.md, section 13, then run this again."
-      return
+      return 0
     fi
   else
     cat > "$override" <<EOF
@@ -478,7 +496,7 @@ detect_time_zone() {
 create_owner() {
   [[ $NO_OWNER -eq 1 || $YES -eq 1 ]] && { info "Owner account skipped (see docs/INSTALL.md, section 7)."; return; }
   step "Owner account"
-  confirm "Create the owner account now? (skip if you already have one)" y || return
+  confirm "Create the owner account now? (skip if you already have one)" y || return 0
   local email name workspace tz
   ask "E-mail" ""; email="$REPLY"
   [[ "$email" =~ ^[^[:space:]@]+@[^[:space:]@]+\.[^[:space:]@]+$ ]] || die "That e-mail address does not look right."
@@ -491,7 +509,7 @@ create_owner() {
         --email "$email" --name "$name" --workspace "$workspace" --time-zone "$tz" < /dev/tty; then
     warn "The owner was not created. Run it again later from $DIR:"
     warn "  docker compose exec api python -m heardloop.devtools.create_owner --email <e-mail> --name \"<name>\" --workspace \"<workspace>\""
-    return
+    return 0
   fi
   ok "Owner account created"
 }
@@ -501,6 +519,7 @@ printf '%sHeardloop installer%s\n' "$C_B" "$C_0"
 ensure_base_tools
 ensure_docker
 get_source
+check_existing_install
 create_env
 configure_env
 start_stack
