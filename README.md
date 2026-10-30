@@ -20,10 +20,12 @@
 </p>
 
 <p align="center">
+  <a href="#quick-start">Quick start</a> ·
   <a href="docs/INSTALL.md">Install guide</a> ·
   <a href="docs/GUIDE.md">User guide</a> ·
   <a href="https://github.com/HirezRa/heardloop/releases">Releases</a> ·
   <a href="CHANGELOG.md">Changelog</a> ·
+  <a href="docs/ROADMAP.md">Roadmap</a> ·
   <a href="examples/n8n/README.md">n8n example</a>
 </p>
 
@@ -45,7 +47,7 @@ and posting "at 8:00 tomorrow" depends on someone remembering. Heardloop puts th
 
 - **It is** a self-hosted planner for your own LinkedIn profile: draft, approve, schedule, publish, measure.
 - **It does not** scrape LinkedIn, auto-generate posts, like, comment or message on your behalf.
-- **It does not** need a LinkedIn partner program — it uses the self-serve developer products.
+- **It does not** need a LinkedIn partner program: it uses the self-serve developer products.
 
 ## Features
 
@@ -69,6 +71,7 @@ and posting "at 8:00 tomorrow" depends on someone remembering. Heardloop puts th
 | 📈 | Post metrics (entered from LinkedIn's numbers), reports by week, campaign, audience, weekday and media at the same measurement age, CSV export, weekly digest | ✅ |
 | 🌐 | Audiences: markets with their own time zone and weekend, so reports and best-time suggestions compare like with like, at the same measurement age | ✅ |
 | 📥 | Import LinkedIn analytics exports (.xlsx): numbers and audience per post, one file or many, posts created on the fly | ✅ |
+| 🔗 | Import a post you published directly on LinkedIn from its link plus its analytics export | ✅ |
 | 💾 | Nightly backups with verified restore: database and media, retention, optional AES-256 encryption, staleness alert ([guide](docs/GUIDE.md#10-backups-and-restore)) | ✅ |
 | ✨ | AI writing assistant (optional, self-hosted OpenAI-compatible model such as Ollama) and best-time suggestions from your own metrics | ✅ |
 
@@ -132,14 +135,51 @@ flowchart LR
 
 ## Quick start
 
-Full step-by-step guide: [docs/INSTALL.md](docs/INSTALL.md)
-(Hebrew: [docs/he/INSTALL.md](docs/he/INSTALL.md))
+You need a computer that stays on when posts are due, and a free LinkedIn developer app
+([how](docs/INSTALL.md#4-create-the-linkedin-developer-app)). The installer can add the app keys later.
 
-Requirements: Docker (Desktop) and a LinkedIn developer app (free).
+### One command
+
+The installer checks for Git and Docker and installs what is missing (Docker Engine with the Compose and Buildx
+plugins on Ubuntu, Debian, Fedora and RHEL-family Linux; Docker Desktop on macOS and Windows). It then downloads
+the newest release, creates `.env` with random secrets, starts the stack, waits until it is healthy and creates
+your owner account. Run it again any time: it keeps your clone, `.env` and data. Read a script before you run it.
+
+**Linux / macOS**
+
+```bash
+curl -fsSLo heardloop-install.sh https://raw.githubusercontent.com/HirezRa/heardloop/main/scripts/install.sh
+# if curl is missing:
+# wget -O heardloop-install.sh https://raw.githubusercontent.com/HirezRa/heardloop/main/scripts/install.sh
+less heardloop-install.sh
+bash heardloop-install.sh
+```
+
+**Windows 10/11** (PowerShell)
 
 ```powershell
-# 1. Secrets (once): creates .env with a random database password and encryption key
-powershell -ExecutionPolicy Bypass -File scripts/new-env.ps1
+cd $HOME
+Invoke-WebRequest https://raw.githubusercontent.com/HirezRa/heardloop/main/scripts/install.ps1 -OutFile heardloop-install.ps1 -UseBasicParsing
+notepad .\heardloop-install.ps1
+powershell -ExecutionPolicy Bypass -File .\heardloop-install.ps1
+```
+
+Useful options: `--lang he` / `-Lang he` (Hebrew interface), `--with-ai` / `-WithAi` (local Ollama model for the
+AI assistant), `--dir` / `-Dir`, `--ref` / `-Ref`. All options: `bash heardloop-install.sh --help` or
+`Get-Help .\heardloop-install.ps1 -Detailed`.
+
+### By hand
+
+Full step-by-step guide: [docs/INSTALL.md](docs/INSTALL.md) (Hebrew: [docs/he/INSTALL.md](docs/he/INSTALL.md)).
+Requirements: Docker (Desktop) and Git.
+
+```bash
+git clone https://github.com/HirezRa/heardloop.git
+cd heardloop
+git checkout v0.11.0              # newest tag from the Releases page
+
+# 1. Secrets (once): .env with a random database password and encryption key
+bash scripts/new-env.sh           # Windows: powershell -ExecutionPolicy Bypass -File scripts/new-env.ps1
 
 # 2. Start everything
 docker compose up -d --build
@@ -154,8 +194,8 @@ There is no public sign-up: the owner adds other users in Settings -> Members.
 
 **LinkedIn developer app (summary):** create an app at https://www.linkedin.com/developers/apps, add the
 products "Sign In with LinkedIn using OpenID Connect" and "Share on LinkedIn", set the redirect URL to
-`http://localhost:8380/api/v1/linkedin/callback`, then put the Client ID and Secret in `.env`. Full steps
-with screenshots: [INSTALL §4](docs/INSTALL.md#4-create-the-linkedin-developer-app).
+`http://localhost:8380/api/v1/linkedin/callback`, then put the Client ID and Secret in `.env` and run
+`docker compose up -d`. Full steps with screenshots: [INSTALL §4](docs/INSTALL.md#4-create-the-linkedin-developer-app).
 
 ### Documentation map
 
@@ -167,6 +207,7 @@ with screenshots: [INSTALL §4](docs/INSTALL.md#4-create-the-linkedin-developer-
 | [n8n example](examples/n8n/README.md) / [he/n8n.md](docs/he/n8n.md) | Importable n8n workflow |
 | [SPEC.md](docs/SPEC.md) | Design decisions the code depends on |
 | [DEMO.md](docs/DEMO.md) | Demo stack for README screenshots |
+| [ROADMAP.md](docs/ROADMAP.md) | Planned improvements and known issues |
 | [CHANGELOG.md](CHANGELOG.md) | What changed in each release |
 | [SECURITY.md](SECURITY.md) | How to report vulnerabilities |
 
@@ -248,10 +289,13 @@ Found a vulnerability? Please follow [SECURITY.md](SECURITY.md) instead of openi
 - [x] **Phase 3 - Campaigns and workflow**: campaigns, calendar, review queue, notifications
 - [x] **Phase 4 - Metrics and reports**: manual post metrics, reports, CSV export, weekly digest
 - [x] **Phase 5 - Hardening and extensions**: backups, templates, version history, analytics import, public release, update notice
-- [x] **Phase 5 - AI**: optional AI writing assistant (self-hosted model), best-time suggestions
+- [x] **Phase 6 - AI and imports**: optional AI writing assistant (self-hosted model), best-time suggestions, audiences, import a post from its LinkedIn link
+- [x] **Unreleased - One-command install**: installers for Linux, macOS and Windows
+- [ ] **Next - Voice and context**: a voice and context profile the AI assistant reads, report fixes, a pre-publish check
+- [ ] **Later - Learn loop**: hook library, idea backlog, format starter pack, draft-only API for agents
 - Later: company pages (postponed until after real-world use)
 
-Progress is tracked in [issues](https://github.com/HirezRa/heardloop/issues).
+Details, reasons and order: [docs/ROADMAP.md](docs/ROADMAP.md). Progress is tracked in [issues](https://github.com/HirezRa/heardloop/issues).
 
 ## Development
 
@@ -292,10 +336,10 @@ docker compose -f docker-compose.yml -f docker-compose.dev.yml up -d --build
 src/backend/    heardloop/ (api, worker, domain, security, linkedin), migrations/, tests/
 src/frontend/   React app, i18n (en/he), nginx.conf
 src/backup/     backup service: nightly pg_dump + media archive, restore script
-docs/           INSTALL.md, GUIDE.md, SPEC.md, WEBHOOKS.md, DEMO.md, he/, assets/
+docs/           INSTALL.md, GUIDE.md, SPEC.md, WEBHOOKS.md, DEMO.md, ROADMAP.md, he/, assets/
 examples/n8n/   importable n8n workflow
 CHANGELOG.md    Keep a Changelog release notes
-scripts/        new-env.ps1, update.*/backup-now/restore, stack-smoke.sh, readme-screenshots.mjs,
+scripts/        install.sh/.ps1, new-env.sh/.ps1, update.*/backup-now/restore, stack-smoke.sh, readme-screenshots.mjs,
                 check_private.py, check_english.py, check_versions.py, check_assets.py, check_md_links.py
 .github/        CI (privacy, gitleaks, backend, backup-smoke, frontend, stack-smoke), Dependabot
 ```

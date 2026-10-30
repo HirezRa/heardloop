@@ -7,6 +7,8 @@
 
 > English version: [docs/INSTALL.md](../INSTALL.md)
 
+> **דרך מהירה:** הסקריפטים `scripts/install.sh` (Linux/macOS) ו-`scripts/install.ps1` (Windows) עושים את סעיפים 1-3 ו-5-7 בשבילכם, כולל התקנת Docker. ראו [Quick start](../../README.md#quick-start). המדריך הזה הוא הדרך הידנית והמקור המלא.
+
 **תוכן העניינים**
 
 1. [מה צריך](#1-מה-צריך)
@@ -62,7 +64,7 @@ powershell -ExecutionPolicy Bypass -File scripts/new-env.ps1
 ```
 
 הסקריפט יוצר את `.env` עם סיסמת מסד נתונים אקראית ומפתח הצפנה אקראי (`HEARDLOOP_TOKEN_KEY`).
-ב-Linux/macOS: ‏`cp .env.example .env` ולפי ההערות שבקובץ.
+ב-Linux/macOS: ‏`bash scripts/new-env.sh`.
 
 > **גבו את `.env` עכשיו** (במנהל סיסמאות או בדיסק-און-קי מוצפן). בלי `HEARDLOOP_TOKEN_KEY` גיבוי משוחזר לא
 > יוכל לקרוא את חיבורי הלינקדאין ואת סודות האימות הדו-שלבי. לעולם לא מעלים את `.env` ל-Git, לא שולחים אותו לאף
