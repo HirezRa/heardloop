@@ -278,14 +278,16 @@ ensure_docker() {
 
 # ---------- source ----------
 latest_tag() {
+  # Portable sort: macOS may lack sort -V.
   git ls-remote --tags --refs "$REPO_URL" 2>/dev/null | awk -F/ '{print $3}' \
-    | grep -E '^v[0-9]+\.[0-9]+\.[0-9]+$' | sort -V | tail -n1
+    | grep -E '^v[0-9]+\.[0-9]+\.[0-9]+$' | sed 's/^v//' | sort -t. -k1,1n -k2,2n -k3,3n | tail -n1 | sed 's/^/v/'
 }
 
 get_source() {
   step "Getting Heardloop"
   local here=""
-  here="$(cd "$(dirname "${BASH_SOURCE[0]}")" 2>/dev/null && cd .. && pwd || true)"
+  # Prefer this clone when the script lives inside a Heardloop tree; ignore failure if dirname is unset.
+  if here="$(cd "$(dirname "${BASH_SOURCE[0]}")" 2>/dev/null && cd .. && pwd)"; then :; else here=""; fi
   if [[ -z "$DIR" && -n "$here" && -f "$here/docker-compose.yml" ]] && grep -q '^name: heardloop' "$here/docker-compose.yml"; then
     DIR="$here"
     info "Using this clone: $DIR"

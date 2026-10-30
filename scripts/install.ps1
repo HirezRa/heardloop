@@ -52,12 +52,17 @@ function Warn([string]$m) { Write-Host "    $m" -ForegroundColor Yellow }
 function Fail([string]$m) { Write-Host ''; Write-Host "Error: $m" -ForegroundColor Red; exit 1 }
 
 # Windows PowerShell 5.1: with $ErrorActionPreference = 'Stop', redirecting a native command's stderr
-# (*> $null) turns stderr into a terminating NativeCommandError. Soften only for that call.
+# (*> $null / 2>$null) turns stderr into a terminating NativeCommandError. Soften only for that call.
 function Invoke-Native([scriptblock]$Block) {
     $old = $ErrorActionPreference
     $ErrorActionPreference = 'Continue'
     try { & $Block *> $null } catch { } finally { $ErrorActionPreference = $old }
     return $LASTEXITCODE
+}
+function Get-NativeOutput([scriptblock]$Block) {
+    $old = $ErrorActionPreference
+    $ErrorActionPreference = 'Continue'
+    try { return @(& $Block 2>$null | ForEach-Object { "$_" }) } catch { return @() } finally { $ErrorActionPreference = $old }
 }
 
 function Ask([string]$q, [string]$def = '') {
@@ -136,9 +141,7 @@ if (-not (Docker-Ready)) {
     }
 }
 if ((Invoke-Native { docker compose version }) -ne 0) { Fail 'Docker Compose is missing. Update Docker Desktop and run this again.' }
-$oldEap = $ErrorActionPreference
-$ErrorActionPreference = 'Continue'
-try { $composeShort = ((& docker compose version --short) -join '').Trim() } finally { $ErrorActionPreference = $oldEap }
+$composeShort = ((Get-NativeOutput { docker compose version --short }) -join '').Trim()
 Ok "Docker Desktop is running (Compose $composeShort)"
 
 # ---------- source ----------
@@ -153,12 +156,8 @@ if ($useHere -and -not $Ref) {
 } else {
     if (-not $Dir) { $Dir = Join-Path $HOME 'heardloop' }
     if (-not $Ref) {
-        $oldEap = $ErrorActionPreference
-        $ErrorActionPreference = 'Continue'
-        try {
-            $tags = & git ls-remote --tags --refs $RepoUrl 2>$null | ForEach-Object { ($_ -split '/')[-1] } |
-                Where-Object { $_ -match '^v\d+\.\d+\.\d+$' }
-        } finally { $ErrorActionPreference = $oldEap }
+        $tags = Get-NativeOutput { git ls-remote --tags --refs $RepoUrl } | ForEach-Object { ($_ -split '/')[-1] } |
+            Where-Object { $_ -match '^v\d+\.\d+\.\d+$' }
         $Ref = $tags | Sort-Object { [version]($_.TrimStart('v')) } | Select-Object -Last 1
         if (-not $Ref) { Fail 'Could not read the release tags from GitHub. Check the network, or pass -Ref main.' }
     }
@@ -181,26 +180,13 @@ if ($useHere -and -not $Ref) {
 Set-Location $Dir
 
 # Refuse a second folder against the same compose project / DB volume (name: heardloop is fixed).
-function Normalize-DirPath([string]$p) {
-    if (-not $p) { return '' }
-    $full = [System.IO.Path]::GetFullPath($p)
-    return $full.TrimEnd('\', '/').ToLowerInvariant()
+$existing = Get-NativeOutput { docker ps -a --filter label=com.docker.compose.project=heardloop --format '{{.Label "com.docker.compose.project.working_dir"}}' } |
+    Where-Object { $_ } | Select-Object -Unique -First 1
+if ($existing -and ($existing.TrimEnd('\', '/') -ne $Dir.TrimEnd('\', '/'))) {
+    Fail "Heardloop is already installed on this machine, in $existing. Run the installer with -Dir $existing, or update it with $existing\scripts\update.ps1."
 }
-$oldEap = $ErrorActionPreference
-$ErrorActionPreference = 'Continue'
-try {
-    $wdRaw = (& docker ps -a --filter 'label=com.docker.compose.project=heardloop' --format '{{.Label "com.docker.compose.project.working_dir"}}' 2>$null |
-        Where-Object { $_ } | Sort-Object -Unique | Select-Object -First 1)
-} finally { $ErrorActionPreference = $oldEap }
-$wdNorm = Normalize-DirPath $wdRaw
-$dirNorm = Normalize-DirPath $Dir
-if ($wdNorm -and ($wdNorm -ne $dirNorm)) {
-    Fail "Heardloop is already installed on this machine, in $wdRaw. Run the installer from that folder (-Dir `"$wdRaw`"), or update it with $wdRaw\scripts\update.ps1."
-}
-if (-not $wdNorm -and -not (Test-Path (Join-Path $Dir '.env'))) {
-    if ((Invoke-Native { docker volume inspect heardloop_db-data }) -eq 0) {
-        Fail "A Heardloop database (Docker volume heardloop_db-data) already exists on this machine, but $Dir has no .env. Use the folder and .env it was created with; a new .env cannot open it."
-    }
+if (-not $existing -and -not (Test-Path (Join-Path $Dir '.env')) -and ((Invoke-Native { docker volume inspect heardloop_db-data }) -eq 0)) {
+    Fail "A Heardloop database (Docker volume heardloop_db-data) already exists on this machine, but $Dir has no .env. Use the folder and .env it was created with; a new .env cannot open it."
 }
 
 # ---------- .env ----------
@@ -235,14 +221,16 @@ if (Test-Path $EnvFile) {
 }
 
 Step 'Settings'
-if (-not $Lang) {
+# A separate variable: $Lang is a validated parameter, and assigning an unexpected answer to it would throw.
+$uiLang = $Lang
+if (-not $uiLang) {
     $cur = Get-EnvValue 'UI_LANGUAGE'
     if (-not $cur) { $cur = 'en' }
-    $Lang = Ask 'Interface language, en or he' $cur
+    $uiLang = (Ask 'Interface language, en or he' $cur).ToLowerInvariant()
 }
-if ($Lang -ne 'en' -and $Lang -ne 'he') { Warn "Unknown language '$Lang', using en"; $Lang = 'en' }
-Set-EnvValue 'UI_LANGUAGE' $Lang
-Ok "Interface language: $Lang"
+if ($uiLang -ne 'en' -and $uiLang -ne 'he') { Warn "Unknown language '$uiLang', using en"; $uiLang = 'en' }
+Set-EnvValue 'UI_LANGUAGE' $uiLang
+Ok "Interface language: $uiLang"
 
 $curId = Get-EnvValue 'LINKEDIN_CLIENT_ID'
 if ($curId -and $curId -ne '<client-id>') {
@@ -272,9 +260,7 @@ if ($curId -and $curId -ne '<client-id>') {
 # ---------- start ----------
 Step 'Building and starting Heardloop (the first build takes a few minutes)'
 $listening = Get-NetTCPConnection -LocalPort 8380 -State Listen -ErrorAction SilentlyContinue
-$oldEap = $ErrorActionPreference
-$ErrorActionPreference = 'Continue'
-try { $webId = (& docker compose ps -q web 2>$null) -join '' } finally { $ErrorActionPreference = $oldEap }
+$webId = (Get-NativeOutput { docker compose ps -q web }) -join ''
 if ($listening -and -not $webId) { Fail 'Port 8380 is already used by another program. Free it, or map another port in docker-compose.override.yml.' }
 
 $env:VERSION = (Get-Content (Join-Path $Dir 'VERSION') -Raw).Trim()
