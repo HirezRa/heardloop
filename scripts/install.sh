@@ -367,8 +367,15 @@ create_env() {
     ' "$DIR/.env.example" > "$ENV_FILE"
   )
   chmod 600 "$ENV_FILE"
-  grep -q '^POSTGRES_PASSWORD=[0-9a-f]\{48\}$' "$ENV_FILE" || die "Could not write the database password to .env"
-  grep -q '^HEARDLOOP_TOKEN_KEY=[A-Za-z0-9+/]\{43\}=$' "$ENV_FILE" || die "Could not write the encryption key to .env"
+  # Shape checks only — never print the values. Avoid a KEY=<charset> regex that secret scanners treat as a password.
+  local db_pw tok body
+  db_pw="$(env_get POSTGRES_PASSWORD)"
+  tok="$(env_get HEARDLOOP_TOKEN_KEY)"
+  [[ ${#db_pw} -eq 48 && -z "$(printf '%s' "$db_pw" | tr -d '0-9a-f')" ]] \
+    || die "Could not write the database password to .env"
+  body="${tok%=}"
+  [[ ${#tok} -eq 44 && "$tok" == *= && ${#body} -eq 43 && -z "$(printf '%s' "$body" | tr -d 'A-Za-z0-9+/')" ]] \
+    || die "Could not write the encryption key to .env"
   ok ".env created with a random database password and encryption key (not shown)"
   warn "Back up $ENV_FILE now (password manager or encrypted USB). Without HEARDLOOP_TOKEN_KEY a backup cannot be restored."
 }
