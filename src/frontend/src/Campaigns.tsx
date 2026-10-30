@@ -18,6 +18,7 @@ import {
 import { t } from './i18n';
 import { DateInput } from './DateInputs';
 import { formatDay } from './dates';
+import { truncateCodePoints } from './textCut';
 
 const STATUSES: CampaignStatus[] = ['planned', 'active', 'completed', 'archived'];
 const COLORS = ['#2563eb', '#16a34a', '#dc2626', '#9333ea', '#ea580c', '#0891b2', '#ca8a04', '#64748b'];
@@ -357,8 +358,7 @@ export default function Campaigns({
                   <button type="button" className="post-item" onClick={() => onOpenPost(p.id)}>
                     <span className={`status status-${p.status}`}>{t.posts.statuses[p.status]}</span>
                     <span className="post-snippet" dir="auto">
-                      {p.body.slice(0, 90)}
-                      {p.body.length > 90 ? '…' : ''}
+                      {truncateCodePoints(p.body, 90)}
                     </span>
                   </button>
                 </li>

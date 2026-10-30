@@ -22,6 +22,8 @@ import { formatDate, formatDay } from './dates';
 import { DIR, LOCALE, t } from './i18n';
 import { displaySnippet } from './postText';
 import { CreateFromExport, importErrorText } from './ImportExport';
+import { barTooFew, bucketMetric, type ReportBarMetric } from './reportBars';
+import { truncateCodePoints } from './textCut';
 
 /** One file of a bulk import. `needs_post`: the post is not in Heardloop; waiting for the user's decision. */
 interface FileResult {
@@ -35,10 +37,19 @@ interface FileResult {
   error?: string;
 }
 
-const snippetOf = (body: string) => {
-  const line = body.split(/\s+/).join(' ').trim();
-  return line.length > 80 ? `${line.slice(0, 79)}…` : line;
-};
+const snippetOf = (body: string) => truncateCodePoints(body.split(/\s+/).join(' ').trim(), 80);
+
+const METRIC_PREF_KEY = 'heardloop.reportBarMetric';
+
+function loadBarMetric(): ReportBarMetric {
+  try {
+    const v = localStorage.getItem(METRIC_PREF_KEY);
+    if (v === 'impressions' || v === 'engagement_rate') return v;
+  } catch {
+    /* private mode */
+  }
+  return 'engagement_rate';
+}
 
 /** A report post's text; the server sends "" for an imported post without text, so show the placeholder. */
 function SnippetText({ snippet }: { snippet: string }) {
@@ -65,35 +76,72 @@ const PRESETS: { id: string; days: number }[] = [
 /** Measurement age the posts are compared at; 0 = each post's latest measurement. */
 const WINDOWS = [7, 14, 30, 0];
 
-/** Horizontal bars, pure SVG/CSS; `value` picks the measure. */
+/** Horizontal bars; empty buckets show a dash, small samples are flagged. */
 function Bars({
   buckets,
-  value,
   label,
+  metric,
+  value,
   format = (v) => v.toLocaleString(),
 }: {
   buckets: ReportBucket[];
-  value: (b: ReportBucket) => number;
   label: (b: ReportBucket) => string;
+  /** Shared weekday/hour/media/audience measure. Omit when `value` is set (e.g. campaign totals). */
+  metric?: ReportBarMetric;
+  value?: (b: ReportBucket) => number;
   format?: (v: number) => string;
 }) {
-  const max = Math.max(1e-9, ...buckets.map(value));
+  const values: (number | null)[] = buckets.map((b) => {
+    if (metric) return bucketMetric(b, metric);
+    return value ? value(b) : 0;
+  });
+  const max = Math.max(1e-9, ...values.map((v) => v ?? 0));
+  const formatValue = (v: number) => {
+    if (metric === 'engagement_rate') return `${(v * 100).toFixed(1)}%`;
+    if (metric === 'impressions') return v.toLocaleString();
+    return format(v);
+  };
   return (
     <div className="bars">
-      {buckets.map((b) => {
-        const v = value(b);
+      {buckets.map((b, i) => {
+        const v = values[i];
+        const empty = metric ? v === null : b.posts === 0;
+        const few = barTooFew(b);
+        const shown = empty ? '—' : formatValue(v ?? 0);
+        const nLabel = `n=${b.posts}`;
+        const titleParts = [
+          `${label(b)}: ${shown}`,
+          nLabel,
+          few ? t.reports.tooFewPosts : null,
+          b.weekend ? t.reports.weekend : null,
+        ].filter(Boolean);
         return (
           <div
             key={b.key}
-            className={b.weekend ? 'bar-row weekend' : 'bar-row'}
-            title={`${label(b)}: ${format(v)} · ${t.reports.postsCount(b.posts)}${b.weekend ? ` · ${t.reports.weekend}` : ''}`}
+            className={`bar-row${b.weekend ? ' weekend' : ''}${empty ? ' empty' : ''}${few ? ' too-few' : ''}`}
+            title={titleParts.join(' · ')}
           >
-            <span className="bar-label">{label(b)}</span>
-            <span className="bar-track">
-              <span className="bar-fill" style={{ width: `${(v / max) * 100}%` }} />
+            <span className="bar-label">
+              {label(b)}
+              <span className="bar-n muted" dir="ltr">
+                {' '}
+                ({nLabel})
+              </span>
             </span>
-            <span className="bar-value" dir="ltr">
-              {format(v)}
+            <span className="bar-track">
+              <span
+                className={`bar-fill${empty ? ' muted-fill' : ''}`}
+                style={{ width: empty ? '0%' : `${((v ?? 0) / max) * 100}%` }}
+              />
+            </span>
+            <span className={`bar-value${empty || few ? ' muted' : ''}`} dir="ltr">
+              {shown}
+              {few ? (
+                <span className="bar-few" title={t.reports.tooFewPosts}>
+                  {' '}
+                  · {t.reports.tooFewShort}
+                </span>
+              ) : null}
             </span>
           </div>
         );
@@ -227,7 +275,17 @@ export default function Reports({ me, onOpenPost }: { me: Me; onOpenPost: (postI
   const [audiences, setAudiences] = useState<Audience[]>([]);
   const [windowDays, setWindowDays] = useState(7);
   const [clock, setClock] = useState<ReportClock>('audience');
+  const [barMetric, setBarMetric] = useState<ReportBarMetric>(loadBarMetric);
   const [report, setReport] = useState<Report | null>(null);
+
+  const chooseBarMetric = (m: ReportBarMetric) => {
+    setBarMetric(m);
+    try {
+      localStorage.setItem(METRIC_PREF_KEY, m);
+    } catch {
+      /* private mode */
+    }
+  };
   const [error, setError] = useState('');
   const [reloadKey, setReloadKey] = useState(0);
   const role = me.memberships[0]?.role;
@@ -340,8 +398,6 @@ export default function Reports({ me, onOpenPost }: { me: Me; onOpenPost: (postI
     g.key === 'workspace'
       ? t.reports.workspaceClock(g.time_zone)
       : `${g.key === 'none' ? t.reports.noAudience : (g.label ?? g.key)} · ${g.time_zone}`;
-  const rate = (v: number) => `${(v * 100).toFixed(1)}%`;
-
   return (
     <div className="reports">
       <div className="filters">
@@ -550,10 +606,29 @@ export default function Reports({ me, onOpenPost }: { me: Me; onOpenPost: (postI
             {(audiences.length > 0 || report.by_audience.length > 1) && (
               <section className="card">
                 <h2>{t.reports.byAudience}</h2>
-                <Bars buckets={report.by_audience} value={(b) => b.avg_engagement_rate ?? 0} label={audienceLabel} format={(v) => `${(v * 100).toFixed(1)}%`} />
+                <Bars buckets={report.by_audience} metric={barMetric} label={audienceLabel} />
                 <p className="muted small">{t.reports.audienceHint}</p>
               </section>
             )}
+            <div className="report-metric-switch" role="group" aria-label={t.reports.barMetric}>
+              <span className="muted small">{t.reports.barMetric}</span>
+              <div className="segmented">
+                <button
+                  type="button"
+                  aria-pressed={barMetric === 'engagement_rate'}
+                  onClick={() => chooseBarMetric('engagement_rate')}
+                >
+                  {t.reports.metricEngagementRate}
+                </button>
+                <button
+                  type="button"
+                  aria-pressed={barMetric === 'impressions'}
+                  onClick={() => chooseBarMetric('impressions')}
+                >
+                  {t.reports.metricImpressions}
+                </button>
+              </div>
+            </div>
             <section className="card">
               <h2>{t.reports.byWeekday}</h2>
               {report.by_time.length === 0 && <p className="muted small">{t.reports.noData}</p>}
@@ -562,11 +637,12 @@ export default function Reports({ me, onOpenPost }: { me: Me; onOpenPost: (postI
                   <h3 className="time-group-title" dir="auto">
                     {groupTitle(g)} <span className="muted small">· {t.reports.postsCount(g.posts)}</span>
                   </h3>
-                  <Bars buckets={g.by_weekday} value={(b) => b.avg_engagement_rate ?? 0} label={(b) => weekdayLabel(b.key)} format={rate} />
+                  <Bars buckets={g.by_weekday} metric={barMetric} label={(b) => weekdayLabel(b.key)} />
                 </div>
               ))}
               <p className="muted small">
-                {t.reports.rateHint} {clock === 'audience' ? t.reports.clockAudienceHint : t.reports.clockWorkspaceHint}
+                {barMetric === 'engagement_rate' ? t.reports.rateHint : t.reports.impressionsHint}{' '}
+                {clock === 'audience' ? t.reports.clockAudienceHint : t.reports.clockWorkspaceHint}
               </p>
             </section>
             <section className="card">
@@ -578,20 +654,27 @@ export default function Reports({ me, onOpenPost }: { me: Me; onOpenPost: (postI
                     {groupTitle(g)} <span className="muted small">· {t.reports.postsCount(g.posts)}</span>
                   </h3>
                   <Bars
-                    buckets={g.by_hour.filter((b) => b.posts > 0)}
-                    value={(b) => b.avg_impressions ?? 0}
+                    buckets={g.by_hour}
+                    metric={barMetric}
                     label={(b) => `${b.key.padStart(2, '0')}:00`}
                   />
                 </div>
               ))}
               <p className="muted small">
-                {t.reports.impressionsHint} {clock === 'audience' ? t.reports.clockAudienceHint : t.reports.clockWorkspaceHint}
+                {barMetric === 'engagement_rate' ? t.reports.rateHint : t.reports.impressionsHint}{' '}
+                {clock === 'audience' ? t.reports.clockAudienceHint : t.reports.clockWorkspaceHint}
               </p>
             </section>
             <section className="card">
               <h2>{t.reports.byMedia}</h2>
-              <Bars buckets={report.by_media} value={(b) => b.avg_engagement_rate ?? 0} label={(b) => t.reports.media[b.key as 'none' | 'image' | 'video' | 'link']} format={(v) => `${(v * 100).toFixed(1)}%`} />
-              <p className="muted small">{t.reports.rateHint}</p>
+              <Bars
+                buckets={report.by_media}
+                metric={barMetric}
+                label={(b) => t.reports.media[b.key as 'none' | 'image' | 'video' | 'link']}
+              />
+              <p className="muted small">
+                {barMetric === 'engagement_rate' ? t.reports.rateHint : t.reports.impressionsHint}
+              </p>
             </section>
             <section className="card">
               <h2>{t.reports.unmeasured}</h2>
