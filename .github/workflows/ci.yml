@@ -137,3 +137,49 @@ jobs:
           cache-dependency-path: src/frontend/package-lock.json
       - name: Full-stack compose smoke
         run: bash scripts/stack-smoke.sh
+
+  installer-smoke:
+    # Runs the real install.sh against the Actions checkout (keeps the PR/SHA version;
+    # no --dir/--ref re-clone, which would break fork PRs). Builds the stack, checks
+    # /api/v1/health, then runs the installer again for the re-run path.
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - name: Installer (first run)
+        run: bash scripts/install.sh --yes --skip-docker --no-owner
+      - name: Health through the installer web port
+        run: |
+          body="$(curl -fsS http://localhost:8380/api/v1/health)"
+          echo "$body"
+          echo "$body" | grep -q '"status"[[:space:]]*:[[:space:]]*"healthy"'
+      - name: Installer (re-run)
+        run: bash scripts/install.sh --yes --skip-docker --no-owner
+      - name: Health after re-run
+        run: |
+          body="$(curl -fsS http://localhost:8380/api/v1/health)"
+          echo "$body"
+          echo "$body" | grep -q '"status"[[:space:]]*:[[:space:]]*"healthy"'
+
+  installer-ps1-parse:
+    # Parse-only: Windows PowerShell 5.1 and PowerShell 7 must accept install.ps1.
+    runs-on: windows-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - name: Parse install.ps1 (Windows PowerShell 5.1)
+        shell: powershell
+        run: |
+          $errs = $null
+          $null = [System.Management.Automation.Language.Parser]::ParseFile(
+            (Resolve-Path 'scripts/install.ps1'), [ref]$null, [ref]$errs)
+          if ($errs) { $errs | ForEach-Object { $_.ToString() }; exit 1 }
+          Write-Host 'PARSE_OK 5.1 scripts/install.ps1'
+      - name: Parse install.ps1 (PowerShell 7)
+        shell: pwsh
+        run: |
+          $errs = $null
+          $null = [System.Management.Automation.Language.Parser]::ParseFile(
+            (Resolve-Path 'scripts/install.ps1'), [ref]$null, [ref]$errs)
+          if ($errs) { $errs | ForEach-Object { $_.ToString() }; exit 1 }
+          Write-Host 'PARSE_OK 7 scripts/install.ps1'

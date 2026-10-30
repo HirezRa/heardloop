@@ -11,6 +11,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - One-command installers: `scripts/install.sh` (Linux, macOS) and `scripts/install.ps1` (Windows). They install Git and Docker when missing, clone the newest release, create `.env` with random secrets, ask for the LinkedIn app keys, start the stack, wait until it is healthy and create the owner account. Optional local Ollama for the AI assistant (`--with-ai` / `-WithAi`). Safe to run again.
 - `scripts/new-env.sh`, the Linux/macOS twin of `scripts/new-env.ps1`.
+- CI installer smoke: `installer-smoke` runs `install.sh` twice on Ubuntu and checks `/api/v1/health`; `installer-ps1-parse` parse-checks `install.ps1` under Windows PowerShell 5.1 and PowerShell 7.
 - `docs/ROADMAP.md`: planned improvements, known report issues and their order.
 
 ### Changed
