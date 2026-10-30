@@ -341,7 +341,8 @@ examples/n8n/   importable n8n workflow
 CHANGELOG.md    Keep a Changelog release notes
 scripts/        install.sh/.ps1, new-env.sh/.ps1, update.*/backup-now/restore, stack-smoke.sh, readme-screenshots.mjs,
                 check_private.py, check_english.py, check_versions.py, check_assets.py, check_md_links.py
-.github/        CI (privacy, gitleaks, backend, backup-smoke, frontend, stack-smoke), Dependabot
+.github/        CI (privacy, gitleaks, backend, backup-smoke, frontend, stack-smoke, installer-smoke,
+                installer-ps1-parse), Dependabot
 ```
 
 How to use the app: [docs/GUIDE.md](docs/GUIDE.md). Design decisions: [docs/SPEC.md](docs/SPEC.md); webhooks: [docs/WEBHOOKS.md](docs/WEBHOOKS.md); contributor rules: [AGENTS.md](AGENTS.md).
