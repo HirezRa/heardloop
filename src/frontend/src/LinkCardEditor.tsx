@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { ApiError, fetchLinkPreview, type LinkCard } from './api';
 import { t } from './i18n';
+import { truncateCodePoints } from './textCut';
 
 /** URL + title + description for a LinkedIn link card. "Fetch" pre-fills from the page's Open Graph tags. */
 export default function LinkCardEditor({
@@ -29,7 +30,11 @@ export default function LinkCardEditor({
     try {
       const p = await fetchLinkPreview(workspaceId, target);
       setImageUrl(p.image_url);
-      onChange({ url: p.url, title: (p.title ?? value?.title ?? '').slice(0, 200), description: p.description });
+      onChange({
+        url: p.url,
+        title: truncateCodePoints(p.title ?? value?.title ?? '', 200, false),
+        description: p.description,
+      });
       setUrl(p.url);
     } catch (err) {
       const code = err instanceof ApiError ? err.detail : '';

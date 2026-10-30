@@ -534,6 +534,11 @@ textarea.has-placeholders { outline: 1px solid #ca8a04; }
 .bar-label { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .bar-track { height: 10px; background: var(--bg); border-radius: 999px; overflow: hidden; }
 .bar-fill { display: block; height: 100%; background: var(--accent); border-radius: 999px; min-width: 2px; }
+.bar-fill.muted-fill { min-width: 0; background: var(--border); }
+.bar-row.empty .bar-value, .bar-row.too-few .bar-value { color: var(--muted); }
+.bar-n { font-size: var(--fs-xs); font-weight: 400; }
+.bar-few { font-size: var(--fs-xs); }
+.report-metric-switch { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; margin: 4px 0 8px; }
 .bar-value { text-align: end; color: var(--muted); }
 .trend-svg { display: block; max-width: 100%; height: auto; direction: ltr; } /* drawn at pixel size; sides are chosen in code */
 .trend .axis { stroke: var(--muted); stroke-width: 1; }

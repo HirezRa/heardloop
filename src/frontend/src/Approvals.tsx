@@ -2,6 +2,7 @@ import { useCallback, useEffect, useState } from 'react';
 import { ApiError, listPosts, postAction, rejectPost, type Me, type Post } from './api';
 import { t } from './i18n';
 import { formatDateTime } from './dates';
+import { truncateCodePoints } from './textCut';
 
 function errorText(err: unknown): string {
   if (err instanceof ApiError) {
@@ -60,8 +61,7 @@ export default function Approvals({ me, onOpenPost }: { me: Me; onOpenPost: (pos
                 {p.account_name} · {t.approvals.waitingSince(fmt.format(new Date(p.updated_at)))}
               </div>
               <div className="post-snippet" dir="auto">
-                {p.body.slice(0, 280)}
-                {p.body.length > 280 ? '…' : ''}
+                {truncateCodePoints(p.body, 280)}
               </div>
             </div>
             <div className="actions">
