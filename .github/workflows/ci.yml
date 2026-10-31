@@ -113,6 +113,8 @@ jobs:
           cache-dependency-path: src/frontend/package-lock.json
       - run: npm ci
       - run: npm run test:update-copy
+      - run: npm run test:text-cut
+      - run: npm run test:report-bars
       - run: npm run build
       - name: Install Chromium for smoke test
         # Pinned runner: on the ubuntu-latest image that moved to Ubuntu 26 this step (apt deps for the

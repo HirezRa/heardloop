@@ -18,6 +18,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - README quick start leads with the installers and shows the manual steps for every system; the feature list includes importing a post from its LinkedIn link; the roadmap section no longer lists two "Phase 5" entries.
 - The install guides (English and Hebrew) point to the installers and to `scripts/new-env.sh`.
+- Reports weekday, hour, media and audience bars share one Engagement rate / Impressions switch (remembered in the browser). Empty buckets show a dash; bars with fewer than 3 posts are marked as too few to compare.
+
+### Fixed
+
+- Report bars no longer show `0.0%` for weekdays (and other buckets) with no posts.
+- Snippet cuts in Reports, Approvals, Campaigns and link-card titles no longer split a Unicode bold/italic letter in half.
 
 ## [0.11.0] - 2026-10-24
 
