@@ -1,14 +1,16 @@
 {
   "name": "heardloop-web",
   "private": true,
-  "version": "0.11.0",
+  "version": "0.12.0",
   "type": "module",
   "scripts": {
     "dev": "vite",
     "build": "tsc -b && vite build",
     "preview": "vite preview",
     "smoke": "node ./smoke.mjs",
-    "test:update-copy": "node ./src/updateStatus.honesty.test.mjs"
+    "test:update-copy": "node ./src/updateStatus.honesty.test.mjs",
+    "test:text-cut": "node --experimental-strip-types ./src/textCut.test.mjs",
+    "test:report-bars": "node --experimental-strip-types ./src/reportBars.test.mjs"
   },
   "dependencies": {
     "qrcode": "1.5.4",

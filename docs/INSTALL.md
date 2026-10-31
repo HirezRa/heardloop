@@ -5,6 +5,9 @@ Every command is shown for Windows PowerShell; Linux and macOS use the same comm
 
 > Hebrew version: [docs/he/INSTALL.md](he/INSTALL.md)
 
+> **Faster:** `scripts/install.sh` (Linux/macOS) and `scripts/install.ps1` (Windows) do sections 1-3 and 5-7 for
+> you, including Docker. See [Quick start](../README.md#quick-start). This guide is the manual way and the reference.
+
 **Contents**
 
 1. [What you need](#1-what-you-need)
@@ -60,7 +63,7 @@ powershell -ExecutionPolicy Bypass -File scripts/new-env.ps1
 ```
 
 This creates `.env` with a random database password and a random encryption key
-(`HEARDLOOP_TOKEN_KEY`). Linux/macOS: `cp .env.example .env` and follow the comments in it.
+(`HEARDLOOP_TOKEN_KEY`). Linux/macOS: `bash scripts/new-env.sh`.
 
 > **Back up `.env` now** (password manager or an encrypted USB stick). Without `HEARDLOOP_TOKEN_KEY` a restored
 > backup cannot read the stored LinkedIn connections or two-step secrets. Never commit `.env`, never send it to

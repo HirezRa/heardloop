@@ -46,7 +46,7 @@ Read `docs/SPEC.md` before changing code. Personal project.
 ## Workflow
 - One GitHub issue per branch: `feat/<issue-number>-<slug>` (or `fix/` / `chore/` as appropriate).
 - Open a PR whose body includes `Closes #<n>`.
-- CI must be green (`privacy`, `gitleaks`, `backend`, `backup-smoke`, `frontend`, `stack-smoke`) before squash-merge to `main`.
+- CI must be green (`privacy`, `gitleaks`, `backend`, `backup-smoke`, `frontend`, `stack-smoke`, `installer-smoke`, `installer-ps1-parse`) before squash-merge to `main`.
 - Prefer Conventional Commits (`feat:`, `fix:`, `chore:`, `docs:`, …).
 - Do not push secrets, `.env`, or anything under `docs/reports/` (local only).
 
