@@ -7,6 +7,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.12.1] - 2026-11-01
+
+### Changed
+
+- Dependabot: `cooldown.default-days: 7` on every updates entry (#100).
+- Frontend nginx base image bump (#71).
+- CI: `astral-sh/setup-uv` bump (#72).
+- Frontend: Vite bump (#73).
+- Backend patches: SQLAlchemy 2.1.6 and Alembic 1.20.1 (#101).
+
 ## [0.12.0] - 2026-10-31
 
 ### Added
