@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.12.0] - 2026-10-31
+
 ### Added
 
 - One-command installers: `scripts/install.sh` (Linux, macOS) and `scripts/install.ps1` (Windows). They install Git and Docker when missing, clone the newest release, create `.env` with random secrets, ask for the LinkedIn app keys, start the stack, wait until it is healthy and create the owner account. Optional local Ollama for the AI assistant (`--with-ai` / `-WithAi`). Safe to run again.
