@@ -176,7 +176,7 @@ Requirements: Docker (Desktop) and Git.
 ```bash
 git clone https://github.com/HirezRa/heardloop.git
 cd heardloop
-git checkout v0.11.0              # newest tag from the Releases page
+git checkout v0.12.0              # newest tag from the Releases page
 
 # 1. Secrets (once): .env with a random database password and encryption key
 bash scripts/new-env.sh           # Windows: powershell -ExecutionPolicy Bypass -File scripts/new-env.ps1
