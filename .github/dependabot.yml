@@ -2,9 +2,12 @@ version: 2
 updates:
   # One weekly PR per ecosystem for minor/patch; majors stay ungrouped (separate PRs).
   # react + react-dom (+ types) always move together.
+  # cooldown: wait 7 days after a version is published before proposing it (security updates still immediate).
   - package-ecosystem: uv
     directory: /src/backend
     schedule: { interval: weekly }
+    cooldown:
+      default-days: 7
     groups:
       uv:
         applies-to: version-updates
@@ -13,6 +16,8 @@ updates:
   - package-ecosystem: npm
     directory: /src/frontend
     schedule: { interval: weekly }
+    cooldown:
+      default-days: 7
     groups:
       react:
         patterns:
@@ -32,6 +37,8 @@ updates:
   - package-ecosystem: docker
     directories: [/src/backend, /src/frontend, /src/backup]
     schedule: { interval: weekly }
+    cooldown:
+      default-days: 7
     groups:
       docker:
         applies-to: version-updates
@@ -41,6 +48,8 @@ updates:
   - package-ecosystem: docker-compose
     directory: /
     schedule: { interval: weekly }
+    cooldown:
+      default-days: 7
     groups:
       docker-compose:
         applies-to: version-updates
@@ -49,6 +58,8 @@ updates:
   - package-ecosystem: github-actions
     directory: /
     schedule: { interval: weekly }
+    cooldown:
+      default-days: 7
     groups:
       github-actions:
         applies-to: version-updates
