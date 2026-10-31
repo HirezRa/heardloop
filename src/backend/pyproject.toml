@@ -4,26 +4,26 @@ version = "0.12.0"
 description = "Heardloop API and worker"
 requires-python = ">=3.13,<3.15"
 dependencies = [
-    "fastapi==0.143.2",
+    "fastapi==0.162.0",
     "uvicorn[standard]==0.54.0",
-    "sqlalchemy[asyncio]==2.1.1",
-    "asyncpg==0.31.0",
-    "alembic==1.20.0",
+    "sqlalchemy[asyncio]==2.1.6",
+    "asyncpg==0.32.0",
+    "alembic==1.20.1",
     "pydantic==2.14.1",
-    "pydantic-settings==2.16.0",
+    "pydantic-settings==2.16.2",
     "cryptography==50.0.2",
     "argon2-cffi==25.1.0",
-    "tzdata==2026.4",  # IANA time zones for zoneinfo; slim images have no system tz database
+    "tzdata==2026.6",  # IANA time zones for zoneinfo; slim images have no system tz database
     "httpx==0.28.1",  # LinkedIn API client
     "python-json-logger==4.2.0",
 ]
 
 [dependency-groups]
 dev = [
-    "pytest==9.1.1",
-    "pytest-asyncio==1.4.0",
-    "ruff==0.16.9",
-    "mypy==2.4.0",
+    "pytest==9.2.0",
+    "pytest-asyncio==1.4.1",
+    "ruff==0.17.3",
+    "mypy==2.4.1",
 ]
 
 [tool.uv]
