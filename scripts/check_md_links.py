@@ -15,6 +15,7 @@ ROOT = Path(__file__).resolve().parent.parent
 # [text](target) — skip images (handled by check_assets) and bare URLs without ]
 LINK = re.compile(r"(?<!!)\[([^\]]*)\]\(([^)\s]+)(?:\s+\"[^\"]*\")?\)")
 HEADING = re.compile(r"^(#{1,6})\s+(.+?)\s*$", re.MULTILINE)
+HTML_ID = re.compile(r"""<(?:a|span|div)\s[^>]*\bid=["']([A-Za-z][\w:.-]*)["']""", re.I)
 
 
 def _slug(text: str) -> str:
@@ -35,6 +36,8 @@ def _headings(path: Path) -> set[str]:
         title = re.sub(r"\[([^\]]+)\]\([^)]+\)", r"\1", title)
         title = title.strip(" #")
         found.add(_slug(title))
+    # Explicit HTML anchors (e.g. <a id="update"></a>) — GitHub keeps these as #update.
+    found.update(HTML_ID.findall(text))
     return found
 
 
