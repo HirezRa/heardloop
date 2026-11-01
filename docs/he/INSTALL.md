@@ -22,6 +22,8 @@
 9. [חיבור פרופיל הלינקדאין](#9-חיבור-פרופיל-הלינקדאין)
 10. [הפוסט הראשון](#10-הפוסט-הראשון)
 11. [גיבויים ועדכונים](#11-גיבויים-ועדכונים)
+    - [11.1 גיבויים](#111-גיבויים)
+    - [11.2 עדכון](#update)
 12. [פתרון תקלות](#12-פתרון-תקלות)
 
 ---
@@ -47,7 +49,7 @@ docker compose version
 
 ## 2. הורדת Heardloop
 
-כבר מותקן? לא משכפלים שוב — ראו [עדכונים](#11-גיבויים-ועדכונים).
+כבר מותקן? לא משכפלים שוב — ראו [עדכון](#update).
 
 בוחרים תיקייה שבה Heardloop יישב (הוא שומר בה את הקבצים שלו), ואז משכפלים ובודקים את תג הגרסה החדש ביותר
 (בלי לערוך — הפקודה בוחרת אותו):
@@ -253,30 +255,49 @@ docker compose exec api python -m heardloop.devtools.create_owner --email <המ�
 
 ## 11. גיבויים ועדכונים
 
-Heardloop כבר רץ? לא משכפלים ולא מתקינים שוב. בתיקייה שבה הוא רץ משתמשים בסקריפט העדכון למטה (מגבה, מוריד את
-הגרסה החדשה ביותר, בונה מחדש ובודק בריאות).
+### 11.1 גיבויים
 
-- **גיבויים** רצים כל לילה לתיקייה `backups` (ההגדרה `BACKUP_DIR`). **הגדרות ← Workspace ← גיבויים** מציג את
-  האחרון. לגיבוי מיידי: `scripts/backup-now.ps1`. שחזור מוסבר ב-[מדריך המשתמש, סעיף 10](../GUIDE.md#10-backups-and-restore).
-- **עדכונים**: כשמתפרסמת גרסה חדשה, הבעלים רואים הודעה באפליקציה עם מה שהשתנה. להתקנה:
+גיבויים רצים כל לילה לתיקייה `backups` (ההגדרה `BACKUP_DIR`). **הגדרות ← Workspace ← גיבויים** מציג את
+האחרון. לגיבוי מיידי: `scripts/backup-now.ps1`. שחזור מוסבר ב-[מדריך המשתמש, סעיף 10](../GUIDE.md#10-backups-and-restore).
 
-  **Windows**
+<a id="update"></a>
 
-  ```powershell
-  powershell -ExecutionPolicy Bypass -File scripts/update.ps1
-  # תכנון בלבד: powershell -ExecutionPolicy Bypass -File scripts/update.ps1 -WhatIf
-  ```
+### 11.2 עדכון
 
-  **Linux / macOS**
+Heardloop כבר רץ? לא משכפלים ולא מתקינים שוב. בתיקייה שבה הוא רץ:
 
-  ```bash
-  bash scripts/update.sh
-  # תכנון בלבד: bash scripts/update.sh --dry-run
-  ```
+1. תכנון בלבד (בלי שינויים), אופציונלי:
 
-  הסקריפט מגבה קודם, מוריד את הגרסה החדשה, בונה ומפעיל מחדש, ובודק ש-Heardloop חזר תקין. הוא לא נוגע ב-`.env`.
-  עם `-VerifyTag` (או `HEARDLOOP_VERIFY_TAG=1`; ב-`update.sh` זה `--verify-tag`) הסקריפט מסרב לתג גרסה בלי חתימה
-  תקפה ממפתח ש-git שלכם סומך עליו. אם הבדיקה נכשלת, שום דבר לא משתנה.
+   **Windows**
+
+   ```powershell
+   powershell -ExecutionPolicy Bypass -File scripts/update.ps1 -WhatIf
+   ```
+
+   **Linux / macOS**
+
+   ```bash
+   bash scripts/update.sh --dry-run
+   ```
+
+2. ביצוע העדכון:
+
+   **Windows**
+
+   ```powershell
+   powershell -ExecutionPolicy Bypass -File scripts/update.ps1
+   ```
+
+   **Linux / macOS**
+
+   ```bash
+   bash scripts/update.sh
+   ```
+
+הסקריפט מגבה קודם, מוריד את הגרסה החדשה ביותר, בונה ומפעיל מחדש, ובודק ש-Heardloop חזר תקין. הוא לא נוגע
+ב-`.env`. כשמתפרסמת גרסה חדשה, הבעלים גם רואים הודעה באפליקציה עם מה שהשתנה. עם `-VerifyTag` (או
+`HEARDLOOP_VERIFY_TAG=1`; ב-`update.sh` זה `--verify-tag`) הסקריפט מסרב לתג גרסה בלי חתימה תקפה ממפתח ש-git
+שלכם סומך עליו. אם הבדיקה נכשלת, שום דבר לא משתנה.
 
 ## 12. פתרון תקלות
 

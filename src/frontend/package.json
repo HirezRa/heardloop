@@ -9,6 +9,7 @@
     "preview": "vite preview",
     "smoke": "node ./smoke.mjs",
     "test:update-copy": "node ./src/updateStatus.honesty.test.mjs",
+    "test:docs-links": "node --experimental-strip-types ./src/docsLinks.test.mjs",
     "test:text-cut": "node --experimental-strip-types ./src/textCut.test.mjs",
     "test:report-bars": "node --experimental-strip-types ./src/reportBars.test.mjs"
   },

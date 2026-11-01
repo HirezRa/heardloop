@@ -11,6 +11,7 @@ import {
   type HealthState,
   type Me,
 } from './api';
+import { installUpdateDocUrl } from './docsLinks';
 import { applyPrefs } from './prefs';
 import { LOCALE, t } from './i18n';
 import { notesAsNodes } from './notesText';
@@ -149,10 +150,7 @@ function Shell({ me, onMeChange, onLoggedOut }: { me: Me; onMeChange: (me: Me) =
   const update = workspace?.role === 'owner' ? appVersion?.update : null;
   const showUpdateBanner =
     !!update?.available && update.latest !== me.ui_prefs.dismissed_update;
-  const installDoc =
-    LOCALE === 'he'
-      ? 'https://github.com/HirezRa/heardloop/blob/main/docs/he/INSTALL.md#11-backups-and-updates'
-      : 'https://github.com/HirezRa/heardloop/blob/main/docs/INSTALL.md#11-backups-and-updates';
+  const installDoc = installUpdateDocUrl(LOCALE);
   const versionHref = appVersion
     ? `https://github.com/HirezRa/heardloop/releases/tag/v${appVersion.version}`
     : 'https://github.com/HirezRa/heardloop/releases';

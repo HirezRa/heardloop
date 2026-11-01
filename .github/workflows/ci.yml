@@ -113,6 +113,7 @@ jobs:
           cache-dependency-path: src/frontend/package-lock.json
       - run: npm ci
       - run: npm run test:update-copy
+      - run: npm run test:docs-links
       - run: npm run test:text-cut
       - run: npm run test:report-bars
       - run: npm run build

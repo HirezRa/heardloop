@@ -371,6 +371,6 @@ Owners may see a banner when a newer GitHub release is available (Settings → A
 inside a web-facing container. On the host, after a backup, run `scripts/update.ps1` (Windows) or
 `scripts/update.sh` (Linux/macOS). v0.10.0 adds a database migration that runs automatically, adds no audiences,
 and switches reports to the 7-day window, so numbers can differ from v0.9.x (**Latest measurement** in the
-selector shows the old view). Full steps: [INSTALL §11](INSTALL.md#11-backups-and-updates).
+selector shows the old view). Full steps: [INSTALL §11.2](INSTALL.md#update).
 
 ![Update available banner](assets/screenshots/update-banner.png)
