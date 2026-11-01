@@ -40,6 +40,8 @@ These come from [SPEC.md](SPEC.md) and the README and do not change:
 | 12 | Export and import the profile as a folder (#82) | AI | Low-Medium | 🗓️ |
 | 13 | Ask before write (#83) | AI | Medium | 🗓️ |
 | 14 | Onboarding wizard (#84) | Setup | Medium | 🗓️ |
+| 22 | AI connection check for Ollama (#112) | AI | Medium | 🔜 |
+| 23 | External AI providers: OpenRouter, OpenAI, Anthropic (#115) | AI | Medium | 🗓️ |
 | 15 | "What worked" loop from reports to writing (#90) | Learn | Medium | 🗓️ |
 | 16 | Hook library and variants (#85) | Learn | Medium | 🗓️ |
 | 17 | Idea backlog (#86) | Planning | Medium | 🗓️ |
@@ -143,6 +145,17 @@ instead of inventing them. The answers can be saved to the story bank. Effort: m
 ### 4.4 Onboarding wizard (#84)
 First-run steps: import the LinkedIn analytics export (exists), answer a short voice questionnaire, paste three
 texts the owner wrote himself (not AI-written), review the profile draft, save. Effort: medium. Depends on 4.1.
+
+### 4.5 AI connection check for Ollama (#112)
+Classified errors, a Settings status card, and a non-blocking startup check so a bad `AI_BASE_URL` or a missing
+model is obvious. Extract `build_request()` so a later provider can plug in without rewriting the client.
+Ollama stays the only supported path in that release. Effort: medium. Depends on nothing.
+
+### 4.6 External AI providers: OpenRouter, OpenAI, Anthropic (#115)
+Bring-your-own-key cloud models for people without a local server. Ollama stays the default and the recommended
+option. OpenRouter first (OpenAI-compatible); then OpenAI and Anthropic with provider-shaped requests via
+`build_request()`. Docs must warn that post text goes to that company and usage is billed. Effort: medium.
+Depends on 4.5.
 
 ## 5. Learn from your own numbers
 
