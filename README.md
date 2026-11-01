@@ -168,6 +168,29 @@ Useful options: `--lang he` / `-Lang he` (Hebrew interface), `--with-ai` / `-Wit
 AI assistant), `--dir` / `-Dir`, `--ref` / `-Ref`. All options: `bash heardloop-install.sh --help` or
 `Get-Help .\heardloop-install.ps1 -Detailed`.
 
+### Updating
+
+Already running Heardloop? Do not clone or install again. In the folder it runs from:
+
+**Windows**
+
+```powershell
+powershell -ExecutionPolicy Bypass -File scripts/update.ps1
+# plan only:
+powershell -ExecutionPolicy Bypass -File scripts/update.ps1 -WhatIf
+```
+
+**Linux / macOS**
+
+```bash
+bash scripts/update.sh
+# plan only:
+bash scripts/update.sh --dry-run
+```
+
+The script backs up, downloads the newest release, rebuilds and checks health. It never touches `.env`.
+Full steps: [INSTALL §11](docs/INSTALL.md#11-backups-and-updates).
+
 ### By hand
 
 Full step-by-step guide: [docs/INSTALL.md](docs/INSTALL.md) (Hebrew: [docs/he/INSTALL.md](docs/he/INSTALL.md)).
@@ -176,7 +199,7 @@ Requirements: Docker (Desktop) and Git.
 ```bash
 git clone https://github.com/HirezRa/heardloop.git
 cd heardloop
-git checkout v0.12.1              # newest tag from the Releases page
+git checkout "$(git describe --tags --abbrev=0 "$(git rev-list --tags --max-count=1)")"
 
 # 1. Secrets (once): .env with a random database password and encryption key
 bash scripts/new-env.sh           # Windows: powershell -ExecutionPolicy Bypass -File scripts/new-env.ps1
@@ -186,6 +209,7 @@ docker compose up -d --build
 
 # 3. First account (once): owner + workspace. Asks for the password, never echoes it.
 # Optional: --time-zone Europe/London (default: host local zone if detectable, else UTC)
+# Replace <your-email>, <your name> and <workspace name> with your own values (not literal text):
 docker compose exec api python -m heardloop.devtools.create_owner --email <your-email> --name "<your name>" --workspace "<workspace name>"
 ```
 
@@ -210,11 +234,6 @@ products "Sign In with LinkedIn using OpenID Connect" and "Share on LinkedIn", s
 | [ROADMAP.md](docs/ROADMAP.md) | Planned improvements and known issues |
 | [CHANGELOG.md](CHANGELOG.md) | What changed in each release |
 | [SECURITY.md](SECURITY.md) | How to report vulnerabilities |
-
-## Updating
-
-On the host, after a backup, run `scripts/update.ps1` (Windows) or `scripts/update.sh` (Linux/macOS). The
-script backs up, rebuilds the stack and checks health. Full steps: [INSTALL §11](docs/INSTALL.md#11-backups-and-updates).
 
 ## Configuration
 
@@ -301,6 +320,8 @@ Details, reasons and order: [docs/ROADMAP.md](docs/ROADMAP.md). Progress is trac
 
 <details>
 <summary><b>Run tests, lint and the dev server</b></summary>
+
+Replace `<change>` in the alembic line with a short description of the schema change (not the word `change`):
 
 ```powershell
 cd src/backend
