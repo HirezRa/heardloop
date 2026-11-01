@@ -47,12 +47,25 @@ docker compose version
 
 ## 2. הורדת Heardloop
 
-בוחרים תיקייה שבה Heardloop יישב (הוא שומר בה את הקבצים שלו), ואז:
+כבר מותקן? לא משכפלים שוב — ראו [עדכונים](#11-גיבויים-ועדכונים).
+
+בוחרים תיקייה שבה Heardloop יישב (הוא שומר בה את הקבצים שלו), ואז משכפלים ובודקים את תג הגרסה החדש ביותר
+(בלי לערוך — הפקודה בוחרת אותו):
+
+**Windows** (PowerShell)
 
 ```powershell
 git clone https://github.com/HirezRa/heardloop.git
 cd heardloop
-git checkout v<latest>   # הגרסה החדשה ביותר מדף ה-Releases, למשל v0.11.0
+git checkout (git describe --tags --abbrev=0 (git rev-list --tags --max-count=1))
+```
+
+**Linux / macOS**
+
+```bash
+git clone https://github.com/HirezRa/heardloop.git
+cd heardloop
+git checkout "$(git describe --tags --abbrev=0 "$(git rev-list --tags --max-count=1)")"
 ```
 
 עבודה עם תג גרסה (ולא עם הענף `main`) אומרת שאתם מריצים גרסה שנבדקה, וגם שהודעת העדכון באפליקציה עובדת.
@@ -161,7 +174,8 @@ http://localhost:8380/api/v1/linkedin/callback
 
 ## 5. הכנסת המפתחות של לינקדאין ל-`.env`
 
-פותחים את `.env` בעורך טקסט (גם Notepad מתאים) וממלאים:
+פותחים את `.env` בעורך טקסט (גם Notepad מתאים) וממלאים את ערכי אפליקציית הלינקדאין שלכם (מחליפים את
+המציינים `<...>` — הם לא טקסט להעתקה כפי שהוא):
 
 ```dotenv
 LINKEDIN_CLIENT_ID=<ה-Client ID שלכם>
@@ -187,7 +201,8 @@ docker compose ps
 
 ## 7. יצירת חשבון הבעלים
 
-פעם אחת, לאדם הראשון:
+פעם אחת, לאדם הראשון. מחליפים את `<המייל-שלכם>`, `<השם שלכם>` ו-`<שם ה-Workspace>` בערכים שלכם (הם לא
+טקסט להעתקה כפי שהוא):
 
 ```powershell
 docker compose exec api python -m heardloop.devtools.create_owner --email <המייל-שלכם> --name "<השם שלכם>" --workspace "<שם ה-Workspace>"
@@ -238,12 +253,25 @@ docker compose exec api python -m heardloop.devtools.create_owner --email <המ�
 
 ## 11. גיבויים ועדכונים
 
+Heardloop כבר רץ? לא משכפלים ולא מתקינים שוב. בתיקייה שבה הוא רץ משתמשים בסקריפט העדכון למטה (מגבה, מוריד את
+הגרסה החדשה ביותר, בונה מחדש ובודק בריאות).
+
 - **גיבויים** רצים כל לילה לתיקייה `backups` (ההגדרה `BACKUP_DIR`). **הגדרות ← Workspace ← גיבויים** מציג את
   האחרון. לגיבוי מיידי: `scripts/backup-now.ps1`. שחזור מוסבר ב-[מדריך המשתמש, סעיף 10](../GUIDE.md#10-backups-and-restore).
 - **עדכונים**: כשמתפרסמת גרסה חדשה, הבעלים רואים הודעה באפליקציה עם מה שהשתנה. להתקנה:
 
+  **Windows**
+
   ```powershell
   powershell -ExecutionPolicy Bypass -File scripts/update.ps1
+  # תכנון בלבד: powershell -ExecutionPolicy Bypass -File scripts/update.ps1 -WhatIf
+  ```
+
+  **Linux / macOS**
+
+  ```bash
+  bash scripts/update.sh
+  # תכנון בלבד: bash scripts/update.sh --dry-run
   ```
 
   הסקריפט מגבה קודם, מוריד את הגרסה החדשה, בונה ומפעיל מחדש, ובודק ש-Heardloop חזר תקין. הוא לא נוגע ב-`.env`.
@@ -296,12 +324,13 @@ services:
 כשמישהו משתמש בעוזר, טקסט הפוסט (או החלק המסומן) נשלח לשרת הזה. Heardloop לא שומר כלום. עדיף מודל שמריצים לבד,
 כך שהטקסט לא יוצא מהרשת שלכם.
 
-דוגמה: Ollama כשירות נוסף בקובץ `docker-compose.override.yml` (לא נשמר ב-git):
+דוגמה: Ollama כשירות נוסף בקובץ `docker-compose.override.yml` (לא נשמר ב-git). זו הגרסה שהמתקין משתמש בה;
+תגים חדשים יותר גם עובדים — בוחרים תג שגילו לפחות שבועיים.
 
 ```yaml
 services:
   ollama:
-    image: ollama/ollama:<version>   # pin a release tag
+    image: ollama/ollama:0.40.5
     restart: unless-stopped
     volumes:
       - ollama:/root/.ollama
@@ -324,7 +353,8 @@ AI_MODEL=llama3.1:8b
 ולבסוף `docker compose up -d api`. מודל בגודל הזה צריך כמה GB של זיכרון פנוי, ועונה תוך שניות עד דקה במחשב רגיל.
 `AI_TIMEOUT_SECONDS` (ברירת מחדל 60) הוא הזמן המקסימלי לבקשה.
 
-- Ollama במחשב אחר ברשת: `AI_BASE_URL=http://<that machine>:11434/v1`.
+- Ollama במחשב אחר ברשת (מחליפים את `<that machine>` בשם המחשב או בכתובת IP):
+  `AI_BASE_URL=http://<that machine>:11434/v1`.
 - אפשר גם שירות מקוון (`AI_API_KEY` נשלח כ-Bearer token), אבל אז טקסט הפוסטים יוצא מהרשת שלכם.
 - כל משתמש יכול לשלוח 10 בקשות בדקה. צופים (viewer) לא רואים את העוזר.
 

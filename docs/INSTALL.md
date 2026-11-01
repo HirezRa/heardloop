@@ -46,12 +46,25 @@ Both commands must print a version number.
 
 ## 2. Get Heardloop
 
-Pick the folder where Heardloop will live (it keeps its files there), then:
+Already installed? Do not clone again, see [Updating](#11-backups-and-updates).
+
+Pick the folder where Heardloop will live (it keeps its files there), then clone and check out the newest
+release tag (no editing — the command picks it):
+
+**Windows** (PowerShell)
 
 ```powershell
 git clone https://github.com/HirezRa/heardloop.git
 cd heardloop
-git checkout v<latest>   # the newest version from the Releases page, for example v0.11.0
+git checkout (git describe --tags --abbrev=0 (git rev-list --tags --max-count=1))
+```
+
+**Linux / macOS**
+
+```bash
+git clone https://github.com/HirezRa/heardloop.git
+cd heardloop
+git checkout "$(git describe --tags --abbrev=0 "$(git rev-list --tags --max-count=1)")"
 ```
 
 Using a release tag (not the `main` branch) means you run a tested version, and the in-app update notice works.
@@ -162,7 +175,8 @@ At the top of **Auth**, under **Application credentials**:
 
 ## 5. Put the LinkedIn keys in `.env`
 
-Open `.env` in a text editor (Notepad works) and fill in:
+Open `.env` in a text editor (Notepad works) and fill in your LinkedIn app values (replace the
+`<...>` placeholders — they are not literal text):
 
 ```dotenv
 LINKEDIN_CLIENT_ID=<your Client ID>
@@ -188,7 +202,8 @@ docker compose ps
 
 ## 7. Create the owner account
 
-Once, for the first person:
+Once, for the first person. Replace `<your-email>`, `<your name>` and `<workspace name>` with your own
+values (they are not literal text):
 
 ```powershell
 docker compose exec api python -m heardloop.devtools.create_owner --email <your-email> --name "<your name>" --workspace "<workspace name>"
@@ -241,13 +256,26 @@ The [user guide](GUIDE.md) covers approvals, campaigns, the calendar, templates,
 
 ## 11. Backups and updates
 
+Already running Heardloop? Do not clone or install again. In the folder it runs from, use the update script
+below (it backs up, downloads the newest release, rebuilds and checks health).
+
 - **Backups** run every night into the `backups` folder (setting `BACKUP_DIR`). **Settings -> Workspace ->
   Backups** shows the last one. Run one now with `scripts/backup-now.ps1`. Restoring is described in the
   [user guide, section 10](GUIDE.md#10-backups-and-restore).
 - **Updates**: when a new version is published, owners see a notice in the app with what changed. To install it:
 
+  **Windows**
+
   ```powershell
   powershell -ExecutionPolicy Bypass -File scripts/update.ps1
+  # plan only: powershell -ExecutionPolicy Bypass -File scripts/update.ps1 -WhatIf
+  ```
+
+  **Linux / macOS**
+
+  ```bash
+  bash scripts/update.sh
+  # plan only: bash scripts/update.sh --dry-run
   ```
 
   The script makes a backup first, downloads the new release, rebuilds and restarts, and checks that Heardloop
@@ -302,12 +330,13 @@ translate). It stays off until you point Heardloop at a server that speaks the O
 selected part) is sent to that server; Heardloop stores nothing. Prefer a model you run yourself, so the text
 never leaves your network.
 
-Example: Ollama as an extra service in `docker-compose.override.yml` (git-ignored):
+Example: Ollama as an extra service in `docker-compose.override.yml` (git-ignored). This is the version the
+installer uses; newer tags work too, pick one at least two weeks old.
 
 ```yaml
 services:
   ollama:
-    image: ollama/ollama:<version>   # pin a release tag
+    image: ollama/ollama:0.40.5
     restart: unless-stopped
     volumes:
       - ollama:/root/.ollama
@@ -330,7 +359,8 @@ AI_MODEL=llama3.1:8b
 and `docker compose up -d api`. A model of this size needs several GB of free memory and answers in seconds to
 a minute on a normal PC; `AI_TIMEOUT_SECONDS` (default 60) is the limit per request.
 
-- Ollama on another machine in your network: `AI_BASE_URL=http://<that machine>:11434/v1`.
+- Ollama on another machine in your network (replace `<that machine>` with the host name or IP):
+  `AI_BASE_URL=http://<that machine>:11434/v1`.
 - A hosted service also works (`AI_API_KEY` is sent as a Bearer token), but then post text leaves your network.
 - Each person can send 10 requests a minute. Viewers do not see the assistant.
 
