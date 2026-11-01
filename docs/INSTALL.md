@@ -21,6 +21,8 @@ Every command is shown for Windows PowerShell; Linux and macOS use the same comm
 9. [Connect your LinkedIn profile](#9-connect-your-linkedin-profile)
 10. [Your first post](#10-your-first-post)
 11. [Backups and updates](#11-backups-and-updates)
+    - [11.1 Backups](#111-backups)
+    - [11.2 Updating](#update)
 12. [Troubleshooting](#12-troubleshooting)
 
 ---
@@ -46,7 +48,7 @@ Both commands must print a version number.
 
 ## 2. Get Heardloop
 
-Already installed? Do not clone again, see [Updating](#11-backups-and-updates).
+Already installed? Do not clone again, see [Updating](#update).
 
 Pick the folder where Heardloop will live (it keeps its files there), then clone and check out the newest
 release tag (no editing — the command picks it):
@@ -256,32 +258,51 @@ The [user guide](GUIDE.md) covers approvals, campaigns, the calendar, templates,
 
 ## 11. Backups and updates
 
-Already running Heardloop? Do not clone or install again. In the folder it runs from, use the update script
-below (it backs up, downloads the newest release, rebuilds and checks health).
+### 11.1 Backups
 
-- **Backups** run every night into the `backups` folder (setting `BACKUP_DIR`). **Settings -> Workspace ->
-  Backups** shows the last one. Run one now with `scripts/backup-now.ps1`. Restoring is described in the
-  [user guide, section 10](GUIDE.md#10-backups-and-restore).
-- **Updates**: when a new version is published, owners see a notice in the app with what changed. To install it:
+Backups run every night into the `backups` folder (setting `BACKUP_DIR`). **Settings -> Workspace ->
+Backups** shows the last one. Run one now with `scripts/backup-now.ps1`. Restoring is described in the
+[user guide, section 10](GUIDE.md#10-backups-and-restore).
 
-  **Windows**
+<a id="update"></a>
 
-  ```powershell
-  powershell -ExecutionPolicy Bypass -File scripts/update.ps1
-  # plan only: powershell -ExecutionPolicy Bypass -File scripts/update.ps1 -WhatIf
-  ```
+### 11.2 Updating
 
-  **Linux / macOS**
+Already running Heardloop? Do not clone or install again. In the folder it runs from:
 
-  ```bash
-  bash scripts/update.sh
-  # plan only: bash scripts/update.sh --dry-run
-  ```
+1. Optional plan only (no changes):
 
-  The script makes a backup first, downloads the new release, rebuilds and restarts, and checks that Heardloop
-  comes back healthy. It never touches `.env`. Add `-VerifyTag` (or set `HEARDLOOP_VERIFY_TAG=1`; `--verify-tag`
-  for `update.sh`) to refuse a release tag that has no valid signature from a key your git trusts; nothing is
-  changed when the check fails.
+   **Windows**
+
+   ```powershell
+   powershell -ExecutionPolicy Bypass -File scripts/update.ps1 -WhatIf
+   ```
+
+   **Linux / macOS**
+
+   ```bash
+   bash scripts/update.sh --dry-run
+   ```
+
+2. Apply the update:
+
+   **Windows**
+
+   ```powershell
+   powershell -ExecutionPolicy Bypass -File scripts/update.ps1
+   ```
+
+   **Linux / macOS**
+
+   ```bash
+   bash scripts/update.sh
+   ```
+
+The script makes a backup first, downloads the newest release, rebuilds and restarts, and checks that
+Heardloop comes back healthy. It never touches `.env`. When a new version is published, owners also see a
+notice in the app with what changed. Add `-VerifyTag` (or set `HEARDLOOP_VERIFY_TAG=1`; `--verify-tag` for
+`update.sh`) to refuse a release tag that has no valid signature from a key your git trusts; nothing is
+changed when the check fails.
 
 ## 12. Troubleshooting
 

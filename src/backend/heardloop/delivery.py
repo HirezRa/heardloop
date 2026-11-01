@@ -212,6 +212,7 @@ def render_email(n: Notification, workspace_name: str) -> tuple[str, str]:
         lines = [
             f"Heardloop v{d.get('latest') or '?'} is available (you are on v{d.get('current') or '?'}).",
             "See What's new and How to update in Settings -> About. The app never installs updates itself.",
+            "Update steps: https://github.com/HirezRa/heardloop/blob/main/docs/INSTALL.md#update",
         ]
         if d.get("url"):
             lines.append(f"Release: {d['url']}")

@@ -13,6 +13,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Backend: FastAPI 0.143.2 → 0.162.0 (#104).
 - Install and update docs are separate; no placeholder in the checkout command (#110).
 
+### Fixed
+
+- "How to update" (About, banner, e-mail) links to INSTALL `#update` in English and Hebrew (#113).
+
 ## [0.12.1] - 2026-11-01
 
 ### Changed

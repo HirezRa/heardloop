@@ -150,6 +150,22 @@ def test_digest_subject_has_no_line_breaks(monkeypatch: pytest.MonkeyPatch) -> N
     assert subject.startswith("Your week on LinkedIn - Main")
 
 
+def test_update_available_email_links_install_update_anchor(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setenv("DATABASE_URL", "postgresql+asyncpg://user@127.0.0.1:1/none")
+    monkeypatch.setenv("HEARDLOOP_TOKEN_KEY", "A" * 43 + "=")
+    get_settings.cache_clear()
+    n = Notification(
+        workspace_id=uuid.uuid4(),
+        user_id=uuid.uuid4(),
+        kind="app.update_available",
+        data={"current": "0.12.1", "latest": "0.12.2", "url": "https://example.invalid/r"},
+        post_id=None,
+    )
+    _, body = delivery.render_email(n, "Acme")
+    assert "https://github.com/HirezRa/heardloop/blob/main/docs/INSTALL.md#update" in body
+    assert "#11-" not in body
+
+
 # ---- B9: MP4 brands ----
 
 

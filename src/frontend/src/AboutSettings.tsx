@@ -1,16 +1,15 @@
 import { useEffect, useState } from 'react';
 import { checkAppVersion, getAppVersion, type AppVersion, type Me } from './api';
+import { installDocUrl, installUpdateDocUrl, REPO } from './docsLinks';
 import { LOCALE, t } from './i18n';
 import { notesAsNodes } from './notesText';
 import { aboutUpdateLines } from './updateStatus';
 
-const REPO = 'https://github.com/HirezRa/heardloop';
 const BUNDLE = __HEARDLOOP_BUNDLE_VERSION__;
 const HEX_SHA = /^[0-9a-f]{7,40}$/i;
 
 function docUrl(pathEn: string, pathHe?: string): string {
-  const path = LOCALE === 'he' && pathHe ? pathHe : pathEn;
-  return `${REPO}/blob/main/${path}`;
+  return installDocUrl(pathEn, pathHe, LOCALE);
 }
 
 function showBuild(sha: string | undefined): boolean {
@@ -149,11 +148,7 @@ export default function AboutSettings({
                     {t.about.whatsNew}
                   </button>
                   {' · '}
-                  <a
-                    href={docUrl('docs/INSTALL.md', 'docs/he/INSTALL.md') + '#11-backups-and-updates'}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                  >
+                  <a href={installUpdateDocUrl(LOCALE)} target="_blank" rel="noopener noreferrer">
                     {t.about.howToUpdate}
                   </a>
                 </p>
@@ -167,11 +162,7 @@ export default function AboutSettings({
                       {t.about.whatsNew}
                     </button>
                     {' · '}
-                    <a
-                      href={docUrl('docs/INSTALL.md', 'docs/he/INSTALL.md') + '#11-backups-and-updates'}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                    >
+                    <a href={installUpdateDocUrl(LOCALE)} target="_blank" rel="noopener noreferrer">
                       {t.about.howToUpdate}
                     </a>
                   </>

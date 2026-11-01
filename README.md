@@ -189,7 +189,7 @@ bash scripts/update.sh --dry-run
 ```
 
 The script backs up, downloads the newest release, rebuilds and checks health. It never touches `.env`.
-Full steps: [INSTALL §11](docs/INSTALL.md#11-backups-and-updates).
+Full steps: [INSTALL §11.2](docs/INSTALL.md#update).
 
 ### By hand
 
