@@ -324,13 +324,13 @@ services:
 כשמישהו משתמש בעוזר, טקסט הפוסט (או החלק המסומן) נשלח לשרת הזה. Heardloop לא שומר כלום. עדיף מודל שמריצים לבד,
 כך שהטקסט לא יוצא מהרשת שלכם.
 
-דוגמה: Ollama כשירות נוסף בקובץ `docker-compose.override.yml` (לא נשמר ב-git). מחליפים את `<version>` בתג
-גרסה אמיתי של Ollama (לא המילה `version`):
+דוגמה: Ollama כשירות נוסף בקובץ `docker-compose.override.yml` (לא נשמר ב-git). זו הגרסה שהמתקין משתמש בה;
+תגים חדשים יותר גם עובדים — בוחרים תג שגילו לפחות שבועיים.
 
 ```yaml
 services:
   ollama:
-    image: ollama/ollama:<version>   # pin a release tag
+    image: ollama/ollama:0.40.5
     restart: unless-stopped
     volumes:
       - ollama:/root/.ollama

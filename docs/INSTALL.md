@@ -330,13 +330,13 @@ translate). It stays off until you point Heardloop at a server that speaks the O
 selected part) is sent to that server; Heardloop stores nothing. Prefer a model you run yourself, so the text
 never leaves your network.
 
-Example: Ollama as an extra service in `docker-compose.override.yml` (git-ignored). Replace `<version>` with a
-real Ollama release tag (not the word `version`):
+Example: Ollama as an extra service in `docker-compose.override.yml` (git-ignored). This is the version the
+installer uses; newer tags work too, pick one at least two weeks old.
 
 ```yaml
 services:
   ollama:
-    image: ollama/ollama:<version>   # pin a release tag
+    image: ollama/ollama:0.40.5
     restart: unless-stopped
     volumes:
       - ollama:/root/.ollama
