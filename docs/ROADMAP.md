@@ -49,6 +49,7 @@ These come from [SPEC.md](SPEC.md) and the README and do not change:
 | 19 | Posting streak (#88) | Planning | Low-Medium | 🗓️ |
 | 20 | Draft-only API for agents (#89) | Integrations | Medium | 🗓️ |
 | 21 | Graphics and carousels | Media | High | 💤 |
+| 24 | Schedule time picker: clock popover plus typing (#117) | Planning | Low-Medium | 🗓️ |
 
 ---
 
@@ -179,6 +180,13 @@ another format. Lands as a new draft, so approval still applies. Effort: low to 
 
 ### 5.5 Posting streak (#88)
 Calendar view of weeks with at least one post, the next suggested format, and a line in the weekly digest.
+Effort: low to medium.
+
+### 5.6 Schedule time picker (#117)
+A clock button next to every schedule time field opens a small popover (hours grid, minutes in 5-minute steps,
+best-time suggestions when they exist, workspace common times). Typing stays possible and wins. Always 24-hour,
+independent of locale; RTL in Hebrew; keyboard and mobile. Show the time zone (workspace or the post's
+audience) as the editor does today. Same picker in the editor, move-post, and campaign dates where relevant.
 Effort: low to medium.
 
 ## 6. Integrations
