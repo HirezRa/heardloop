@@ -424,21 +424,29 @@ function MembersSection({ workspaceId, isOwner, myId }: { workspaceId: string; i
       {isOwner && (
         <form className="form inline" onSubmit={add}>
           <h3>{t.settings.addMember}</h3>
-          <input placeholder={t.login.email} dir="ltr" type="email" required value={form.email} onChange={(e) => setForm({ ...form, email: e.target.value })} />
-          <input placeholder={t.settings.name} required maxLength={200} value={form.display_name} onChange={(e) => setForm({ ...form, display_name: e.target.value })} />
+          <label>
+            {t.login.email}
+            <input dir="ltr" type="email" required value={form.email} onChange={(e) => setForm({ ...form, email: e.target.value })} />
+          </label>
+          <label>
+            {t.settings.name}
+            <input required maxLength={200} value={form.display_name} onChange={(e) => setForm({ ...form, display_name: e.target.value })} />
+          </label>
           <select value={form.role} aria-label={t.settings.role} onChange={(e) => setForm({ ...form, role: e.target.value as Role })}>
             {ROLES.map((r) => (
               <option key={r} value={r}>{t.roles[r]}</option>
             ))}
           </select>
-          <input
-            placeholder={t.settings.initialPassword}
-            type="password"
-            autoComplete="new-password"
-            dir="ltr"
-            value={form.initial_password}
-            onChange={(e) => setForm({ ...form, initial_password: e.target.value })}
-          />
+          <label>
+            {t.settings.initialPassword}
+            <input
+              type="password"
+              autoComplete="new-password"
+              dir="ltr"
+              value={form.initial_password}
+              onChange={(e) => setForm({ ...form, initial_password: e.target.value })}
+            />
+          </label>
           <button type="submit" className="primary">{t.settings.add}</button>
           <p className="muted small">{t.settings.initialPasswordHint}</p>
         </form>
@@ -591,9 +599,18 @@ function PasswordSection() {
     <section className="card">
       <h2>{t.settings.myPassword}</h2>
       <form className="form" onSubmit={submit}>
-        <input type="password" dir="ltr" autoComplete="current-password" required placeholder={t.settings.currentPassword} value={form.current} onChange={(e) => setForm({ ...form, current: e.target.value })} />
-        <input type="password" dir="ltr" autoComplete="new-password" required minLength={12} placeholder={t.settings.newPassword} value={form.next} onChange={(e) => setForm({ ...form, next: e.target.value })} />
-        <input type="password" dir="ltr" autoComplete="new-password" required placeholder={t.settings.repeatPassword} value={form.repeat} onChange={(e) => setForm({ ...form, repeat: e.target.value })} />
+        <label>
+          {t.settings.currentPassword}
+          <input type="password" dir="ltr" autoComplete="current-password" required value={form.current} onChange={(e) => setForm({ ...form, current: e.target.value })} />
+        </label>
+        <label>
+          {t.settings.newPassword}
+          <input type="password" dir="ltr" autoComplete="new-password" required minLength={12} value={form.next} onChange={(e) => setForm({ ...form, next: e.target.value })} />
+        </label>
+        <label>
+          {t.settings.repeatPassword}
+          <input type="password" dir="ltr" autoComplete="new-password" required value={form.repeat} onChange={(e) => setForm({ ...form, repeat: e.target.value })} />
+        </label>
         <button type="submit" className="primary">{t.settings.changePassword}</button>
         <Status {...msg} />
       </form>
@@ -904,7 +921,10 @@ function MfaSection({ enabled, onChanged }: { enabled: boolean; onChanged: () =>
 
       {!enabled && !setup && (
         <form className="form" onSubmit={start}>
-          <input type="password" dir="ltr" autoComplete="current-password" required placeholder={t.settings.currentPassword} value={password} onChange={(e) => setPassword(e.target.value)} />
+          <label>
+            {t.settings.currentPassword}
+            <input type="password" dir="ltr" autoComplete="current-password" required value={password} onChange={(e) => setPassword(e.target.value)} />
+          </label>
           <button type="submit" className="primary">{t.mfa.enable}</button>
         </form>
       )}
@@ -916,7 +936,10 @@ function MfaSection({ enabled, onChanged }: { enabled: boolean; onChanged: () =>
           <p className="small">
             {t.mfa.manual} <code dir="ltr" className="mono">{setup.secret}</code>
           </p>
-          <input dir="ltr" inputMode="numeric" autoComplete="one-time-code" maxLength={6} required placeholder={t.mfa.codePlaceholder} value={code} onChange={(e) => setCode(e.target.value)} />
+          <label>
+            {t.mfa.codePlaceholder}
+            <input dir="ltr" inputMode="numeric" autoComplete="one-time-code" maxLength={6} required value={code} onChange={(e) => setCode(e.target.value)} />
+          </label>
           <button type="submit" className="primary">{t.mfa.confirm}</button>
         </form>
       )}
@@ -925,14 +948,26 @@ function MfaSection({ enabled, onChanged }: { enabled: boolean; onChanged: () =>
         <div className="stack tight">
           <form className="form" onSubmit={regenerate}>
             <h3>{t.mfa.newCodes}</h3>
-            <input type="password" dir="ltr" autoComplete="current-password" required placeholder={t.settings.currentPassword} value={password} onChange={(e) => setPassword(e.target.value)} />
-            <input dir="ltr" inputMode="numeric" maxLength={6} required placeholder={t.mfa.codePlaceholder} value={code} onChange={(e) => setCode(e.target.value)} />
+            <label>
+              {t.settings.currentPassword}
+              <input type="password" dir="ltr" autoComplete="current-password" required value={password} onChange={(e) => setPassword(e.target.value)} />
+            </label>
+            <label>
+              {t.mfa.codePlaceholder}
+              <input dir="ltr" inputMode="numeric" maxLength={6} required value={code} onChange={(e) => setCode(e.target.value)} />
+            </label>
             <button type="submit" className="primary">{t.mfa.newCodesButton}</button>
           </form>
           <form className="form" onSubmit={disable}>
             <h3>{t.mfa.disable}</h3>
-            <input type="password" dir="ltr" autoComplete="current-password" required placeholder={t.settings.currentPassword} value={password} onChange={(e) => setPassword(e.target.value)} />
-            <input dir="ltr" maxLength={32} required placeholder={t.mfa.codeOrRecovery} value={code} onChange={(e) => setCode(e.target.value)} />
+            <label>
+              {t.settings.currentPassword}
+              <input type="password" dir="ltr" autoComplete="current-password" required value={password} onChange={(e) => setPassword(e.target.value)} />
+            </label>
+            <label>
+              {t.mfa.codeOrRecovery}
+              <input dir="ltr" maxLength={32} required value={code} onChange={(e) => setCode(e.target.value)} />
+            </label>
             <button type="submit" className="link danger">{t.mfa.disable}</button>
           </form>
         </div>

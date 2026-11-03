@@ -141,6 +141,7 @@ export default function HashtagPicker({
           <input
             dir="auto"
             placeholder={t.hashtags.newPlaceholder}
+            aria-label={t.hashtags.newPlaceholder}
             value={newTag}
             maxLength={65}
             onChange={(e) => setNewTag(e.target.value)}

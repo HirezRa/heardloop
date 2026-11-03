@@ -226,6 +226,8 @@ h1, .page-title { font-size: var(--fs-2xl); line-height: var(--lh-heading); font
 .form { display: flex; flex-direction: column; gap: 12px; max-width: 420px; }
 .form.inline { flex-direction: row; flex-wrap: wrap; align-items: center; max-width: none; margin-top: 16px; }
 .form.inline input { flex: 1 1 160px; }
+.form.inline label { flex: 1 1 160px; min-width: 0; }
+.form.inline label input { flex: none; width: 100%; }
 .form label { display: flex; flex-direction: column; gap: 6px; font-size: var(--fs-sm); }
 .form label.check { flex-direction: row; align-items: center; gap: 8px; }
 .form input, .form select, .table select {
