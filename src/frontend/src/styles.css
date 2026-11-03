@@ -273,7 +273,7 @@ h1, .page-title { font-size: var(--fs-2xl); line-height: var(--lh-heading); font
 .badge.backup-bad { background: transparent; border: 1px solid var(--bad); color: var(--bad); }
 
 .posts-layout { display: grid; grid-template-columns: minmax(260px, 340px) minmax(0, 1fr); gap: 20px; margin-top: 16px; align-items: start; }
-@media (max-width: 1000px) { .posts-layout { grid-template-columns: 1fr; } }
+@media (max-width: 1000px) { .posts-layout { grid-template-columns: minmax(0, 1fr); } }
 .row-between { display: flex; justify-content: space-between; align-items: center; gap: 12px; }
 .row-between h2 { margin: 0; }
 .post-items { list-style: none; padding: 0; margin: 12px 0 0; display: flex; flex-direction: column; gap: 6px; }
@@ -311,7 +311,7 @@ h1, .page-title { font-size: var(--fs-2xl); line-height: var(--lh-heading); font
 .cal-nav { display: flex; align-items: center; gap: 6px; }
 .cal-nav h2 { margin: 0 8px; font-size: var(--fs-lg); }
 .cal-nav button, .segmented button { font: inherit; padding: 6px 12px; border: 1px solid var(--border); background: var(--panel); color: var(--text); border-radius: 8px; cursor: pointer; }
-.segmented { display: inline-flex; }
+.segmented { display: inline-flex; flex-wrap: wrap; max-width: 100%; }
 .segmented button { border-radius: 0; }
 .segmented button:first-child { border-start-start-radius: 8px; border-end-start-radius: 8px; }
 .segmented button:last-child { border-start-end-radius: 8px; border-end-end-radius: 8px; margin-inline-start: -1px; }
@@ -321,7 +321,7 @@ h1, .page-title { font-size: var(--fs-2xl); line-height: var(--lh-heading); font
 .cal-day { background: var(--panel); min-height: 110px; padding: 6px; display: flex; flex-direction: column; gap: 4px; min-width: 0; }
 .cal-week .cal-day { min-height: 360px; }
 .cal-day.outside { background: var(--bg); }
-.cal-day.outside .cal-date { opacity: 0.5; }
+.cal-day.outside .cal-date { color: var(--muted); }
 .cal-day.today .cal-date { background: var(--accent); color: #fff; border-radius: 999px; padding: 0 7px; align-self: flex-start; }
 .cal-day.drop { outline: 2px dashed var(--accent-text); outline-offset: -3px; }
 .cal-date { font-size: var(--fs-xs); font-weight: 600; }
@@ -467,8 +467,8 @@ textarea.has-placeholders { outline: 1px solid #ca8a04; }
 .subtabs .tab-title { font-size: var(--fs-base); }
 .subtabs .tab-desc { font-size: var(--fs-sm); color: var(--muted); }
 @media (max-width: 900px) {
-  .settings { grid-template-columns: 1fr; }
-  .subtabs { position: static; flex-direction: row; flex-wrap: wrap; }
+  .settings { grid-template-columns: minmax(0, 1fr); }
+  .subtabs { position: static; flex-direction: row; flex-wrap: wrap; min-width: 0; }
   .subtabs button { width: auto; }
   .subtabs .tab-desc { display: none; }
 }
@@ -623,3 +623,14 @@ dialog.link-import .row.gap { display: flex; gap: 12px; align-items: center; }
   /* 16px keeps iOS from zooming into a field on focus. */
   input, select, textarea, .tag-add input { font-size: 16px; }
 }
+.legal-links { display: flex; flex-wrap: wrap; gap: 4px 12px; }
+.legal-links a { color: var(--muted); }
+.login { align-content: center; }
+.login .legal-links { justify-content: center; margin-top: 16px; }
+/* Links inside a banner take the banner's own (high-contrast) text colour. */
+.banner .link, .banner a { color: inherit; text-decoration: underline; }
+/* Long option text (time zones) must not widen a form past the screen. */
+.form label { min-width: 0; }
+.form input, .form select, .form textarea { max-width: 100%; min-width: 0; }
+.row > label { min-width: 0; max-width: 100%; }
+select { max-width: 100%; }
