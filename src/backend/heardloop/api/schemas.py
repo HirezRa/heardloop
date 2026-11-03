@@ -124,6 +124,7 @@ class MeOut(BaseModel):
     mfa_enabled: bool
     ui_prefs: UiPrefs
     ai_assist: bool = False  # the owner configured AI_BASE_URL / AI_MODEL; the editor shows the assistant
+    ai_host: str | None = None  # where assistant requests go (host[:port]); shown next to the assistant
 
 
 class MfaChallenge(BaseModel):

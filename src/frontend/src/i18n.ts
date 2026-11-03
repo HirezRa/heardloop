@@ -550,6 +550,10 @@ const en = {
     },
   },
   about: {
+    configWarnings: {
+      development_mode: 'APP_ENV is set to development while the app is reachable beyond this computer: API docs and demo tools are open. Set APP_ENV=production in .env and restart.',
+      ai_key_over_http: 'The AI key is sent over plain http to another machine. Use https for AI_BASE_URL, or a server on this computer.',
+    } as Record<string, string>,
     title: 'About Heardloop',
     versionLabel: 'Version',
     gitSha: 'Build',
@@ -665,6 +669,7 @@ const en = {
   ai: {
     title: 'AI assistant',
     hint: 'Works on the selected text, or on the whole post when nothing is selected. Nothing changes until you choose.',
+    sentTo: 'The text you work on is sent to the AI server set up by the owner:',
     actions: {
       improve: 'Improve',
       shorten: 'Shorten',
@@ -1580,6 +1585,10 @@ const he: Strings = {
     },
   },
   about: {
+    configWarnings: {
+      development_mode: 'APP_ENV מוגדר כ-development והמערכת נגישה גם ממחשבים אחרים: תיעוד ה-API וכלי הדמו פתוחים. יש להגדיר APP_ENV=production בקובץ .env ולהפעיל מחדש.',
+      ai_key_over_http: 'מפתח ה-AI נשלח ב-http לא מוצפן למחשב אחר. יש להשתמש ב-https ב-AI_BASE_URL, או בשרת על המחשב הזה.',
+    } as Record<string, string>,
     title: 'אודות Heardloop',
     versionLabel: 'גרסה',
     gitSha: 'בנייה',
@@ -1695,6 +1704,7 @@ const he: Strings = {
   ai: {
     title: 'עוזר כתיבה (AI)',
     hint: 'עובד על הטקסט המסומן, או על כל הפוסט כשלא מסומן כלום. שום דבר לא משתנה עד שבוחרים.',
+    sentTo: 'הטקסט שעליו עובדים נשלח לשרת ה-AI שהבעלים הגדיר:',
     actions: {
       improve: 'שיפור',
       shorten: 'קיצור',

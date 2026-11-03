@@ -990,6 +990,7 @@ export default function Posts({
           {canWrite && textEditable && me.ai_assist && (
             <AiAssistant
               workspaceId={wsId}
+              destination={me.ai_host ?? null}
               textareaRef={textareaRef}
               value={draft.body}
               onChange={(body) => {

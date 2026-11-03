@@ -1,8 +1,10 @@
 """Settings from environment variables. Secrets are SecretStr so they never show up in logs or reprs."""
 
+import ipaddress
 import re
 from functools import lru_cache
 from pathlib import Path
+from urllib.parse import urlparse
 
 from pydantic import Field, SecretStr, field_validator, model_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
@@ -210,6 +212,29 @@ class Settings(BaseSettings):
     def ai_configured(self) -> bool:
         return bool(self.ai_base_url and self.ai_model)
 
+    @property
+    def ai_host(self) -> str | None:
+        """host[:port] of the AI server, shown to writers so they know where the text goes."""
+        if not self.ai_configured:
+            return None
+        return urlparse(self.ai_base_url).netloc or None
+
+    def config_warnings(self) -> list[str]:
+        """Settings that are unsafe outside a developer's machine. Logged at start-up, shown to owners."""
+        warnings: list[str] = []
+        if self.is_development and not _is_loopback(urlparse(self.app_base_url).hostname):
+            # /api/docs and the demo seed are open in development mode.
+            warnings.append("development_mode")
+        ai = urlparse(self.ai_base_url) if self.ai_configured else None
+        if (
+            ai is not None
+            and ai.scheme == "http"
+            and self.ai_api_key.get_secret_value()
+            and not _is_same_machine(ai.hostname)
+        ):
+            warnings.append("ai_key_over_http")
+        return warnings
+
     @field_validator("linkedin_client_secret", mode="before")
     @classmethod
     def _drop_secret_placeholder(cls, v: object) -> object:
@@ -248,3 +273,22 @@ class Settings(BaseSettings):
 @lru_cache
 def get_settings() -> Settings:
     return Settings()  # type: ignore[call-arg]  # values come from the environment
+
+
+def _is_loopback(host: str | None) -> bool:
+    if not host:
+        return False
+    if host.lower() == "localhost" or host.lower().endswith(".localhost"):
+        return True
+    try:
+        return ipaddress.ip_address(host).is_loopback
+    except ValueError:
+        return False
+
+
+def _is_same_machine(host: str | None) -> bool:
+    """Loopback, the Docker host, or a compose service name (no dot): traffic does not cross a network."""
+    if not host:
+        return False
+    docker_host = "host.docker.internal"  # privacy-allow: Docker Desktop's generic name for the host
+    return _is_loopback(host) or host.lower() == docker_host or ("." not in host and ":" not in host)

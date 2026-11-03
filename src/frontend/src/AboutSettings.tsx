@@ -94,6 +94,11 @@ export default function AboutSettings({
           <p>
             {t.about.versionLabel}: <strong>v{info.version}</strong>
           </p>
+          {(info.config_warnings ?? []).map((w) => (
+            <p key={w} className="banner" role="alert">
+              {t.about.configWarnings[w] ?? w}
+            </p>
+          ))}
           {stale && (
             <p className="banner version-stale" role="status">
               {t.about.staleBundle}{' '}

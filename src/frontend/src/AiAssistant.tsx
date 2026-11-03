@@ -32,12 +32,15 @@ function errorText(err: unknown): string {
  */
 export default function AiAssistant({
   workspaceId,
+  destination,
   textareaRef,
   value,
   onChange,
   disabled,
 }: {
   workspaceId: string;
+  /** Where the text is sent (host[:port] of the owner's AI server). */
+  destination: string | null;
   textareaRef: RefObject<HTMLTextAreaElement | null>;
   value: string;
   onChange: (next: string) => void;
@@ -100,6 +103,11 @@ export default function AiAssistant({
     <details className="ai-assistant">
       <summary>{t.ai.title}</summary>
       <p className="muted small">{t.ai.hint}</p>
+      {destination && (
+        <p className="muted small">
+          {t.ai.sentTo} <bdi dir="ltr" className="mono">{destination}</bdi>
+        </p>
+      )}
       <div className="ai-actions">
         {ACTIONS.map((a) => (
           <button key={a} type="button" disabled={disabled || busy !== null} onClick={() => void ask(a)}>

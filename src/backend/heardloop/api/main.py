@@ -62,6 +62,8 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
     app.state.preview_http = guarded_client(allow_private=False)  # user URLs: pinned, vetted IPs only
     await refresh_blocked_service_ips()
     log.info("API started", extra={"environment": settings.environment})
+    for warning in settings.config_warnings():
+        log.warning("Unsafe setting for a server", extra={"warning": warning})
     yield
     await app.state.http.aclose()
     await app.state.preview_http.aclose()
