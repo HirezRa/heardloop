@@ -64,7 +64,7 @@ class Settings(BaseSettings):
 
     # Activity log: clear the IP address of entries older than this many days (hourly, by the worker).
     # 0 = keep them until the owner purges the log.
-    audit_ip_retention_days: int = Field(default=0, alias="AUDIT_IP_RETENTION_DAYS", ge=0, le=3650)
+    audit_ip_retention_days: int = Field(default=90, alias="AUDIT_IP_RETENTION_DAYS", ge=0, le=3650)
 
     # Sessions. Browsers accept Secure cookies on http://localhost, so keep this on.
     cookie_secure: bool = Field(default=True, alias="COOKIE_SECURE")

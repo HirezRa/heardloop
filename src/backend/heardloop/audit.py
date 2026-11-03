@@ -42,8 +42,8 @@ async def clear_old_ip_addresses(
 ) -> int:
     """Worker, hourly: entries older than `retention_days` keep everything except the IP address.
 
-    Off when `retention_days` is 0 (AUDIT_IP_RETENTION_DAYS). Sessions store an IP too, but they are deleted
-    a day after they expire, so the activity log is the only long-lived place.
+    Off when `retention_days` is 0 (AUDIT_IP_RETENTION_DAYS, default 90). Sessions store an IP too, but they
+    are deleted a day after they expire, so the activity log is the only long-lived place.
     """
     if retention_days <= 0:
         return 0
