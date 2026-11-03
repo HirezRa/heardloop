@@ -278,46 +278,48 @@ export default function MetricsPanel({ workspaceId, postId, canWrite }: { worksp
       {(entries.length > 1 || entries.some((e) => e.source !== 'manual')) && (
         <details className="metric-history">
           <summary className="small">{t.metrics.history(entries.length)}</summary>
-          <table className="table small">
-            <thead>
-              <tr>
-                <th>{t.metrics.when}</th>
-                <th>{t.metrics.source}</th>
-                {FIELDS.map((f) => (
-                  <th key={f}>{t.metrics.short[f]}</th>
-                ))}
-                <th />
-              </tr>
-            </thead>
-            <tbody>
-              {entries.flatMap((e) => [
-                <tr key={e.id}>
-                  <td dir="ltr">{formatDateTime(e.captured_at)}</td>
-                  <td>{t.metrics.sources[e.source as keyof typeof t.metrics.sources] ?? e.source}</td>
+          <div className="table-wrap">
+            <table className="table small">
+              <thead>
+                <tr>
+                  <th>{t.metrics.when}</th>
+                  <th>{t.metrics.source}</th>
                   {FIELDS.map((f) => (
-                    <td key={f} dir="ltr">{e[f] ?? ''}</td>
+                    <th key={f}>{t.metrics.short[f]}</th>
                   ))}
-                  <td>
-                    {canWrite && (
-                      <button type="button" className="link danger" onClick={() => void remove(e)}>
-                        ×
-                      </button>
-                    )}
-                  </td>
-                </tr>,
-                hasAudience(e) && (
-                  <tr key={`${e.id}-audience`}>
-                    <td colSpan={FIELDS.length + 3}>
-                      <details>
-                        <summary>{t.metrics.audience}</summary>
-                        <Audience entry={e} />
-                      </details>
+                  <th />
+                </tr>
+              </thead>
+              <tbody>
+                {entries.flatMap((e) => [
+                  <tr key={e.id}>
+                    <td dir="ltr">{formatDateTime(e.captured_at)}</td>
+                    <td>{t.metrics.sources[e.source as keyof typeof t.metrics.sources] ?? e.source}</td>
+                    {FIELDS.map((f) => (
+                      <td key={f} dir="ltr">{e[f] ?? ''}</td>
+                    ))}
+                    <td>
+                      {canWrite && (
+                        <button type="button" className="link danger" onClick={() => void remove(e)}>
+                          ×
+                        </button>
+                      )}
                     </td>
-                  </tr>
-                ),
-              ])}
-            </tbody>
-          </table>
+                  </tr>,
+                  hasAudience(e) && (
+                    <tr key={`${e.id}-audience`}>
+                      <td colSpan={FIELDS.length + 3}>
+                        <details>
+                          <summary>{t.metrics.audience}</summary>
+                          <Audience entry={e} />
+                        </details>
+                      </td>
+                    </tr>
+                  ),
+                ])}
+              </tbody>
+            </table>
+          </div>
         </details>
       )}
       {msg.error && <p className="error small" role="alert">{msg.error}</p>}

@@ -128,45 +128,47 @@ export default function Accounts({ me }: { me: Me }) {
         {accounts.length === 0 ? (
           <p className="muted">{t.accounts.none}</p>
         ) : (
-          <table className="table">
-            <thead>
-              <tr>
-                <th>{t.settings.name}</th>
-                <th>{t.accounts.status}</th>
-                <th>{t.accounts.expires}</th>
-                {isOwner && <th aria-label={t.settings.actions} />}
-              </tr>
-            </thead>
-            <tbody>
-              {accounts.map((a) => (
-                <tr key={a.id}>
-                  <td>{a.display_name}</td>
-                  <td>
-                    {t.accounts.statuses[a.status]}
-                    {a.expiring_soon && <span className="badge warn">{t.accounts.expiringSoon}</span>}
-                    {a.needs_reconnect_reason && (
-                      <span className="badge warn">{t.accounts.needsReconnectBadge}</span>
-                    )}
-                  </td>
-                  <td dir="ltr">{a.status === 'revoked' ? '-' : fmt.format(new Date(a.expires_at))}</td>
-                  {isOwner && (
+          <div className="table-wrap">
+            <table className="table">
+              <thead>
+                <tr>
+                  <th>{t.settings.name}</th>
+                  <th>{t.accounts.status}</th>
+                  <th>{t.accounts.expires}</th>
+                  {isOwner && <th aria-label={t.settings.actions} />}
+                </tr>
+              </thead>
+              <tbody>
+                {accounts.map((a) => (
+                  <tr key={a.id}>
+                    <td>{a.display_name}</td>
                     <td>
-                      {a.status !== 'active' || a.expiring_soon || a.needs_reconnect_reason ? (
-                        <button type="button" className="link" onClick={connect} disabled={busy}>
-                          {t.accounts.reconnect}
-                        </button>
-                      ) : null}{' '}
-                      {a.status !== 'revoked' && (
-                        <button type="button" className="link danger" onClick={() => disconnect(a)}>
-                          {t.accounts.disconnect}
-                        </button>
+                      {t.accounts.statuses[a.status]}
+                      {a.expiring_soon && <span className="badge warn">{t.accounts.expiringSoon}</span>}
+                      {a.needs_reconnect_reason && (
+                        <span className="badge warn">{t.accounts.needsReconnectBadge}</span>
                       )}
                     </td>
-                  )}
-                </tr>
-              ))}
-            </tbody>
-          </table>
+                    <td dir="ltr">{a.status === 'revoked' ? '-' : fmt.format(new Date(a.expires_at))}</td>
+                    {isOwner && (
+                      <td>
+                        {a.status !== 'active' || a.expiring_soon || a.needs_reconnect_reason ? (
+                          <button type="button" className="link" onClick={connect} disabled={busy}>
+                            {t.accounts.reconnect}
+                          </button>
+                        ) : null}{' '}
+                        {a.status !== 'revoked' && (
+                          <button type="button" className="link danger" onClick={() => disconnect(a)}>
+                            {t.accounts.disconnect}
+                          </button>
+                        )}
+                      </td>
+                    )}
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
         )}
         {isOwner ? (
           <p>

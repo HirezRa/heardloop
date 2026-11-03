@@ -151,63 +151,65 @@ export default function AudienceSettings({ workspaceId, canEdit }: { workspaceId
       <p className="muted small">{t.audiences.intro}</p>
       {items.length === 0 && <p className="muted">{t.audiences.none}</p>}
       {items.length > 0 && (
-        <table className="table">
-          <thead>
-            <tr>
-              <th>{t.audiences.code}</th>
-              <th>{t.audiences.name}</th>
-              <th>{t.audiences.timeZone}</th>
-              <th>{t.audiences.weekend}</th>
-              <th />
-              {canEdit && <th aria-label={t.settings.actions} />}
-            </tr>
-          </thead>
-          <tbody>
-            {items.map((a) => (
-              <tr key={a.id}>
-                <td dir="ltr">
-                  <strong>{a.code}</strong>
-                </td>
-                <td>{a.name}</td>
-                <td dir="ltr">{a.time_zone}</td>
-                <td>{weekendLabel(a.weekend_days)}</td>
-                <td className="muted small">
-                  {a.is_default && <span className="chip">{t.audiences.default}</span>} {t.audiences.posts(a.post_count)}
-                </td>
-                {canEdit && (
-                  <td className="member-actions">
-                    <button type="button" className="link" disabled={busy} onClick={() => setEditing(a)}>
-                      {t.audiences.edit}
-                    </button>
-                    {!a.is_default && (
-                      <>
-                        <span className="muted" aria-hidden="true">
-                          {' · '}
-                        </span>
-                        <button type="button" className="link" disabled={busy} onClick={() => run(() => updateAudience(workspaceId, a.id, { is_default: true }), t.audiences.saved)}>
-                          {t.audiences.makeDefault}
-                        </button>
-                      </>
-                    )}
-                    <span className="muted" aria-hidden="true">
-                      {' · '}
-                    </span>
-                    <button
-                      type="button"
-                      className="link danger"
-                      disabled={busy}
-                      onClick={() => {
-                        if (window.confirm(t.audiences.confirmDelete)) void run(() => deleteAudience(workspaceId, a.id), t.audiences.deleted);
-                      }}
-                    >
-                      {t.audiences.delete}
-                    </button>
-                  </td>
-                )}
+        <div className="table-wrap">
+          <table className="table">
+            <thead>
+              <tr>
+                <th>{t.audiences.code}</th>
+                <th>{t.audiences.name}</th>
+                <th>{t.audiences.timeZone}</th>
+                <th>{t.audiences.weekend}</th>
+                <th />
+                {canEdit && <th aria-label={t.settings.actions} />}
               </tr>
-            ))}
-          </tbody>
-        </table>
+            </thead>
+            <tbody>
+              {items.map((a) => (
+                <tr key={a.id}>
+                  <td dir="ltr">
+                    <strong>{a.code}</strong>
+                  </td>
+                  <td>{a.name}</td>
+                  <td dir="ltr">{a.time_zone}</td>
+                  <td>{weekendLabel(a.weekend_days)}</td>
+                  <td className="muted small">
+                    {a.is_default && <span className="chip">{t.audiences.default}</span>} {t.audiences.posts(a.post_count)}
+                  </td>
+                  {canEdit && (
+                    <td className="member-actions">
+                      <button type="button" className="link" disabled={busy} onClick={() => setEditing(a)}>
+                        {t.audiences.edit}
+                      </button>
+                      {!a.is_default && (
+                        <>
+                          <span className="muted" aria-hidden="true">
+                            {' · '}
+                          </span>
+                          <button type="button" className="link" disabled={busy} onClick={() => run(() => updateAudience(workspaceId, a.id, { is_default: true }), t.audiences.saved)}>
+                            {t.audiences.makeDefault}
+                          </button>
+                        </>
+                      )}
+                      <span className="muted" aria-hidden="true">
+                        {' · '}
+                      </span>
+                      <button
+                        type="button"
+                        className="link danger"
+                        disabled={busy}
+                        onClick={() => {
+                          if (window.confirm(t.audiences.confirmDelete)) void run(() => deleteAudience(workspaceId, a.id), t.audiences.deleted);
+                        }}
+                      >
+                        {t.audiences.delete}
+                      </button>
+                    </td>
+                  )}
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
       )}
       {editing && canEdit && (
         <AudienceForm

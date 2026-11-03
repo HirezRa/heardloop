@@ -608,3 +608,18 @@ dialog.link-import label { display: flex; flex-direction: column; gap: 6px; font
 dialog.link-import input[type="url"], dialog.link-import select, dialog.link-import textarea { font: inherit; padding: 8px 10px; border: 1px solid var(--border); border-radius: 8px; background: var(--bg); color: var(--text); }
 dialog.link-import .row.gap { display: flex; gap: 12px; align-items: center; }
 .link-import-steps { margin: 0; padding-inline-start: 20px; display: flex; flex-direction: column; gap: 4px; }
+
+/* ---- Narrow screens and touch (WCAG 2.5.8; Apple/Google guidance of 44px on touch screens) ---- */
+.table-wrap { max-width: 100%; overflow-x: auto; -webkit-overflow-scrolling: touch; }
+.table-wrap > .table { min-width: 32rem; }
+.tb, .chip > button, button.chip, .emoji-pop button, .tag-add button, .chip .chip-x { min-height: 24px; min-width: 24px; }
+@media (pointer: coarse) {
+  .tb, .chip > button, button.chip, .emoji-pop button, .tag-add button, .tag-add input, .cal-nav button,
+  .segmented button, .chip .chip-x { min-height: 44px; min-width: 44px; }
+  .swatch { width: 44px; height: 44px; }
+}
+@media (max-width: 720px) {
+  .content { padding: 16px; }
+  /* 16px keeps iOS from zooming into a field on focus. */
+  input, select, textarea, .tag-add input { font-size: 16px; }
+}

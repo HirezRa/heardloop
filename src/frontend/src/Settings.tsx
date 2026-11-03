@@ -357,70 +357,72 @@ function MembersSection({ workspaceId, isOwner, myId }: { workspaceId: string; i
   return (
     <section className="card">
       <h2>{t.settings.members}</h2>
-      <table className="table">
-        <thead>
-          <tr>
-            <th>{t.settings.name}</th>
-            <th>{t.login.email}</th>
-            <th>{t.settings.role}</th>
-            {isOwner && <th aria-label={t.settings.actions} />}
-          </tr>
-        </thead>
-        <tbody>
-          {members.map((m) => (
-            <tr key={m.user_id}>
-              <td>{m.display_name}</td>
-              <td dir="ltr">{m.email}</td>
-              <td>
-                {isOwner ? (
-                  <select
-                    value={m.role}
-                    aria-label={t.settings.role}
-                    onChange={(e) => run(() => updateMember(workspaceId, m.user_id, e.target.value as Role), t.settings.saved)}
-                  >
-                    {ROLES.map((r) => (
-                      <option key={r} value={r}>{t.roles[r]}</option>
-                    ))}
-                  </select>
-                ) : (
-                  t.roles[m.role]
-                )}
-              </td>
-              {isOwner && (
-                <td className="member-actions">
-                  {m.user_id !== myId && (
-                    <>
-                      <button
-                        type="button"
-                        className="link"
-                        aria-label={t.settings.removeLabel(m.display_name)}
-                        onClick={() => {
-                          if (window.confirm(t.settings.confirmRemove(m.display_name))) {
-                            void run(() => removeMember(workspaceId, m.user_id), t.settings.memberRemoved);
-                          }
-                        }}
-                      >
-                        {t.settings.remove}
-                      </button>
-                      <span className="muted" aria-hidden="true">
-                        {' · '}
-                      </span>
-                      <button
-                        type="button"
-                        className="link danger"
-                        aria-label={t.settings.anonymiseLabel(m.display_name)}
-                        onClick={() => setAnonymising(m)}
-                      >
-                        {t.settings.anonymise}
-                      </button>
-                    </>
+      <div className="table-wrap">
+        <table className="table">
+          <thead>
+            <tr>
+              <th>{t.settings.name}</th>
+              <th>{t.login.email}</th>
+              <th>{t.settings.role}</th>
+              {isOwner && <th aria-label={t.settings.actions} />}
+            </tr>
+          </thead>
+          <tbody>
+            {members.map((m) => (
+              <tr key={m.user_id}>
+                <td>{m.display_name}</td>
+                <td dir="ltr">{m.email}</td>
+                <td>
+                  {isOwner ? (
+                    <select
+                      value={m.role}
+                      aria-label={t.settings.role}
+                      onChange={(e) => run(() => updateMember(workspaceId, m.user_id, e.target.value as Role), t.settings.saved)}
+                    >
+                      {ROLES.map((r) => (
+                        <option key={r} value={r}>{t.roles[r]}</option>
+                      ))}
+                    </select>
+                  ) : (
+                    t.roles[m.role]
                   )}
                 </td>
-              )}
-            </tr>
-          ))}
-        </tbody>
-      </table>
+                {isOwner && (
+                  <td className="member-actions">
+                    {m.user_id !== myId && (
+                      <>
+                        <button
+                          type="button"
+                          className="link"
+                          aria-label={t.settings.removeLabel(m.display_name)}
+                          onClick={() => {
+                            if (window.confirm(t.settings.confirmRemove(m.display_name))) {
+                              void run(() => removeMember(workspaceId, m.user_id), t.settings.memberRemoved);
+                            }
+                          }}
+                        >
+                          {t.settings.remove}
+                        </button>
+                        <span className="muted" aria-hidden="true">
+                          {' · '}
+                        </span>
+                        <button
+                          type="button"
+                          className="link danger"
+                          aria-label={t.settings.anonymiseLabel(m.display_name)}
+                          onClick={() => setAnonymising(m)}
+                        >
+                          {t.settings.anonymise}
+                        </button>
+                      </>
+                    )}
+                  </td>
+                )}
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
       {isOwner && (
         <form className="form inline" onSubmit={add}>
           <h3>{t.settings.addMember}</h3>
@@ -796,26 +798,28 @@ function AuditSection({ workspaceId }: { workspaceId: string }) {
         </button>
       </div>
       {items.length === 0 && <p className="muted">{hasFilter ? t.settings.noMatches : t.settings.noEvents}</p>}
-      <table className="table">
-        <thead>
-          <tr>
-            <th>{t.settings.when}</th>
-            <th>{t.settings.who}</th>
-            <th>{t.settings.what}</th>
-            <th>{t.settings.details}</th>
-          </tr>
-        </thead>
-        <tbody>
-          {items.map((e) => (
-            <tr key={e.id}>
-              <td dir="ltr">{fmt.format(new Date(e.at))}</td>
-              <td>{e.actor_name ?? '-'}</td>
-              <td>{(t.auditActions as Record<string, string>)[e.action] ?? e.action}</td>
-              <td className="small">{formatChanges(e.changes, fmt)}</td>
+      <div className="table-wrap">
+        <table className="table">
+          <thead>
+            <tr>
+              <th>{t.settings.when}</th>
+              <th>{t.settings.who}</th>
+              <th>{t.settings.what}</th>
+              <th>{t.settings.details}</th>
             </tr>
-          ))}
-        </tbody>
-      </table>
+          </thead>
+          <tbody>
+            {items.map((e) => (
+              <tr key={e.id}>
+                <td dir="ltr">{fmt.format(new Date(e.at))}</td>
+                <td>{e.actor_name ?? '-'}</td>
+                <td>{(t.auditActions as Record<string, string>)[e.action] ?? e.action}</td>
+                <td className="small">{formatChanges(e.changes, fmt)}</td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
       {next && (
         <button type="button" className="link" onClick={() => load(next)}>
           {t.settings.loadMore}

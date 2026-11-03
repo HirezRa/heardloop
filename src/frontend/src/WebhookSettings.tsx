@@ -157,20 +157,22 @@ export default function WebhookSettings({ workspaceId }: { workspaceId: string }
       {deliveries.length > 0 && (
         <>
           <h3>{t.webhook.recent}</h3>
-          <table className="table small">
-            <tbody>
-              {deliveries.map((d) => (
-                <tr key={d.id}>
-                  <td>{fmt.format(new Date(d.created_at))}</td>
-                  <td dir="ltr">{d.event}</td>
-                  <td className={d.status === 'failed' ? 'danger' : d.status === 'sent' ? 'ok-text' : ''}>
-                    {t.webhook.statuses[d.status]}
-                  </td>
-                  <td dir="ltr">{d.last_status_code ?? d.last_error ?? ''}</td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
+          <div className="table-wrap">
+            <table className="table small">
+              <tbody>
+                {deliveries.map((d) => (
+                  <tr key={d.id}>
+                    <td>{fmt.format(new Date(d.created_at))}</td>
+                    <td dir="ltr">{d.event}</td>
+                    <td className={d.status === 'failed' ? 'danger' : d.status === 'sent' ? 'ok-text' : ''}>
+                      {t.webhook.statuses[d.status]}
+                    </td>
+                    <td dir="ltr">{d.last_status_code ?? d.last_error ?? ''}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
         </>
       )}
       {msg.error && <p className="error" role="alert">{msg.error}</p>}
