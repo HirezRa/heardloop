@@ -50,6 +50,10 @@ function describe(n: AppNotification): string {
       return t.notifications.kinds.securityCodesRegenerated;
     case 'security.sessions_revoked':
       return t.notifications.kinds.securitySessionsRevoked(Number(d.count ?? 1));
+    case 'security.workspace_added':
+      return t.notifications.kinds.securityWorkspaceAdded(
+        t.roles[(d.role ?? 'viewer') as keyof typeof t.roles] ?? d.role ?? '',
+      );
     default:
       return n.kind;
   }

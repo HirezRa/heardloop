@@ -128,6 +128,10 @@ _SECURITY_EMAILS = {
         "Devices were signed out",
         "Other devices were signed out of your account.",
     ),
+    "security.workspace_added": (
+        "You were added to a Heardloop workspace",
+        "An owner added your account to a workspace.",
+    ),
 }
 
 
@@ -136,6 +140,10 @@ def _security_email(kind: str, d: dict[str, object]) -> tuple[str, list[str]]:
     lines = [first]
     if kind == "security.sessions_revoked" and isinstance(d.get("count"), int):
         lines = [f"{d['count']} other device(s) were signed out of your account."]
+    if kind == "security.workspace_added" and isinstance(d.get("role"), str):
+        lines = [
+            f"An owner added your account to a workspace, with the role: {_header_safe(str(d['role']))}."
+        ]
     lines += [
         "",
         "If this was you, nothing else to do.",

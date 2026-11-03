@@ -547,6 +547,8 @@ const en = {
       securityMfaDisabled: 'Two-step verification was turned off for your account. Not you? Change your password now.',
       securityCodesRegenerated: 'New recovery codes were created; the old ones no longer work.',
       securitySessionsRevoked: (n: number) => `${n} other device(s) were signed out of your account.`,
+      securityWorkspaceAdded: (role: string) =>
+        `An owner added your account to this workspace as ${role}. If you did not expect this, ask the owner to remove you.`,
     },
   },
   about: {
@@ -1582,6 +1584,8 @@ const he: Strings = {
       securityMfaDisabled: 'אימות דו-שלבי כובה בחשבון שלך. לא אתה? שנה את הסיסמה עכשיו.',
       securityCodesRegenerated: 'נוצרו קודי שחזור חדשים; הקודים הישנים כבר לא עובדים.',
       securitySessionsRevoked: (n: number) => `${n} מכשירים אחרים נותקו מהחשבון שלך.`,
+      securityWorkspaceAdded: (role: string) =>
+        `בעלים הוסיף את החשבון שלך ל-workspace הזה בתפקיד ${role}. אם לא ציפית לזה, אפשר לבקש מהבעלים להסיר אותך.`,
     },
   },
   about: {
