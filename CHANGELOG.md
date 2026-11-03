@@ -7,15 +7,53 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.13.0] - 2026-11-03
+
+Release readiness: fixes from a pre-launch review of accessibility (WCAG 2.1 AA / IS 5568), privacy, mobile,
+performance, links and security, checked again in a browser (axe-core, every screen at 360/390/768 px).
+
+### Added
+
+- Privacy notice and accessibility statement templates for operators: `docs/PRIVACY.md`,
+  `docs/ACCESSIBILITY.md` and Hebrew versions. `PRIVACY_URL` / `ACCESSIBILITY_URL` point to your own pages;
+  the sign-in page and the menu link them (default: the templates).
+- Install guide section 14, "Running on a server": production mode, HTTPS, HSTS raised step by step, trusted
+  proxy for the real client address. Backup advice: `BACKUP_PASSPHRASE` and a `BACKUP_DIR` outside the
+  Heardloop folder.
+- Settings -> About warns owners about unsafe settings: `APP_ENV=development` on a non-local address, and an
+  AI key sent over plain http to another machine (also logged at start-up).
+- The AI assistant shows where the text is sent (host of `AI_BASE_URL`).
+- A person whose existing account is added to a workspace gets a security notice (in-app, and e-mail when on).
+- "Page not found" screen for unknown addresses; hidden and file-like paths that do not exist return 404.
+- `robots.txt`, `X-Robots-Tag: noindex` and a favicon.
+- `npm run test:contrast` (in CI): every accent and status colour reaches 4.5:1 in both themes.
+
 ### Changed
 
+- `AUDIT_IP_RETENTION_DAYS` defaults to 90 (was 0 = keep). Installs that set it keep their value.
+- nginx gzips JavaScript, CSS and SVG; screens other than the calendar load on demand (first download
+  503 KB -> 346 KB, 110 KB compressed).
+- CI tests the backend on Python 3.14, the version in the production image; the CI database image is pinned
+  by digest.
 - Backend: asyncpg 0.31.0 → 0.32.0 (#103).
 - Backend: FastAPI 0.143.2 → 0.162.0 (#104).
 - Install and update docs are separate; no placeholder in the checkout command (#110).
 
 ### Fixed
 
+- Accessibility: visible labels on the password, two-step and add-member fields; readable accent and status
+  colours in dark mode; release notes open as a real modal dialog (focus, Escape) with a themed background;
+  links in banners and days outside the month meet contrast; touch targets of at least 24 px (44 px on touch
+  screens).
+- Phones: no sideways scrolling on Posts, Campaigns, Reports and Settings; wide tables scroll inside their own
+  box; fields use 16 px text so iOS does not zoom.
+- Importing a post from its LinkedIn link says when the campaign or audience could not be set.
 - "How to update" (About, banner, e-mail) links to INSTALL `#update` in English and Hebrew (#113).
+
+### Security
+
+- AI assistant: the post is fenced with a random tag per request, so text containing `>>>` cannot close the
+  block and pose as instructions.
 
 ## [0.12.1] - 2026-11-01
 
