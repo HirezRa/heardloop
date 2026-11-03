@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { lazy, Suspense, useEffect, useState } from 'react';
 import {
   fetchHealth,
   fetchMe,
@@ -15,17 +15,19 @@ import { installUpdateDocUrl } from './docsLinks';
 import { applyPrefs } from './prefs';
 import { LOCALE, t } from './i18n';
 import { notesAsNodes } from './notesText';
-import Accounts from './Accounts';
-import Approvals from './Approvals';
 import Calendar from './Calendar';
-import Campaigns from './Campaigns';
-import Posts from './Posts';
 import Login from './Login';
 import NotesDialog from './NotesDialog';
-import Notifications from './Notifications';
-import Reports from './Reports';
-import Settings from './Settings';
-import Templates from './Templates';
+
+// Screens other than the calendar (the default) load on first use: the first download stays small.
+const Accounts = lazy(() => import('./Accounts'));
+const Approvals = lazy(() => import('./Approvals'));
+const Campaigns = lazy(() => import('./Campaigns'));
+const Notifications = lazy(() => import('./Notifications'));
+const Posts = lazy(() => import('./Posts'));
+const Reports = lazy(() => import('./Reports'));
+const Settings = lazy(() => import('./Settings'));
+const Templates = lazy(() => import('./Templates'));
 
 type SectionId = keyof typeof t.sections;
 
@@ -74,6 +76,11 @@ function Shell({ me, onMeChange, onLoggedOut }: { me: Me; onMeChange: (me: Me) =
     const wanted = new URLSearchParams(window.location.search).get('section');
     return SECTIONS.some((s) => s.id === wanted) ? (wanted as SectionId) : 'calendar';
   });
+  // An unknown path or ?section= value (old or mistyped link) gets a "not found" screen, not a silent redirect.
+  const [notFound, setNotFound] = useState(() => {
+    const wanted = new URLSearchParams(window.location.search).get('section');
+    return window.location.pathname !== '/' || (wanted !== null && !SECTIONS.some((s) => s.id === wanted));
+  });
   const [health, setHealth] = useState<HealthState>('checking');
   // Links from e-mails and webhooks: /?section=posts&post=<id>
   const [focusPostId, setFocusPostId] = useState<string | null>(
@@ -106,6 +113,10 @@ function Shell({ me, onMeChange, onLoggedOut }: { me: Me; onMeChange: (me: Me) =
 
   function go(id: SectionId) {
     setFocusPostId(null);
+    if (notFound) {
+      setNotFound(false);
+      window.history.replaceState(null, '', '/');
+    }
     setActive(id);
   }
 
@@ -166,8 +177,8 @@ function Shell({ me, onMeChange, onLoggedOut }: { me: Me; onMeChange: (me: Me) =
             <button
               key={s.id}
               type="button"
-              className={s.id === active ? 'nav-item active' : 'nav-item'}
-              aria-current={s.id === active ? 'page' : undefined}
+              className={s.id === active && !notFound ? 'nav-item active' : 'nav-item'}
+              aria-current={s.id === active && !notFound ? 'page' : undefined}
               onClick={() => go(s.id)}
             >
               {t.sections[s.id][0]}
@@ -241,9 +252,17 @@ function Shell({ me, onMeChange, onLoggedOut }: { me: Me; onMeChange: (me: Me) =
             {notesAsNodes(update.notes || t.about.noNotes)}
           </NotesDialog>
         )}
-        <h1>{title}</h1>
-        <p className="muted">{description}</p>
-        {section.id === 'settings' ? (
+        <h1>{notFound ? t.notFound.title : title}</h1>
+        {!notFound && <p className="muted">{description}</p>}
+        <Suspense fallback={<div className="loading">{t.loading}</div>}>
+        {notFound ? (
+          <section className="card">
+            <p>{t.notFound.text}</p>
+            <button type="button" className="primary" onClick={() => go('calendar')}>
+              {t.notFound.toCalendar}
+            </button>
+          </section>
+        ) : section.id === 'settings' ? (
           <Settings me={me} onMeChange={onMeChange} appVersion={appVersion} onAppVersion={setAppVersion} />
         ) : section.id === 'accounts' ? (
           <Accounts me={me} />
@@ -264,6 +283,7 @@ function Shell({ me, onMeChange, onLoggedOut }: { me: Me; onMeChange: (me: Me) =
         ) : (
           <div className="placeholder">{t.comingInPhase(section.phase)}</div>
         )}
+        </Suspense>
       </main>
     </div>
   );

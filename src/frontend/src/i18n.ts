@@ -925,6 +925,11 @@ const en = {
     open: 'Open',
   },
   comingInPhase: (phase: number) => `Coming in phase ${phase}`,
+  notFound: {
+    title: 'Page not found',
+    text: 'This address does not exist in Heardloop. It may come from an old link.',
+    toCalendar: 'Go to the calendar',
+  },
   sections: {
     calendar: ['Calendar', 'Scheduled and published posts by month or week.'],
     posts: ['Posts', 'Editor with preview, character counter and media.'],
@@ -1947,6 +1952,11 @@ const he: Strings = {
     open: 'פתיחה',
   },
   comingInPhase: (phase: number) => `יגיע בשלב ${phase}`,
+  notFound: {
+    title: 'הדף לא נמצא',
+    text: 'הכתובת הזאת לא קיימת ב-Heardloop. ייתכן שהיא מגיעה מקישור ישן.',
+    toCalendar: 'מעבר ללוח השנה',
+  },
   sections: {
     calendar: ['לוח שנה', 'פוסטים מתוזמנים ושפורסמו, לפי חודש או שבוע.'],
     posts: ['פוסטים', 'עורך עם תצוגה מקדימה, מונה תווים ומדיה.'],
