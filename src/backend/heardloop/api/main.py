@@ -127,6 +127,9 @@ def create_app() -> FastAPI:
             "name": "Heardloop",
             "environment": settings.environment if settings.is_development else None,
             "ui_language": settings.ui_language,
+            # Shown before sign-in too (footer of the sign-in page); empty = the repository templates.
+            "privacy_url": settings.privacy_url or None,
+            "accessibility_url": settings.accessibility_url or None,
         }
 
     app.include_router(routes_auth.router)

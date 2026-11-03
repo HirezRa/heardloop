@@ -17,6 +17,7 @@ import { LOCALE, t } from './i18n';
 import { notesAsNodes } from './notesText';
 import Calendar from './Calendar';
 import Login from './Login';
+import LegalLinks from './LegalLinks';
 import NotesDialog from './NotesDialog';
 
 // Screens other than the calendar (the default) load on first use: the first download stays small.
@@ -208,6 +209,7 @@ function Shell({ me, onMeChange, onLoggedOut }: { me: Me; onMeChange: (me: Me) =
               Heardloop v{appVersion.version}
             </a>
           )}
+          <LegalLinks />
           <div className={`health health-${health}`} role="status">
             <span className="dot" aria-hidden="true" />
             {t.health[health]}

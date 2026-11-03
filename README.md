@@ -255,6 +255,7 @@ All settings live in `.env` (git-ignored). `.env.example` lists them all.
 | `SESSION_IDLE_HOURS` / `SESSION_ABSOLUTE_DAYS` | `12` / `7` | Sign-in session idle timeout (hours) and absolute lifetime (days) |
 | `WORKER_POLL_SECONDS` | `15` | How often the worker looks for due posts |
 | `UPDATE_CHECK` / `UPDATE_CHECK_REPO` | `true` / `HirezRa/heardloop` | Optional notice when a newer GitHub release exists (never installs from the app) |
+| `PRIVACY_URL` / `ACCESSIBILITY_URL` | empty | Your privacy notice and accessibility statement, linked from the sign-in page and the menu. Templates: [PRIVACY.md](docs/PRIVACY.md), [ACCESSIBILITY.md](docs/ACCESSIBILITY.md). Empty = links to the templates |
 | `AUDIT_IP_RETENTION_DAYS` | `90` | Clear IP addresses from activity-log entries older than this many days (0 = keep until purged) |
 | `AI_BASE_URL` / `AI_MODEL` / `AI_API_KEY` / `AI_TIMEOUT_SECONDS` | empty / empty / empty / `60` | Optional AI writing assistant: an OpenAI-compatible server, e.g. `http://ollama:11434/v1` ([INSTALL §13](docs/INSTALL.md#13-optional-ai-writing-assistant)). Post text is sent there when the assistant is used |
 | `BACKUP_DIR` | `./backups` | Host folder for the nightly backup files (git-ignored) |
@@ -290,8 +291,10 @@ Security is a feature here, not an afterthought:
 The stack is built for `http://localhost:8380`. To reach it from other machines, put a TLS-terminating reverse
 proxy in front of the web container and keep these in place:
 
-- Serve it over **https only** and send `Strict-Transport-Security` from the proxy (for example
-  `max-age=31536000`). Do not publish the web port on a public interface without TLS.
+- Serve it over **https only** and send `Strict-Transport-Security` from the proxy. Raise it step by step
+  (`max-age=300`, then a day, a week, then `max-age=31536000`): browsers remember it, and a mistake locks people
+  out. Do not publish the web port on a public interface without TLS. Full checklist:
+  [install guide, section 14](docs/INSTALL.md#14-running-on-a-server-other-people-sign-in).
 - Set `APP_BASE_URL` (and `LINKEDIN_REDIRECT_URI`) to the https address.
 - Keep `COOKIE_SECURE=true`: the session cookie then uses the `__Host-` prefix, which only works over https.
 - If another proxy sits in front of the web container, tell nginx the real client address

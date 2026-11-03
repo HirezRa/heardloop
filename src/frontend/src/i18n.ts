@@ -933,6 +933,7 @@ const en = {
     open: 'Open',
   },
   comingInPhase: (phase: number) => `Coming in phase ${phase}`,
+  legal: { label: 'Legal', privacy: 'Privacy', accessibility: 'Accessibility statement' },
   notFound: {
     title: 'Page not found',
     text: 'This address does not exist in Heardloop. It may come from an old link.',
@@ -1968,6 +1969,7 @@ const he: Strings = {
     open: 'פתיחה',
   },
   comingInPhase: (phase: number) => `יגיע בשלב ${phase}`,
+  legal: { label: 'מידע משפטי', privacy: 'פרטיות', accessibility: 'הצהרת נגישות' },
   notFound: {
     title: 'הדף לא נמצא',
     text: 'הכתובת הזאת לא קיימת ב-Heardloop. ייתכן שהיא מגיעה מקישור ישן.',

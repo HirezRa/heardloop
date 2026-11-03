@@ -31,6 +31,10 @@ class Settings(BaseSettings):
 
     # Links in e-mails and webhook payloads point here.
     app_base_url: str = Field(default="http://localhost:8380", alias="APP_BASE_URL")
+    # The operator's own privacy notice and accessibility statement (templates: docs/PRIVACY.md and
+    # docs/ACCESSIBILITY.md). Empty = the app links to the templates in the repository.
+    privacy_url: str = Field(default="", alias="PRIVACY_URL")
+    accessibility_url: str = Field(default="", alias="ACCESSIBILITY_URL")
 
     # E-mail notifications (optional). Empty SMTP_HOST = e-mail off, in-app notifications only.
     smtp_host: str = Field(default="", alias="SMTP_HOST")
@@ -164,6 +168,16 @@ class Settings(BaseSettings):
             return "starttls"
         if value not in ("starttls", "ssl", "none"):
             raise ValueError("SMTP_SECURITY must be starttls, ssl or none")
+        return value
+
+    @field_validator("privacy_url", "accessibility_url", mode="before")
+    @classmethod
+    def _public_page_url(cls, v: object) -> object:
+        value = str(v or "").strip()
+        if not value or value.startswith("<"):
+            return ""
+        if not re.fullmatch(r"https?://[^\s\"'<>]+", value):
+            raise ValueError("PRIVACY_URL / ACCESSIBILITY_URL must be an http(s) address")
         return value
 
     @field_validator("app_base_url", mode="before")
