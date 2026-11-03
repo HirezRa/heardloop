@@ -1233,13 +1233,16 @@ export default function Posts({
         <LinkImport
           workspaceId={wsId}
           onCancel={() => setShowLinkImport(false)}
-          onImported={(postId, created) => {
+          onImported={(postId, created, planningFailed) => {
             setShowLinkImport(false);
             load();
             getPost(wsId, postId)
               .then((p) => {
                 setSelected(p);
-                setMsg({ ok: created ? t.linkImport.created : t.linkImport.matched });
+                setMsg({
+                  ok: created ? t.linkImport.created : t.linkImport.matched,
+                  error: planningFailed ? t.linkImport.planningNotSet : undefined,
+                });
               })
               .catch((e) => setMsg({ error: errorText(e) }));
           }}

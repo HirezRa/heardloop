@@ -797,6 +797,7 @@ const en = {
     created: 'Post imported with its numbers.',
     matched: 'This post was already in Heardloop; its numbers were added.',
     alreadyToday: 'This post is already in Heardloop and its numbers were already imported today.',
+    planningNotSet: 'The campaign or audience could not be set. Set it in the editor.',
     privacy: 'The file is read once and not kept; only the numbers are saved. Nothing is fetched from LinkedIn.',
   },
   exportImport: {
@@ -1826,6 +1827,7 @@ const he: Strings = {
     created: 'הפוסט יובא עם המספרים שלו.',
     matched: 'הפוסט כבר היה ב-Heardloop; המספרים נוספו לו.',
     alreadyToday: 'הפוסט כבר ב-Heardloop והמספרים שלו כבר יובאו היום.',
+    planningNotSet: 'לא ניתן היה לשייך קמפיין או קהל. אפשר לשייך בעורך.',
     privacy: 'הקובץ נקרא פעם אחת ולא נשמר; נשמרים רק המספרים. שום דבר לא נקרא מ-LinkedIn.',
   },
   exportImport: {
