@@ -21,6 +21,7 @@ import Calendar from './Calendar';
 import Campaigns from './Campaigns';
 import Posts from './Posts';
 import Login from './Login';
+import NotesDialog from './NotesDialog';
 import Notifications from './Notifications';
 import Reports from './Reports';
 import Settings from './Settings';
@@ -236,13 +237,9 @@ function Shell({ me, onMeChange, onLoggedOut }: { me: Me; onMeChange: (me: Me) =
           </div>
         )}
         {notesOpen && update && (
-          <dialog open className="notes-dialog" onClose={() => setNotesOpen(false)}>
-            <form method="dialog">
-              <h3>{t.about.whatsNewTitle(update.latest)}</h3>
-              <div className="notes-body">{notesAsNodes(update.notes || t.about.noNotes)}</div>
-              <button type="submit">{t.about.close}</button>
-            </form>
-          </dialog>
+          <NotesDialog title={t.about.whatsNewTitle(update.latest)} onClose={() => setNotesOpen(false)}>
+            {notesAsNodes(update.notes || t.about.noNotes)}
+          </NotesDialog>
         )}
         <h1>{title}</h1>
         <p className="muted">{description}</p>

@@ -161,8 +161,8 @@ h1, .page-title { font-size: var(--fs-2xl); line-height: var(--lh-heading); font
   border-radius: 8px;
   padding: 16px 20px;
   max-width: min(560px, 92vw);
-  background: var(--surface, #fff);
-  color: inherit;
+  background: var(--panel);
+  color: var(--text);
 }
 .notes-dialog::backdrop { background: rgba(0, 0, 0, 0.35); }
 .notes-body { white-space: normal; margin: 12px 0 16px; line-height: 1.45; max-height: 50vh; overflow: auto; }
