@@ -11,7 +11,8 @@
     "test:update-copy": "node ./src/updateStatus.honesty.test.mjs",
     "test:docs-links": "node --experimental-strip-types ./src/docsLinks.test.mjs",
     "test:text-cut": "node --experimental-strip-types ./src/textCut.test.mjs",
-    "test:report-bars": "node --experimental-strip-types ./src/reportBars.test.mjs"
+    "test:report-bars": "node --experimental-strip-types ./src/reportBars.test.mjs",
+    "test:contrast": "node --experimental-strip-types ./src/contrast.test.mjs"
   },
   "dependencies": {
     "qrcode": "1.5.4",

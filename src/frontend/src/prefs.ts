@@ -1,6 +1,7 @@
 // Per-user interface preferences: applied to the document (theme, font size, accent, direction) and read by
 // dates.ts for formats. Stored on the server (Settings -> Appearance); the .env UI_LANGUAGE is only the
 // default for people who did not pick a language.
+import { DARK_BACKGROUNDS, LIGHT_BACKGROUNDS, readableOn } from './contrast';
 import { setLocale, type Locale } from './i18n';
 
 export type DateFormat = 'dmy' | 'mdy' | 'ymd';
@@ -50,6 +51,9 @@ export function applyPrefs(prefs: UiPrefs): void {
   root.style.fontSize = `${FONT_PX[prefs.font_size]}px`;
   root.style.setProperty('--accent', prefs.accent);
   root.style.setProperty('--accent-rgb', hexToRgb(prefs.accent));
+  // Accent as text or focus outline: a lighter tint on dark backgrounds keeps 4.5:1 (WCAG 1.4.3).
+  root.style.setProperty('--accent-text-light', readableOn(prefs.accent, LIGHT_BACKGROUNDS));
+  root.style.setProperty('--accent-text-dark', readableOn(prefs.accent, DARK_BACKGROUNDS));
 }
 
 function hexToRgb(hex: string): string {

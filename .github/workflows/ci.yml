@@ -116,6 +116,7 @@ jobs:
       - run: npm run test:docs-links
       - run: npm run test:text-cut
       - run: npm run test:report-bars
+      - run: npm run test:contrast
       - run: npm run build
       - name: Install Chromium for smoke test
         # Pinned runner: on the ubuntu-latest image that moved to Ubuntu 26 this step (apt deps for the
