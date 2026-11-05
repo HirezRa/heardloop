@@ -37,7 +37,7 @@ jobs:
         working-directory: src/backend
     services:
       postgres:
-        image: postgres:17-alpine
+        image: postgres:17-alpine@sha256:b0f9560a2de083e2cc7382e75f808c7381a32852a7ec49117deedb300e552b24  # same digest as docker-compose.yml
         env:
           POSTGRES_USER: ci
           POSTGRES_DB: heardloop_test
@@ -49,10 +49,12 @@ jobs:
     env:
       DATABASE_URL: postgresql+asyncpg://ci@localhost:5432/heardloop_test
       TEST_DATABASE_URL: postgresql+asyncpg://ci@localhost:5432/heardloop_test
+      UV_PYTHON: "3.14"
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
       - uses: astral-sh/setup-uv@68559e99cc807c1eb7e9238fd43a15bba460eec2 # v10.3.3
-      - run: uv python install 3.13
+      # Same Python as the production image (src/backend/Dockerfile), so tests and the audit cover what runs.
+      - run: uv python install 3.14
       - run: uv sync --frozen
       - name: Dependency audit (known vulnerabilities in runtime packages)
         # Any finding fails the job. Accepted exceptions go in .pip-audit-ignore (one advisory id per line).
@@ -82,7 +84,7 @@ jobs:
     timeout-minutes: 8
     services:
       postgres:
-        image: postgres:17-alpine
+        image: postgres:17-alpine@sha256:b0f9560a2de083e2cc7382e75f808c7381a32852a7ec49117deedb300e552b24  # same digest as docker-compose.yml
         env:
           POSTGRES_USER: ci
           POSTGRES_DB: heardloop_test
@@ -116,6 +118,7 @@ jobs:
       - run: npm run test:docs-links
       - run: npm run test:text-cut
       - run: npm run test:report-bars
+      - run: npm run test:contrast
       - run: npm run build
       - name: Install Chromium for smoke test
         # Pinned runner: on the ubuntu-latest image that moved to Ubuntu 26 this step (apt deps for the

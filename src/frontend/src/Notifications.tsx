@@ -11,6 +11,7 @@ import {
 import { t } from './i18n';
 import { formatDateTime } from './dates';
 import { publishErrorReasonLabel } from './publishErrors';
+import type { NavParams } from './nav';
 
 function describe(n: AppNotification): string {
   const d = n.data as Record<string, string | null | undefined>;
@@ -50,6 +51,10 @@ function describe(n: AppNotification): string {
       return t.notifications.kinds.securityCodesRegenerated;
     case 'security.sessions_revoked':
       return t.notifications.kinds.securitySessionsRevoked(Number(d.count ?? 1));
+    case 'security.workspace_added':
+      return t.notifications.kinds.securityWorkspaceAdded(
+        t.roles[(d.role ?? 'viewer') as keyof typeof t.roles] ?? d.role ?? '',
+      );
     default:
       return n.kind;
   }
@@ -63,7 +68,7 @@ export default function Notifications({
 }: {
   me: Me;
   onOpenPost: (postId: string) => void;
-  onOpenSection: (section: 'accounts' | 'reports' | 'settings') => void;
+  onOpenSection: (section: 'accounts' | 'reports' | 'settings', params?: NavParams) => void;
   onUnreadChange: (n: number) => void;
 }) {
   const [items, setItems] = useState<AppNotification[]>([]);
@@ -93,16 +98,10 @@ export default function Notifications({
     }
     if (n.kind === 'account.expiring' || n.kind === 'account.reconnect_needed') onOpenSection('accounts');
     else if (n.kind === 'digest.weekly') onOpenSection('reports');
-    else if (n.kind === 'backup.stale' || n.kind === 'backup.failed') {
-      window.history.replaceState(null, '', '?section=settings&tab=workspace');
-      onOpenSection('settings');
-    } else if (n.kind.startsWith('security.')) {
-      window.history.replaceState(null, '', '?section=settings&tab=security');
-      onOpenSection('settings');
-    } else if (n.kind === 'app.update_available') {
-      window.history.replaceState(null, '', '?section=settings&tab=about');
-      onOpenSection('settings');
-    } else if (n.post_id) onOpenPost(n.post_id);
+    else if (n.kind === 'backup.stale' || n.kind === 'backup.failed') onOpenSection('settings', { tab: 'workspace' });
+    else if (n.kind.startsWith('security.')) onOpenSection('settings', { tab: 'security' });
+    else if (n.kind === 'app.update_available') onOpenSection('settings', { tab: 'about' });
+    else if (n.post_id) onOpenPost(n.post_id);
   }
 
   async function toggleEmail(value: boolean) {

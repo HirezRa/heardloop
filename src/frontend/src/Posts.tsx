@@ -45,6 +45,8 @@ import MetricsPanel from './MetricsPanel';
 import { countCharacters, styledRatio, utf16Length } from './unicodeFormat';
 import { formatDateTime } from './dates';
 import { displaySnippet, isImported } from './postText';
+import { confirmDiscard, replaceUrl, sectionUrl, setUnsaved } from './nav';
+import Icon from './Icon';
 
 const MAX_CHARS = 3000;
 const SEE_MORE_AT = 210; // LinkedIn cuts the feed preview at roughly this many characters
@@ -60,6 +62,26 @@ function leftoverPlaceholders(body: string): string[] {
     }
   }
   return out;
+}
+
+type Draft = {
+  account_id: string;
+  body: string;
+  media: { id: string; url: string; mime_type?: string }[];
+  link: LinkCard | null;
+};
+
+const mediaKey = (m: { id: string }[]) => m.map((x) => x.id).join(',');
+const linkKey = (l: LinkCard | null) => (l ? `${l.url}|${l.title}|${l.description ?? ''}` : '');
+
+/** The editor holds changes the server does not have (a new post counts once it has text). */
+function isDraftDirty(selected: Post | null, draft: Draft): boolean {
+  return selected
+    ? draft.body !== selected.body ||
+        draft.account_id !== selected.account_id ||
+        mediaKey(draft.media) !== mediaKey(selected.media) ||
+        linkKey(draft.link) !== linkKey(selected.link)
+    : !!draft.body;
 }
 
 function errorText(err: unknown): string {
@@ -529,13 +551,9 @@ export default function Posts({
   const [requireApproval, setRequireApproval] = useState(true);
   const [timeZone, setTimeZone] = useState('UTC');
   const [selected, setSelected] = useState<Post | null>(null);
-  const [draft, setDraft] = useState<{
-    account_id: string;
-    body: string;
-    media: { id: string; url: string; mime_type?: string }[];
-    link: LinkCard | null;
-  }>({ account_id: '', body: '', media: [], link: null });
+  const [draft, setDraft] = useState<Draft>({ account_id: '', body: '', media: [], link: null });
   const textareaRef = useRef<HTMLTextAreaElement>(null);
+  const editorHeadingRef = useRef<HTMLHeadingElement>(null);
   const [uploadPct, setUploadPct] = useState<number | null>(null);
   const [fullPreview, setFullPreview] = useState(false);
   const [showHistory, setShowHistory] = useState(false);
@@ -545,6 +563,8 @@ export default function Posts({
   const [when, setWhen] = useState(() => defaultScheduleValue('UTC'));
   const [msg, setMsg] = useState<{ ok?: string; error?: string }>({});
   const [busy, setBusy] = useState(false);
+  // "No posts yet" only after the server answered; before that the list is unknown, not empty.
+  const [listState, setListState] = useState<'loading' | 'ready' | 'error'>('loading');
 
   const wsId = membership?.workspace_id ?? '';
   const active = useMemo(() => accounts.filter((a) => a.status === 'active'), [accounts]);
@@ -554,9 +574,13 @@ export default function Posts({
     listPosts(wsId)
       .then((list) => {
         setItems(list);
+        setListState('ready');
         setSelected((cur) => (cur ? (list.find((p) => p.id === cur.id) ?? null) : cur));
       })
-      .catch((e) => setMsg({ error: errorText(e) }));
+      .catch((e) => {
+        setMsg({ error: errorText(e) });
+        setListState((cur) => (cur === 'ready' ? cur : 'error'));
+      });
   }, [wsId]);
 
   useEffect(() => {
@@ -612,15 +636,50 @@ export default function Posts({
     }
   }, [selected?.id]); // eslint-disable-line react-hooks/exhaustive-deps
 
+  // Unsaved edits: the menu, Back, sign-out and closing the tab ask before dropping them (nav.ts / App.tsx).
+  const dirty = isDraftDirty(selected, draft);
+  useEffect(() => {
+    setUnsaved(dirty);
+  }, [dirty]);
+  useEffect(() => () => setUnsaved(false), []);
+
+  // The open post is part of the address (?post=), so a reload or a copied link opens it again.
+  useEffect(() => {
+    if (selected) replaceUrl(sectionUrl('posts', { post: selected.id }));
+  }, [selected?.id]); // eslint-disable-line react-hooks/exhaustive-deps
+
   if (!membership) return <p className="muted">{t.settings.noWorkspace}</p>;
 
+  /** Switch the editor to another post (or a new one) - asks first when there are unsaved edits. */
+  function openInEditor(p: Post) {
+    if (p.id !== selected?.id && !confirmDiscard()) return;
+    setSelected(p);
+    setMsg({});
+    revealEditor();
+  }
+
+  /** List and editor are stacked on narrow screens: bring the editor into view after picking a post. */
+  function revealEditor() {
+    if (!window.matchMedia('(max-width: 1000px)').matches) return;
+    const reduce = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+    requestAnimationFrame(() => {
+      const el = editorHeadingRef.current;
+      if (!el) return;
+      el.scrollIntoView({ block: 'start', behavior: reduce ? 'auto' : 'smooth' });
+      el.focus({ preventScroll: true });
+    });
+  }
+
   function startNew() {
+    if (!confirmDiscard()) return;
+    replaceUrl(sectionUrl('posts'));
     setSelected(null);
     setNewCampaignId('');
     setNewAudienceId(audiences.find((a) => a.is_default)?.id ?? '');
     setDraft({ account_id: active[0]?.id ?? '', body: '', media: [], link: null });
     setPlaceholdersLeft([]);
     setMsg({});
+    revealEditor();
   }
 
   async function pickMedia(file: File | undefined) {
@@ -663,14 +722,6 @@ export default function Posts({
     }
   }
 
-  const mediaKey = (m: { id: string }[]) => m.map((x) => x.id).join(',');
-  const linkKey = (l: LinkCard | null) => (l ? `${l.url}|${l.title}|${l.description ?? ''}` : '');
-  const dirty = selected
-    ? draft.body !== selected.body ||
-      draft.account_id !== selected.account_id ||
-      mediaKey(draft.media) !== mediaKey(selected.media) ||
-      linkKey(draft.link) !== linkKey(selected.link)
-    : !!draft.body;
   const status = selected?.status;
   const editable = !status || ['draft', 'pending_approval', 'approved', 'scheduled', 'failed'].includes(status);
   const imported = !!selected && isImported(selected);
@@ -746,20 +797,33 @@ export default function Posts({
   return (
     <div className="posts-layout">
       <section className="card posts-list">
-        <div className="row-between">
+        <div className="list-head">
           <h2>{t.posts.list}</h2>
           {canWrite && (
-            <div className="row gap">
+            <div className="list-head-actions">
               <button type="button" className="primary" onClick={startNew}>
+                <Icon name="plus" size={16} />
                 {t.posts.new}
               </button>
-              <button type="button" onClick={() => setShowLinkImport(true)} title={t.linkImport.buttonHint}>
+              <button
+                type="button"
+                onClick={() => {
+                  // A successful import opens the imported post in the editor, replacing the current draft.
+                  if (confirmDiscard()) setShowLinkImport(true);
+                }}
+                title={t.linkImport.buttonHint}
+              >
                 {t.linkImport.button}
               </button>
             </div>
           )}
         </div>
-        {items.length === 0 && <p className="muted">{t.posts.none}</p>}
+        {listState === 'loading' && (
+          <p className="muted" role="status">
+            {t.loading}
+          </p>
+        )}
+        {listState === 'ready' && items.length === 0 && <p className="muted">{t.posts.none}</p>}
         <ul className="post-items">
           {items.map((p) => {
             const shown = displaySnippet(p.body, isImported(p));
@@ -768,11 +832,10 @@ export default function Posts({
                 <button
                   type="button"
                   className={selected?.id === p.id ? 'post-item active' : 'post-item'}
-                  onClick={() => {
-                    setSelected(p);
-                    setMsg({});
-                  }}
+                  aria-current={selected?.id === p.id ? 'true' : undefined}
+                  onClick={() => openInEditor(p)}
                 >
+                  <span className="post-tags">
                   <span
                     className={`status status-${p.status}`}
                     title={
@@ -785,6 +848,7 @@ export default function Posts({
                   </span>
                   {audienceCodeOf(p) && (
                     <span className="badge audience" title={t.posts.audience}>
+                      <span className="visually-hidden">{t.posts.audience}: </span>
                       {audienceCodeOf(p)}
                     </span>
                   )}
@@ -803,11 +867,16 @@ export default function Posts({
                       {t.posts.needsReconnectShort}
                     </span>
                   )}
+                  </span>
+                  {/* The failure reason as text, not only as a hover tooltip (touch and keyboard users). */}
+                  {p.status === 'failed' && p.last_error && (
+                    <span className="small fail-reason">{publishErrorText(p.last_error).message}</span>
+                  )}
                   <span className={shown.placeholder ? 'post-snippet muted' : 'post-snippet'} dir="auto">
                     {shown.text.slice(0, 90)}
                     {shown.text.length > 90 ? '…' : ''}
                   </span>
-                  <span className="muted small">
+                  <span className="muted small post-when">
                     {p.published_at
                       ? fmt.format(new Date(p.published_at))
                       : p.scheduled_at
@@ -822,7 +891,14 @@ export default function Posts({
       </section>
 
       <section className="card posts-editor">
-        <h2>{selected ? t.posts.edit : t.posts.new}</h2>
+        <h2 ref={editorHeadingRef} tabIndex={-1} className="editor-title">
+          {selected ? t.posts.edit : t.posts.new}
+        </h2>
+        {dirty && canWrite && textEditable && (
+          <p className="muted small unsaved-note" role="status">
+            {t.ux.unsavedNote}
+          </p>
+        )}
         {active.length === 0 && <p className="error">{t.posts.noActiveAccount}</p>}
         {selected?.last_review_comment && (
           <p className="banner">
@@ -864,7 +940,14 @@ export default function Posts({
 
         {canWrite && !selected && (
           <div className="actions" style={{ marginBottom: 8 }}>
-            <button type="button" disabled={busy} onClick={() => setShowTemplates(true)}>
+            <button
+              type="button"
+              disabled={busy}
+              onClick={() => {
+                // Picking a template replaces the text typed so far.
+                if (confirmDiscard()) setShowTemplates(true);
+              }}
+            >
               {t.posts.fromTemplate}
             </button>
           </div>
@@ -990,6 +1073,7 @@ export default function Posts({
           {canWrite && textEditable && me.ai_assist && (
             <AiAssistant
               workspaceId={wsId}
+              destination={me.ai_host ?? null}
               textareaRef={textareaRef}
               value={draft.body}
               onChange={(body) => {
@@ -1059,7 +1143,7 @@ export default function Posts({
         )}
 
         {canWrite && (
-          <div className="actions">
+          <div className="actions editor-actions">
             {textEditable && (
               <button
                 type="button"
@@ -1177,6 +1261,7 @@ export default function Posts({
                   if (window.confirm(t.posts.confirmDelete)) {
                     void run(async () => {
                       await deletePost(wsId, selected.id);
+                      replaceUrl(sectionUrl('posts'));
                       setSelected(null);
                       setDraft({ account_id: active[0]?.id ?? '', body: '', media: [], link: null });
                     }, t.posts.deleted);
@@ -1233,13 +1318,16 @@ export default function Posts({
         <LinkImport
           workspaceId={wsId}
           onCancel={() => setShowLinkImport(false)}
-          onImported={(postId, created) => {
+          onImported={(postId, created, planningFailed) => {
             setShowLinkImport(false);
             load();
             getPost(wsId, postId)
               .then((p) => {
                 setSelected(p);
-                setMsg({ ok: created ? t.linkImport.created : t.linkImport.matched });
+                setMsg({
+                  ok: created ? t.linkImport.created : t.linkImport.matched,
+                  error: planningFailed ? t.linkImport.planningNotSet : undefined,
+                });
               })
               .catch((e) => setMsg({ error: errorText(e) }));
           }}

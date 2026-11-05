@@ -11,6 +11,8 @@ export interface Me {
   ui_prefs: UiPrefs;
   /** The owner configured an AI server (AI_BASE_URL / AI_MODEL): the editor shows the assistant. */
   ai_assist?: boolean;
+  /** host[:port] of the AI server: shown next to the assistant so writers know where the text goes. */
+  ai_host?: string | null;
 }
 
 export interface MfaChallenge {
@@ -247,6 +249,8 @@ export interface AppVersion {
   update: AppUpdateInfo | null;
   /** Owners only: honest check state (never claims current after a failed check). */
   update_status: AppUpdateStatus | null;
+  /** Owners only: unsafe settings, e.g. development_mode, ai_key_over_http. */
+  config_warnings?: string[];
 }
 
 export const getAppVersion = () => request<AppVersion>('GET', '/api/v1/version');

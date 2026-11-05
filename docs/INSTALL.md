@@ -24,6 +24,8 @@ Every command is shown for Windows PowerShell; Linux and macOS use the same comm
     - [11.1 Backups](#111-backups)
     - [11.2 Updating](#update)
 12. [Troubleshooting](#12-troubleshooting)
+13. [Optional: AI writing assistant](#13-optional-ai-writing-assistant)
+14. [Running on a server (other people sign in)](#14-running-on-a-server-other-people-sign-in)
 
 ---
 
@@ -264,6 +266,10 @@ Backups run every night into the `backups` folder (setting `BACKUP_DIR`). **Sett
 Backups** shows the last one. Run one now with `scripts/backup-now.ps1`. Restoring is described in the
 [user guide, section 10](GUIDE.md#10-backups-and-restore).
 
+Backups hold e-mail addresses, names, post text and the activity log. Two settings in `.env` keep them safe:
+`BACKUP_PASSPHRASE` (encrypts every backup with AES-256; keep the passphrase outside this computer too) and
+`BACKUP_DIR` pointing to a folder outside the Heardloop folder, ideally a disk that is copied elsewhere.
+
 <a id="update"></a>
 
 ### 11.2 Updating
@@ -387,3 +393,23 @@ a minute on a normal PC; `AI_TIMEOUT_SECONDS` (default 60) is the limit per requ
 
 **Best times** next to the scheduling field need no AI: they come from your own post metrics (section 6 of the
 [user guide](GUIDE.md#6-metrics-and-reports)) and appear once a few posts have numbers.
+
+## 14. Running on a server (other people sign in)
+
+The default install listens only on this computer (`http://localhost:8380`). Before other people use it:
+
+1. **Production mode.** `.env` must say `APP_ENV=production` (the installers write this). In `development` the
+   API documentation and demo tools are open; Settings -> About warns the owner when that is the case on a
+   non-local address.
+2. **HTTPS in front.** Put a reverse proxy that holds the certificate (Caddy, nginx, Traefik) in front of the web
+   container and set `APP_BASE_URL` and `LINKEDIN_REDIRECT_URI` to the https address. Keep `COOKIE_SECURE=true`.
+3. **HSTS, step by step.** Browsers remember this header for its whole `max-age`, so a mistake locks people out.
+   Start with `Strict-Transport-Security: max-age=300`, check that every page works over https, then raise it to
+   a day, a week and finally `max-age=31536000`. Add `includeSubDomains` only when every subdomain is on https.
+4. **Real client address.** Tell nginx in `src/frontend/nginx.conf` which proxy to trust
+   (`set_real_ip_from <proxy network>;` and `real_ip_header X-Forwarded-For;`), otherwise the sign-in rate limit
+   counts every user as the proxy and the activity log shows the proxy's address.
+5. **Privacy and accessibility.** If people other than you use the instance, adapt and publish
+   [PRIVACY.md](PRIVACY.md) and [ACCESSIBILITY.md](ACCESSIBILITY.md). Both are templates, not legal advice.
+6. **Never publish** the API port (`docker-compose.dev.yml`) or the database port on a server.
+

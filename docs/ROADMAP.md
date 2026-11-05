@@ -3,7 +3,7 @@
 Planned improvements after v0.11.0, why each one is worth doing, and the order we intend to do them in.
 Each item becomes a GitHub issue before work starts (one issue per branch, see [AGENTS.md](../AGENTS.md)).
 
-Revision: 2026-10-31 · Roadmap v1.2 (after v0.12.0) · Classification: Public
+Revision: 2026-11-03 · Roadmap v1.3 (after v0.13.0; adds the release readiness review) · Classification: Public
 
 | Status | Meaning |
 | --- | --- |
@@ -50,6 +50,9 @@ These come from [SPEC.md](SPEC.md) and the README and do not change:
 | 20 | Draft-only API for agents (#89) | Integrations | Medium | 🗓️ |
 | 21 | Graphics and carousels | Media | High | 💤 |
 | 24 | Schedule time picker: clock popover plus typing (#117) | Planning | Low-Medium | 🗓️ |
+| 25 | Release readiness fixes from the pre-launch review (v0.13.0) | Quality | Medium | ✅ |
+| 26 | Manual check with a screen reader and real phones | Quality | Low | 🔜 |
+| 27 | Pin the `uv` build image by digest | Supply chain | Low | 🔜 |
 
 ---
 
@@ -196,7 +199,34 @@ A token scoped to "create draft" only, for n8n, scripts or local agents (optiona
 Approval and publishing stay human and cannot be reached with that token. This makes Heardloop the approval and
 publishing layer for any writing setup. Effort: medium.
 
-## 7. Parked
+## 7. Release readiness
+
+### 7.1 Pre-launch review fixes (v0.13.0)
+A review against WCAG 2.1 AA (IS 5568), privacy, forms, mobile, performance, SEO, links, secrets and security,
+then a browser run on a demo stack (axe-core on every screen in both themes, every screen at 360, 390 and
+768 px). Fixed in v0.13.0, see the [changelog](../CHANGELOG.md):
+
+- Accessibility: visible field labels, dark-mode contrast for the accent and status colours (with a CI test),
+  modal release notes, touch targets, contrast of banner links and outside-month days.
+- Mobile: no sideways scrolling, tables scroll in their own box, 16 px fields.
+- Privacy: notice and accessibility statement templates (`PRIVACY_URL` / `ACCESSIBILITY_URL`), activity-log IP
+  addresses cleared after 90 days by default, the AI assistant shows where text goes, a notice when an
+  existing account is added to a workspace.
+- Performance and links: gzip, screens loaded on demand, real 404s, a not-found screen, robots and favicon.
+- Security and operations: warnings for development mode on a server and for an AI key over plain http, a
+  random fence around post text sent to the AI, CI on the production Python, a server checklist in the install
+  guide.
+
+### 7.2 Manual check with a screen reader and real phones
+Automated checks cover a part of accessibility only. Before announcing the project widely: NVDA (Windows) in
+English and Hebrew, VoiceOver on an iPhone, TalkBack on Android; sign-in, writing and scheduling a post,
+approvals, reports, settings. Record the date and result in `docs/ACCESSIBILITY.md` ("Known gaps"). Effort: low.
+
+### 7.3 Pin the `uv` build image by digest
+`src/backend/Dockerfile` copies `uv` from `ghcr.io/astral-sh/uv:<version>` by tag; every other image is pinned
+by digest. Add the digest of the same version (and let Dependabot keep it current). Effort: low.
+
+## 8. Parked
 - **Graphics and carousels.** Valuable for reach, far from the core and a lot of work. Revisit after 4 and 5.
 - **Counting installs.** No telemetry. We follow adoption through GitHub stars, release downloads and the traffic
   page (visitors, clones, referrers).

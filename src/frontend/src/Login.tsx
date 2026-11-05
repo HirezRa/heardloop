@@ -1,6 +1,7 @@
 import { useState, type FormEvent } from 'react';
 import { ApiError, login, verifyMfa, type Me } from './api';
 import { t } from './i18n';
+import LegalLinks from './LegalLinks';
 
 export default function Login({ onLoggedIn }: { onLoggedIn: (me: Me) => void }) {
   const [email, setEmail] = useState('');
@@ -94,6 +95,7 @@ export default function Login({ onLoggedIn }: { onLoggedIn: (me: Me) => void }) 
           </button>
         </form>
       )}
+      <LegalLinks />
     </main>
   );
 }

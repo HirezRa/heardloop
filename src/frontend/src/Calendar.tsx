@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState, type KeyboardEvent } from 'react';
 import { ApiError, getCalendar, schedulePost, type CalendarItem, type Me } from './api';
 import { LOCALE, t } from './i18n';
 import { formatDay } from './dates';
@@ -48,6 +48,11 @@ function visibleRange(anchor: Date, view: View): Date[] {
   return days;
 }
 
+/** Status, account and campaign of a calendar entry, in one line. */
+function describe(item: CalendarItem): string {
+  return `${t.posts.statuses[item.status]} · ${item.account_name}${item.campaign_name ? ` · ${item.campaign_name}` : ''}`;
+}
+
 function errorText(err: unknown): string {
   if (err instanceof ApiError) {
     const known = (t.errors as Record<string, string>)[err.detail];
@@ -69,6 +74,11 @@ export default function Calendar({ me, onOpenPost }: { me: Me; onOpenPost: (post
   const [overDay, setOverDay] = useState<string | null>(null);
   const [msg, setMsg] = useState<{ ok?: string; error?: string }>({});
   const [busy, setBusy] = useState(false);
+  // True while the visible range is being fetched: "nothing scheduled" is only said after the answer.
+  const [loading, setLoading] = useState(true);
+  // After a keyboard move the post is drawn in another day cell: put focus back on it once it is there.
+  const [refocusId, setRefocusId] = useState<string | null>(null);
+  const gridRef = useRef<HTMLDivElement>(null);
 
   const days = useMemo(() => visibleRange(anchor, view), [anchor, view]);
   const start = iso(days[0]);
@@ -79,15 +89,19 @@ export default function Calendar({ me, onOpenPost }: { me: Me; onOpenPost: (post
   const fetchRange = useCallback(
     (isCancelled: () => boolean = () => false) => {
       if (!wsId) return;
+      setLoading(true);
       getCalendar(wsId, start, end)
         .then((res) => {
           if (isCancelled()) return;
           setItems(res.items);
           setTruncated(res.truncated);
           setTimeZone(res.time_zone);
+          setLoading(false);
         })
         .catch((e) => {
-          if (!isCancelled()) setMsg({ error: errorText(e) });
+          if (isCancelled()) return;
+          setMsg({ error: errorText(e) });
+          setLoading(false);
         });
     },
     [wsId, start, end],
@@ -119,6 +133,17 @@ export default function Calendar({ me, onOpenPost }: { me: Me; onOpenPost: (post
     return map;
   }, [items]);
 
+  useEffect(() => {
+    if (!refocusId || loading) return;
+    const el = gridRef.current?.querySelector<HTMLButtonElement>(`[data-post-id="${CSS.escape(refocusId)}"]`);
+    if (el) {
+      el.focus();
+      setRefocusId(null);
+    } else if (!items.some((i) => i.post_id === refocusId)) {
+      setRefocusId(null); // no longer in this range (or no longer scheduled): nothing to focus
+    }
+  }, [items, loading, refocusId]);
+
   if (!wsId) return <p className="muted">{t.settings.noWorkspace}</p>;
 
   const locale = LOCALE === 'he' ? 'he-IL' : 'en-GB';
@@ -138,19 +163,45 @@ export default function Calendar({ me, onOpenPost }: { me: Me; onOpenPost: (post
     setOverDay(null);
     const item = items.find((i) => i.post_id === dragging);
     setDragging(null);
-    if (!item || !item.can_reschedule || item.local_time.startsWith(day) || day < today) return;
+    if (item) await moveTo(item, day);
+  }
+
+  /** Same day, same time of day: the one rule for drag-and-drop and the keyboard shortcut. */
+  async function moveTo(item: CalendarItem, day: string) {
+    if (busy || item.local_time.startsWith(day)) return;
+    if (!item.can_reschedule) return setMsg({ error: t.ux.calCannotMove });
+    if (day < today) return setMsg({ error: t.ux.calPastDay });
     const target = `${day}T${item.local_time.slice(11, 16)}`;
     setBusy(true);
     setMsg({});
     try {
       await schedulePost(wsId, item.post_id, target);
       setMsg({ ok: t.calendar.moved });
-      load();
+      setRefocusId(item.post_id);
+      // Moved out of the visible range: follow it (the range change fetches); otherwise refresh this range.
+      if (day < start || day > end) {
+        setLoading(true); // same render as the refocus request, so focus waits for the new range
+        setAnchor(parse(day));
+      } else load();
     } catch (err) {
       setMsg({ error: errorText(err) });
     } finally {
       setBusy(false);
     }
+  }
+
+  /**
+   * Shift + arrows on a focused post: one day back/forward (mirrored in Hebrew), Shift + up/down: one week.
+   * Shift, not Alt: Alt + Left/Right is the browser's own Back/Forward.
+   */
+  function onItemKeyDown(e: KeyboardEvent<HTMLButtonElement>, item: CalendarItem) {
+    if (!e.shiftKey || e.altKey || e.ctrlKey || e.metaKey) return;
+    const forward = LOCALE === 'he' ? 'ArrowLeft' : 'ArrowRight';
+    const back = LOCALE === 'he' ? 'ArrowRight' : 'ArrowLeft';
+    const delta = e.key === forward ? 1 : e.key === back ? -1 : e.key === 'ArrowDown' ? 7 : e.key === 'ArrowUp' ? -7 : 0;
+    if (!delta) return;
+    e.preventDefault();
+    void moveTo(item, iso(addDays(parse(item.local_time.slice(0, 10)), delta)));
   }
 
   return (
@@ -176,9 +227,13 @@ export default function Calendar({ me, onOpenPost }: { me: Me; onOpenPost: (post
           ))}
         </div>
       </div>
-      <p className="muted small">{t.calendar.hint(timeZone)}</p>
+      <p className="muted small cal-hint">{t.calendar.hint(timeZone)}</p>
+      <details className="cal-help">
+        <summary>{t.ux.calHelpTitle}</summary>
+        <p className="muted small">{t.ux.calKeyboardHint}</p>
+      </details>
 
-      <div className={`cal-grid cal-${view}`} aria-busy={busy}>
+      <div className={`cal-grid cal-${view}`} aria-busy={busy || loading} ref={gridRef}>
         {days.slice(0, 7).map((d) => (
           <div key={`h${d.getDay()}`} className="cal-head">
             {weekday.format(d)}
@@ -187,7 +242,14 @@ export default function Calendar({ me, onOpenPost }: { me: Me; onOpenPost: (post
         {days.map((d) => {
           const key = iso(d);
           const outside = view === 'month' && d.getMonth() !== anchor.getMonth();
-          const classes = ['cal-day', outside && 'outside', key === today && 'today', overDay === key && 'drop']
+          // While dragging, days that cannot take the post look different (instead of a silent "no").
+          const classes = [
+            'cal-day',
+            outside && 'outside',
+            key === today && 'today',
+            overDay === key && 'drop',
+            dragging && key < today && 'no-drop',
+          ]
             .filter(Boolean)
             .join(' ');
           return (
@@ -223,8 +285,16 @@ export default function Calendar({ me, onOpenPost }: { me: Me; onOpenPost: (post
                     setOverDay(null);
                   }}
                   onClick={() => onOpenPost(item.post_id)}
-                  title={`${t.posts.statuses[item.status]} · ${item.account_name}${item.campaign_name ? ` · ${item.campaign_name}` : ''}`}
+                  onKeyDown={(e) => onItemKeyDown(e, item)}
+                  data-post-id={item.post_id}
+                  title={describe(item)}
                 >
+                  {/* Status as a mark, not only as a border colour; the full text is in the accessible name. */}
+                  {(item.status === 'published' || item.status === 'failed') && (
+                    <span className={`cal-flag flag-${item.status}`} aria-hidden="true">
+                      {item.status === 'failed' ? '!' : '✓'}
+                    </span>
+                  )}
                   <span className="cal-time" dir="ltr">
                     {item.local_time.slice(11, 16)}
                   </span>{' '}
@@ -232,13 +302,27 @@ export default function Calendar({ me, onOpenPost }: { me: Me; onOpenPost: (post
                   <span dir="auto" className={item.snippet ? undefined : 'muted'}>
                     {displaySnippet(item.snippet, true, t.calendar.imported).text}
                   </span>
+                  <span className="visually-hidden">
+                    {` · ${formatDay(key)} · ${describe(item)}`}
+                  </span>
+                  {view === 'week' && (
+                    <span className="cal-meta muted small" aria-hidden="true">
+                      {describe(item)}
+                    </span>
+                  )}
                 </button>
               ))}
             </div>
           );
         })}
       </div>
-      {items.length === 0 && <p className="muted">{t.calendar.empty}</p>}
+      {loading ? (
+        <p className="muted" role="status">
+          {t.loading}
+        </p>
+      ) : (
+        items.length === 0 && <p className="muted">{t.calendar.empty}</p>
+      )}
       {truncated && <p className="muted small">{t.calendar.truncated}</p>}
       {msg.error && <p className="error" role="alert">{msg.error}</p>}
       {msg.ok && <p className="ok" role="status">{msg.ok}</p>}

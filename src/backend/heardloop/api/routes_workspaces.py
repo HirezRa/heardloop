@@ -39,6 +39,7 @@ from heardloop.models import (
     WorkspaceRole,
 )
 from heardloop.security.passwords import PasswordPolicyError, hash_password_async, validate_password
+from heardloop.security_notice import WORKSPACE_ADDED, notify_security
 from heardloop.timeutil import utcnow
 
 router = APIRouter(
@@ -82,6 +83,7 @@ async def list_members(access: ReadAccess, db: Db) -> list[MemberOut]:
 @router.post("/{workspace_id}/members", status_code=status.HTTP_201_CREATED)
 async def add_member(body: AddMemberRequest, access: ManageMembers, request: Request, db: Db) -> MemberOut:
     now = utcnow()
+    added_existing = False
     user = (await db.execute(select(User).where(User.email == body.email))).scalar_one_or_none()
     if user is None:
         if not body.initial_password:
@@ -104,8 +106,19 @@ async def add_member(body: AddMemberRequest, access: ManageMembers, request: Req
         existing = await db.get(Membership, (user.id, access.workspace_id))
         if existing is not None:
             raise HTTPException(status.HTTP_409_CONFLICT, "already_member")
+        # An existing account: tell the person (in-app and by e-mail when on), so nobody is added silently.
+        added_existing = True
 
     db.add(Membership(user_id=user.id, workspace_id=access.workspace_id, role=body.role))
+    if added_existing:
+        await notify_security(
+            db,
+            user.id,
+            WORKSPACE_ADDED,
+            now,
+            workspace_id=access.workspace_id,
+            data={"role": body.role.value},
+        )
     audit.record(
         db,
         action="member.added",

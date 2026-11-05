@@ -503,3 +503,37 @@ def test_owner_created_members_start_without_email_notifications(client: TestCli
     assert flag == [(False,)]
     seeded = asyncio.run(_query(select(User.email_notifications).where(User.email == EMAIL)))
     assert seeded == [(True,)]  # seeded users keep the default
+
+
+def test_existing_account_added_to_a_workspace_is_told(client: TestClient, world: World) -> None:
+    """An owner adding an existing account (here: the owner of another workspace) leaves a notice for that
+    person in the new workspace; a brand-new account created by the owner gets none."""
+    h = {**HDR, "X-CSRF-Token": login(client, "owner@example.com")}
+    members = f"/api/v1/workspaces/{world.workspace_id}/members"
+    added = client.post(
+        members,
+        json={"email": "stranger@example.com", "display_name": "Stranger", "role": "viewer"},
+        headers=h,
+    )
+    assert added.status_code == 201, added.text
+    fresh = client.post(
+        members,
+        json={
+            "email": "new@example.com",
+            "display_name": "New",
+            "role": "editor",
+            "initial_password": PASSWORD,
+        },
+        headers=h,
+    )
+    assert fresh.status_code == 201, fresh.text
+    notices = asyncio.run(
+        _query(
+            select(Notification.kind, Notification.workspace_id, Notification.data, User.email)
+            .join(User, User.id == Notification.user_id)
+            .where(Notification.kind == "security.workspace_added")
+        )
+    )
+    assert [(n[0], str(n[1]), n[2], n[3]) for n in notices] == [
+        ("security.workspace_added", str(world.workspace_id), {"role": "viewer"}, "stranger@example.com")
+    ]

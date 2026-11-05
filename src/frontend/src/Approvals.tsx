@@ -21,12 +21,20 @@ export default function Approvals({ me, onOpenPost }: { me: Me; onOpenPost: (pos
   const [items, setItems] = useState<Post[]>([]);
   const [msg, setMsg] = useState<{ ok?: string; error?: string }>({});
   const [busy, setBusy] = useState<string | null>(null);
+  // "Nothing is waiting" only after the server answered; before that the list is unknown, not empty.
+  const [listState, setListState] = useState<'loading' | 'ready' | 'error'>('loading');
 
   const load = useCallback(() => {
     if (!wsId) return;
     listPosts(wsId, { status: 'pending_approval', order: 'oldest' })
-      .then(setItems)
-      .catch((e) => setMsg({ error: errorText(e) }));
+      .then((list) => {
+        setItems(list);
+        setListState('ready');
+      })
+      .catch((e) => {
+        setMsg({ error: errorText(e) });
+        setListState((cur) => (cur === 'ready' ? cur : 'error'));
+      });
   }, [wsId]);
 
   useEffect(load, [load]);
@@ -52,7 +60,12 @@ export default function Approvals({ me, onOpenPost }: { me: Me; onOpenPost: (pos
   return (
     <section className="card">
       {!canApprove && <p className="muted small">{t.approvals.readOnly}</p>}
-      {items.length === 0 && <p className="muted">{t.approvals.none}</p>}
+      {listState === 'loading' && (
+        <p className="muted" role="status">
+          {t.loading}
+        </p>
+      )}
+      {listState === 'ready' && items.length === 0 && <p className="muted">{t.approvals.none}</p>}
       <ul className="queue">
         {items.map((p) => (
           <li key={p.id} className="queue-item">

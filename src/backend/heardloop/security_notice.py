@@ -20,15 +20,44 @@ MFA_ENABLED = "security.mfa_enabled"
 MFA_DISABLED = "security.mfa_disabled"
 RECOVERY_CODES_REGENERATED = "security.recovery_codes_regenerated"
 SESSIONS_REVOKED = "security.sessions_revoked"
+# An owner added this existing account to another workspace: the person learns about it (no silent add).
+WORKSPACE_ADDED = "security.workspace_added"
 
-SECURITY_KINDS = (PASSWORD_CHANGED, MFA_ENABLED, MFA_DISABLED, RECOVERY_CODES_REGENERATED, SESSIONS_REVOKED)
+SECURITY_KINDS = (
+    PASSWORD_CHANGED,
+    MFA_ENABLED,
+    MFA_DISABLED,
+    RECOVERY_CODES_REGENERATED,
+    SESSIONS_REVOKED,
+    WORKSPACE_ADDED,
+)
 
 
 async def notify_security(
-    db: AsyncSession, user_id: uuid.UUID, kind: str, now: datetime, *, count: int | None = None
+    db: AsyncSession,
+    user_id: uuid.UUID,
+    kind: str,
+    now: datetime,
+    *,
+    count: int | None = None,
+    workspace_id: uuid.UUID | None = None,
+    data: dict[str, str] | None = None,
 ) -> None:
+    """`workspace_id` pins the notice to that workspace (default: the person's first one by name)."""
     if kind not in SECURITY_KINDS:
         raise ValueError(kind)
+    if workspace_id is not None:
+        db.add(
+            Notification(
+                workspace_id=workspace_id,
+                user_id=user_id,
+                kind=kind,
+                data=dict(data or {}),
+                created_at=now,
+                email_status="pending" if get_settings().email_configured else "skipped",
+            )
+        )
+        return
     workspace_id = (
         await db.execute(
             select(Membership.workspace_id)

@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { checkAppVersion, getAppVersion, type AppVersion, type Me } from './api';
 import { installDocUrl, installUpdateDocUrl, REPO } from './docsLinks';
 import { LOCALE, t } from './i18n';
+import NotesDialog from './NotesDialog';
 import { notesAsNodes } from './notesText';
 import { aboutUpdateLines } from './updateStatus';
 
@@ -93,6 +94,11 @@ export default function AboutSettings({
           <p>
             {t.about.versionLabel}: <strong>v{info.version}</strong>
           </p>
+          {(info.config_warnings ?? []).map((w) => (
+            <p key={w} className="banner" role="alert">
+              {t.about.configWarnings[w] ?? w}
+            </p>
+          ))}
           {stale && (
             <p className="banner version-stale" role="status">
               {t.about.staleBundle}{' '}
@@ -176,19 +182,12 @@ export default function AboutSettings({
         </>
       )}
       {showNotes && info && notesLatest && (
-        <dialog open className="notes-dialog" onClose={() => setShowNotes(false)}>
-          <form method="dialog">
-            <h3>{t.about.whatsNewTitle(notesLatest)}</h3>
-            <div className="notes-body">
-              {notesAsNodes(
-                (info.update_status?.status === 'newer'
-                  ? info.update_status.notes
-                  : info.update?.notes) || t.about.noNotes,
-              )}
-            </div>
-            <button type="submit">{t.about.close}</button>
-          </form>
-        </dialog>
+        <NotesDialog title={t.about.whatsNewTitle(notesLatest)} onClose={() => setShowNotes(false)}>
+          {notesAsNodes(
+            (info.update_status?.status === 'newer' ? info.update_status.notes : info.update?.notes) ||
+              t.about.noNotes,
+          )}
+        </NotesDialog>
       )}
     </section>
   );

@@ -39,6 +39,7 @@ import WebhookSettings from './WebhookSettings';
 import AppearanceSettings from './AppearanceSettings';
 import AboutSettings from './AboutSettings';
 import AudienceSettings from './AudienceSettings';
+import { NAV_EVENT, pushUrl, sectionUrl } from './nav';
 
 const ROLES: Role[] = ['owner', 'editor', 'approver', 'viewer'];
 
@@ -69,10 +70,26 @@ export default function Settings({
   const tabs: Tab[] = isOwner
     ? ['appearance', 'workspace', 'members', 'security', 'webhook', 'audit', 'about']
     : ['appearance', 'workspace', 'members', 'security', 'about'];
-  const [tab, setTab] = useState<Tab>(() => {
+  const tabFromUrl = (): Tab => {
     const wanted = new URLSearchParams(window.location.search).get('tab') as Tab | null;
     return wanted && tabs.includes(wanted) ? wanted : 'appearance';
-  });
+  };
+  const [tab, setTabState] = useState<Tab>(tabFromUrl);
+  // The open tab lives in the address bar (?tab=): Back/Forward, reload and links from e-mails all land on it.
+  useEffect(() => {
+    const sync = () => setTabState(tabFromUrl());
+    window.addEventListener('popstate', sync);
+    window.addEventListener(NAV_EVENT, sync);
+    return () => {
+      window.removeEventListener('popstate', sync);
+      window.removeEventListener(NAV_EVENT, sync);
+    };
+  }, [isOwner]); // eslint-disable-line react-hooks/exhaustive-deps
+  function setTab(id: Tab) {
+    if (id === tab) return;
+    pushUrl(sectionUrl('settings', { tab: id }));
+    setTabState(id);
+  }
   if (!membership) return <p className="muted">{t.settings.noWorkspace}</p>;
   const wsId = membership.workspace_id;
   return (
@@ -357,88 +374,98 @@ function MembersSection({ workspaceId, isOwner, myId }: { workspaceId: string; i
   return (
     <section className="card">
       <h2>{t.settings.members}</h2>
-      <table className="table">
-        <thead>
-          <tr>
-            <th>{t.settings.name}</th>
-            <th>{t.login.email}</th>
-            <th>{t.settings.role}</th>
-            {isOwner && <th aria-label={t.settings.actions} />}
-          </tr>
-        </thead>
-        <tbody>
-          {members.map((m) => (
-            <tr key={m.user_id}>
-              <td>{m.display_name}</td>
-              <td dir="ltr">{m.email}</td>
-              <td>
-                {isOwner ? (
-                  <select
-                    value={m.role}
-                    aria-label={t.settings.role}
-                    onChange={(e) => run(() => updateMember(workspaceId, m.user_id, e.target.value as Role), t.settings.saved)}
-                  >
-                    {ROLES.map((r) => (
-                      <option key={r} value={r}>{t.roles[r]}</option>
-                    ))}
-                  </select>
-                ) : (
-                  t.roles[m.role]
-                )}
-              </td>
-              {isOwner && (
-                <td className="member-actions">
-                  {m.user_id !== myId && (
-                    <>
-                      <button
-                        type="button"
-                        className="link"
-                        aria-label={t.settings.removeLabel(m.display_name)}
-                        onClick={() => {
-                          if (window.confirm(t.settings.confirmRemove(m.display_name))) {
-                            void run(() => removeMember(workspaceId, m.user_id), t.settings.memberRemoved);
-                          }
-                        }}
-                      >
-                        {t.settings.remove}
-                      </button>
-                      <span className="muted" aria-hidden="true">
-                        {' · '}
-                      </span>
-                      <button
-                        type="button"
-                        className="link danger"
-                        aria-label={t.settings.anonymiseLabel(m.display_name)}
-                        onClick={() => setAnonymising(m)}
-                      >
-                        {t.settings.anonymise}
-                      </button>
-                    </>
+      <div className="table-wrap">
+        <table className="table">
+          <thead>
+            <tr>
+              <th>{t.settings.name}</th>
+              <th>{t.login.email}</th>
+              <th>{t.settings.role}</th>
+              {isOwner && <th aria-label={t.settings.actions} />}
+            </tr>
+          </thead>
+          <tbody>
+            {members.map((m) => (
+              <tr key={m.user_id}>
+                <td>{m.display_name}</td>
+                <td dir="ltr">{m.email}</td>
+                <td>
+                  {isOwner ? (
+                    <select
+                      value={m.role}
+                      aria-label={t.settings.role}
+                      onChange={(e) => run(() => updateMember(workspaceId, m.user_id, e.target.value as Role), t.settings.saved)}
+                    >
+                      {ROLES.map((r) => (
+                        <option key={r} value={r}>{t.roles[r]}</option>
+                      ))}
+                    </select>
+                  ) : (
+                    t.roles[m.role]
                   )}
                 </td>
-              )}
-            </tr>
-          ))}
-        </tbody>
-      </table>
+                {isOwner && (
+                  <td className="member-actions">
+                    {m.user_id !== myId && (
+                      <>
+                        <button
+                          type="button"
+                          className="link"
+                          aria-label={t.settings.removeLabel(m.display_name)}
+                          onClick={() => {
+                            if (window.confirm(t.settings.confirmRemove(m.display_name))) {
+                              void run(() => removeMember(workspaceId, m.user_id), t.settings.memberRemoved);
+                            }
+                          }}
+                        >
+                          {t.settings.remove}
+                        </button>
+                        <span className="muted" aria-hidden="true">
+                          {' · '}
+                        </span>
+                        <button
+                          type="button"
+                          className="link danger"
+                          aria-label={t.settings.anonymiseLabel(m.display_name)}
+                          onClick={() => setAnonymising(m)}
+                        >
+                          {t.settings.anonymise}
+                        </button>
+                      </>
+                    )}
+                  </td>
+                )}
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
       {isOwner && (
         <form className="form inline" onSubmit={add}>
           <h3>{t.settings.addMember}</h3>
-          <input placeholder={t.login.email} dir="ltr" type="email" required value={form.email} onChange={(e) => setForm({ ...form, email: e.target.value })} />
-          <input placeholder={t.settings.name} required maxLength={200} value={form.display_name} onChange={(e) => setForm({ ...form, display_name: e.target.value })} />
+          <label>
+            {t.login.email}
+            <input dir="ltr" type="email" required value={form.email} onChange={(e) => setForm({ ...form, email: e.target.value })} />
+          </label>
+          <label>
+            {t.settings.name}
+            <input required maxLength={200} value={form.display_name} onChange={(e) => setForm({ ...form, display_name: e.target.value })} />
+          </label>
           <select value={form.role} aria-label={t.settings.role} onChange={(e) => setForm({ ...form, role: e.target.value as Role })}>
             {ROLES.map((r) => (
               <option key={r} value={r}>{t.roles[r]}</option>
             ))}
           </select>
-          <input
-            placeholder={t.settings.initialPassword}
-            type="password"
-            autoComplete="new-password"
-            dir="ltr"
-            value={form.initial_password}
-            onChange={(e) => setForm({ ...form, initial_password: e.target.value })}
-          />
+          <label>
+            {t.settings.initialPassword}
+            <input
+              type="password"
+              autoComplete="new-password"
+              dir="ltr"
+              value={form.initial_password}
+              onChange={(e) => setForm({ ...form, initial_password: e.target.value })}
+            />
+          </label>
           <button type="submit" className="primary">{t.settings.add}</button>
           <p className="muted small">{t.settings.initialPasswordHint}</p>
         </form>
@@ -591,9 +618,18 @@ function PasswordSection() {
     <section className="card">
       <h2>{t.settings.myPassword}</h2>
       <form className="form" onSubmit={submit}>
-        <input type="password" dir="ltr" autoComplete="current-password" required placeholder={t.settings.currentPassword} value={form.current} onChange={(e) => setForm({ ...form, current: e.target.value })} />
-        <input type="password" dir="ltr" autoComplete="new-password" required minLength={12} placeholder={t.settings.newPassword} value={form.next} onChange={(e) => setForm({ ...form, next: e.target.value })} />
-        <input type="password" dir="ltr" autoComplete="new-password" required placeholder={t.settings.repeatPassword} value={form.repeat} onChange={(e) => setForm({ ...form, repeat: e.target.value })} />
+        <label>
+          {t.settings.currentPassword}
+          <input type="password" dir="ltr" autoComplete="current-password" required value={form.current} onChange={(e) => setForm({ ...form, current: e.target.value })} />
+        </label>
+        <label>
+          {t.settings.newPassword}
+          <input type="password" dir="ltr" autoComplete="new-password" required minLength={12} value={form.next} onChange={(e) => setForm({ ...form, next: e.target.value })} />
+        </label>
+        <label>
+          {t.settings.repeatPassword}
+          <input type="password" dir="ltr" autoComplete="new-password" required value={form.repeat} onChange={(e) => setForm({ ...form, repeat: e.target.value })} />
+        </label>
         <button type="submit" className="primary">{t.settings.changePassword}</button>
         <Status {...msg} />
       </form>
@@ -779,26 +815,28 @@ function AuditSection({ workspaceId }: { workspaceId: string }) {
         </button>
       </div>
       {items.length === 0 && <p className="muted">{hasFilter ? t.settings.noMatches : t.settings.noEvents}</p>}
-      <table className="table">
-        <thead>
-          <tr>
-            <th>{t.settings.when}</th>
-            <th>{t.settings.who}</th>
-            <th>{t.settings.what}</th>
-            <th>{t.settings.details}</th>
-          </tr>
-        </thead>
-        <tbody>
-          {items.map((e) => (
-            <tr key={e.id}>
-              <td dir="ltr">{fmt.format(new Date(e.at))}</td>
-              <td>{e.actor_name ?? '-'}</td>
-              <td>{(t.auditActions as Record<string, string>)[e.action] ?? e.action}</td>
-              <td className="small">{formatChanges(e.changes, fmt)}</td>
+      <div className="table-wrap">
+        <table className="table">
+          <thead>
+            <tr>
+              <th>{t.settings.when}</th>
+              <th>{t.settings.who}</th>
+              <th>{t.settings.what}</th>
+              <th>{t.settings.details}</th>
             </tr>
-          ))}
-        </tbody>
-      </table>
+          </thead>
+          <tbody>
+            {items.map((e) => (
+              <tr key={e.id}>
+                <td dir="ltr">{fmt.format(new Date(e.at))}</td>
+                <td>{e.actor_name ?? '-'}</td>
+                <td>{(t.auditActions as Record<string, string>)[e.action] ?? e.action}</td>
+                <td className="small">{formatChanges(e.changes, fmt)}</td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
       {next && (
         <button type="button" className="link" onClick={() => load(next)}>
           {t.settings.loadMore}
@@ -904,7 +942,10 @@ function MfaSection({ enabled, onChanged }: { enabled: boolean; onChanged: () =>
 
       {!enabled && !setup && (
         <form className="form" onSubmit={start}>
-          <input type="password" dir="ltr" autoComplete="current-password" required placeholder={t.settings.currentPassword} value={password} onChange={(e) => setPassword(e.target.value)} />
+          <label>
+            {t.settings.currentPassword}
+            <input type="password" dir="ltr" autoComplete="current-password" required value={password} onChange={(e) => setPassword(e.target.value)} />
+          </label>
           <button type="submit" className="primary">{t.mfa.enable}</button>
         </form>
       )}
@@ -916,7 +957,10 @@ function MfaSection({ enabled, onChanged }: { enabled: boolean; onChanged: () =>
           <p className="small">
             {t.mfa.manual} <code dir="ltr" className="mono">{setup.secret}</code>
           </p>
-          <input dir="ltr" inputMode="numeric" autoComplete="one-time-code" maxLength={6} required placeholder={t.mfa.codePlaceholder} value={code} onChange={(e) => setCode(e.target.value)} />
+          <label>
+            {t.mfa.codePlaceholder}
+            <input dir="ltr" inputMode="numeric" autoComplete="one-time-code" maxLength={6} required value={code} onChange={(e) => setCode(e.target.value)} />
+          </label>
           <button type="submit" className="primary">{t.mfa.confirm}</button>
         </form>
       )}
@@ -925,14 +969,26 @@ function MfaSection({ enabled, onChanged }: { enabled: boolean; onChanged: () =>
         <div className="stack tight">
           <form className="form" onSubmit={regenerate}>
             <h3>{t.mfa.newCodes}</h3>
-            <input type="password" dir="ltr" autoComplete="current-password" required placeholder={t.settings.currentPassword} value={password} onChange={(e) => setPassword(e.target.value)} />
-            <input dir="ltr" inputMode="numeric" maxLength={6} required placeholder={t.mfa.codePlaceholder} value={code} onChange={(e) => setCode(e.target.value)} />
+            <label>
+              {t.settings.currentPassword}
+              <input type="password" dir="ltr" autoComplete="current-password" required value={password} onChange={(e) => setPassword(e.target.value)} />
+            </label>
+            <label>
+              {t.mfa.codePlaceholder}
+              <input dir="ltr" inputMode="numeric" maxLength={6} required value={code} onChange={(e) => setCode(e.target.value)} />
+            </label>
             <button type="submit" className="primary">{t.mfa.newCodesButton}</button>
           </form>
           <form className="form" onSubmit={disable}>
             <h3>{t.mfa.disable}</h3>
-            <input type="password" dir="ltr" autoComplete="current-password" required placeholder={t.settings.currentPassword} value={password} onChange={(e) => setPassword(e.target.value)} />
-            <input dir="ltr" maxLength={32} required placeholder={t.mfa.codeOrRecovery} value={code} onChange={(e) => setCode(e.target.value)} />
+            <label>
+              {t.settings.currentPassword}
+              <input type="password" dir="ltr" autoComplete="current-password" required value={password} onChange={(e) => setPassword(e.target.value)} />
+            </label>
+            <label>
+              {t.mfa.codeOrRecovery}
+              <input dir="ltr" maxLength={32} required value={code} onChange={(e) => setCode(e.target.value)} />
+            </label>
             <button type="submit" className="link danger">{t.mfa.disable}</button>
           </form>
         </div>

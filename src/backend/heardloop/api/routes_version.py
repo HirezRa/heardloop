@@ -29,6 +29,8 @@ class VersionOut(BaseModel):
     git_sha: str
     update: dict[str, Any] | None = None
     update_status: dict[str, Any] | None = None
+    # Owners only: unsafe settings to fix (see Settings.config_warnings), e.g. "development_mode".
+    config_warnings: list[str] = []
 
 
 async def _is_owner(db: Db, user_id: object) -> bool:
@@ -57,9 +59,17 @@ async def get_version(principal: CurrentPrincipal, db: Db) -> VersionOut:
     state = await load_update_state(db)
     update = None
     update_status = None
+    warnings: list[str] = []
     if await _is_owner(db, user_id):
         update, update_status = _owner_payload(state, current)
-    return VersionOut(version=current, git_sha=git_sha(), update=update, update_status=update_status)
+        warnings = get_settings().config_warnings()
+    return VersionOut(
+        version=current,
+        git_sha=git_sha(),
+        update=update,
+        update_status=update_status,
+        config_warnings=warnings,
+    )
 
 
 @router.post("/version/check")
@@ -75,4 +85,10 @@ async def check_version(request: Request, principal: CurrentPrincipal, db: Db) -
     current = app_version()
     state = await load_update_state(db, populate_existing=True)
     update, update_status = _owner_payload(state, current)
-    return VersionOut(version=current, git_sha=git_sha(), update=update, update_status=update_status)
+    return VersionOut(
+        version=current,
+        git_sha=git_sha(),
+        update=update,
+        update_status=update_status,
+        config_warnings=get_settings().config_warnings(),
+    )

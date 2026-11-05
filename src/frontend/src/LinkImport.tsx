@@ -57,7 +57,8 @@ export default function LinkImport({
   onCancel,
 }: {
   workspaceId: string;
-  onImported: (postId: string, created: boolean) => void;
+  /** `planningFailed`: the post came in, but the chosen campaign or audience could not be set on it. */
+  onImported: (postId: string, created: boolean, planningFailed: boolean) => void;
   onCancel: () => void;
 }) {
   const [link, setLink] = useState('');
@@ -125,13 +126,18 @@ export default function LinkImport({
         postLink: link,
         fileActivityId: fileId ?? undefined,
       });
+      let planningFailed = false;
       if (res.created && (campaignId || audienceId)) {
-        await updatePost(workspaceId, res.post_id, {
-          ...(campaignId ? { campaign_id: campaignId } : {}),
-          ...(audienceId ? { audience_id: audienceId } : {}),
-        }).catch(() => undefined); // the post exists; planning fields can be set in the editor
+        try {
+          await updatePost(workspaceId, res.post_id, {
+            ...(campaignId ? { campaign_id: campaignId } : {}),
+            ...(audienceId ? { audience_id: audienceId } : {}),
+          });
+        } catch {
+          planningFailed = true; // the post exists; say so, and let the editor set the fields
+        }
       }
-      onImported(res.post_id, res.created);
+      onImported(res.post_id, res.created, planningFailed);
     } catch (err) {
       setError(err instanceof ApiError && err.detail === 'already_imported' ? t.linkImport.alreadyToday : importErrorText(err));
     } finally {

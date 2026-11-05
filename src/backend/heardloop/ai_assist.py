@@ -11,6 +11,7 @@ import asyncio
 import json
 import logging
 import re
+import secrets
 import time
 from dataclasses import dataclass
 from enum import StrEnum
@@ -30,6 +31,8 @@ MAX_HASHTAGS = 5
 _CONTROL_KEEP_NEWLINE = re.compile(r"[\x00-\x09\x0b-\x1f\x7f-\x9f]")
 _HASHTAG = re.compile(r"#([^\W_][\w\u0591-\u05C7\u0300-\u036F]{0,63})", re.UNICODE)
 _FENCE = re.compile(r"^```[a-zA-Z]*\n(.*?)\n```$", re.DOTALL)
+_FENCE_TAG_OPEN = re.compile(r"\A<<<[0-9a-f]{8}\n?")
+_FENCE_TAG_CLOSE = re.compile(r"\n?[0-9a-f]{8}>>>\Z")
 
 
 class AssistAction(StrEnum):
@@ -106,8 +109,11 @@ def build_messages(action: AssistAction, text: str, tone: AssistTone | None) -> 
     system = _BASE_RULES + " " + _TASKS[action]
     if tone is not None and action not in (AssistAction.FIX, AssistAction.HASHTAGS):
         system += " " + _TONES[tone]
-    # The post is fenced so a line like "ignore the rules" inside it reads as content.
-    user = "Post:\n<<<\n" + text + "\n>>>"
+    # The post is fenced so a line like "ignore the rules" inside it reads as content. The fence carries a
+    # random tag per request, so text that contains ">>>" cannot close it early and open a fake block.
+    tag = secrets.token_hex(4)
+    system += f" The post is the text between <<<{tag} and {tag}>>>."
+    user = f"Post:\n<<<{tag}\n{text}\n{tag}>>>"
     return [{"role": "system", "content": system}, {"role": "user", "content": user}]
 
 
@@ -117,6 +123,8 @@ def clean_output(raw: str) -> str:
     fenced = _FENCE.match(value)
     if fenced:
         value = fenced.group(1).strip()
+    value = _FENCE_TAG_OPEN.sub("", value)
+    value = _FENCE_TAG_CLOSE.sub("", value).strip()
     for marker in ("<<<", ">>>"):
         value = value.removeprefix(marker).removesuffix(marker).strip()
     if len(value) >= 2 and value[0] == value[-1] and value[0] in "\"'“”":

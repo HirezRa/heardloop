@@ -1,6 +1,7 @@
 import { StrictMode } from 'react';
 import { createRoot } from 'react-dom/client';
 import App from './App';
+import { setOperatorPages } from './docsLinks';
 import { setLocale, type Locale } from './i18n';
 import { setServerLocale } from './prefs';
 import './styles.css';
@@ -10,7 +11,12 @@ async function loadLocale(): Promise<Locale> {
   try {
     const res = await fetch('/api/v1/meta', { headers: { Accept: 'application/json' } });
     if (!res.ok) return 'en';
-    const meta = (await res.json()) as { ui_language?: string };
+    const meta = (await res.json()) as {
+      ui_language?: string;
+      privacy_url?: string | null;
+      accessibility_url?: string | null;
+    };
+    setOperatorPages(meta.privacy_url, meta.accessibility_url);
     return meta.ui_language === 'he' ? 'he' : 'en';
   } catch {
     return 'en';

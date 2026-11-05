@@ -1,5 +1,6 @@
-import { useState, type RefObject } from 'react';
+import { useState, type ReactNode, type RefObject } from 'react';
 import { LOCALE, t } from './i18n';
+import Icon from './Icon';
 import {
   BULLETS,
   RLM,
@@ -108,8 +109,15 @@ export default function EditorToolbar({
     });
   }
 
-  const btn = (label: string, title: string, onClick: () => void, extra?: string) => (
-    <button type="button" className={`tb${extra ? ` ${extra}` : ''}`} title={title} aria-label={title} disabled={disabled} onClick={onClick}>
+  const btn = (label: ReactNode, title: string, onClick: () => void, extra?: string) => (
+    <button
+      type="button"
+      className={`tb${extra ? ` ${extra}` : ''}`}
+      title={title}
+      aria-label={title}
+      disabled={disabled}
+      onClick={onClick}
+    >
       {label}
     </button>
   );
@@ -162,7 +170,7 @@ export default function EditorToolbar({
             </div>
           )}
         </span>
-        {btn('🔗', t.editor.link, () => {
+        {btn(<Icon name="link" size={16} />, t.editor.link, () => {
           const s = selection();
           const url = window.prompt(t.editor.linkPrompt)?.trim();
           if (!url) return;

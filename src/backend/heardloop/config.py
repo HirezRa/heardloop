@@ -1,8 +1,10 @@
 """Settings from environment variables. Secrets are SecretStr so they never show up in logs or reprs."""
 
+import ipaddress
 import re
 from functools import lru_cache
 from pathlib import Path
+from urllib.parse import urlparse
 
 from pydantic import Field, SecretStr, field_validator, model_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
@@ -29,6 +31,10 @@ class Settings(BaseSettings):
 
     # Links in e-mails and webhook payloads point here.
     app_base_url: str = Field(default="http://localhost:8380", alias="APP_BASE_URL")
+    # The operator's own privacy notice and accessibility statement (templates: docs/PRIVACY.md and
+    # docs/ACCESSIBILITY.md). Empty = the app links to the templates in the repository.
+    privacy_url: str = Field(default="", alias="PRIVACY_URL")
+    accessibility_url: str = Field(default="", alias="ACCESSIBILITY_URL")
 
     # E-mail notifications (optional). Empty SMTP_HOST = e-mail off, in-app notifications only.
     smtp_host: str = Field(default="", alias="SMTP_HOST")
@@ -62,7 +68,7 @@ class Settings(BaseSettings):
 
     # Activity log: clear the IP address of entries older than this many days (hourly, by the worker).
     # 0 = keep them until the owner purges the log.
-    audit_ip_retention_days: int = Field(default=0, alias="AUDIT_IP_RETENTION_DAYS", ge=0, le=3650)
+    audit_ip_retention_days: int = Field(default=90, alias="AUDIT_IP_RETENTION_DAYS", ge=0, le=3650)
 
     # Sessions. Browsers accept Secure cookies on http://localhost, so keep this on.
     cookie_secure: bool = Field(default=True, alias="COOKIE_SECURE")
@@ -164,6 +170,16 @@ class Settings(BaseSettings):
             raise ValueError("SMTP_SECURITY must be starttls, ssl or none")
         return value
 
+    @field_validator("privacy_url", "accessibility_url", mode="before")
+    @classmethod
+    def _public_page_url(cls, v: object) -> object:
+        value = str(v or "").strip()
+        if not value or value.startswith("<"):
+            return ""
+        if not re.fullmatch(r"https?://[^\s\"'<>]+", value):
+            raise ValueError("PRIVACY_URL / ACCESSIBILITY_URL must be an http(s) address")
+        return value
+
     @field_validator("app_base_url", mode="before")
     @classmethod
     def _base_url(cls, v: object) -> object:
@@ -210,6 +226,29 @@ class Settings(BaseSettings):
     def ai_configured(self) -> bool:
         return bool(self.ai_base_url and self.ai_model)
 
+    @property
+    def ai_host(self) -> str | None:
+        """host[:port] of the AI server, shown to writers so they know where the text goes."""
+        if not self.ai_configured:
+            return None
+        return urlparse(self.ai_base_url).netloc or None
+
+    def config_warnings(self) -> list[str]:
+        """Settings that are unsafe outside a developer's machine. Logged at start-up, shown to owners."""
+        warnings: list[str] = []
+        if self.is_development and not _is_loopback(urlparse(self.app_base_url).hostname):
+            # /api/docs and the demo seed are open in development mode.
+            warnings.append("development_mode")
+        ai = urlparse(self.ai_base_url) if self.ai_configured else None
+        if (
+            ai is not None
+            and ai.scheme == "http"
+            and self.ai_api_key.get_secret_value()
+            and not _is_same_machine(ai.hostname)
+        ):
+            warnings.append("ai_key_over_http")
+        return warnings
+
     @field_validator("linkedin_client_secret", mode="before")
     @classmethod
     def _drop_secret_placeholder(cls, v: object) -> object:
@@ -248,3 +287,22 @@ class Settings(BaseSettings):
 @lru_cache
 def get_settings() -> Settings:
     return Settings()  # type: ignore[call-arg]  # values come from the environment
+
+
+def _is_loopback(host: str | None) -> bool:
+    if not host:
+        return False
+    if host.lower() == "localhost" or host.lower().endswith(".localhost"):
+        return True
+    try:
+        return ipaddress.ip_address(host).is_loopback
+    except ValueError:
+        return False
+
+
+def _is_same_machine(host: str | None) -> bool:
+    """Loopback, the Docker host, or a compose service name (no dot): traffic does not cross a network."""
+    if not host:
+        return False
+    docker_host = "host.docker.internal"  # privacy-allow: Docker Desktop's generic name for the host
+    return _is_loopback(host) or host.lower() == docker_host or ("." not in host and ":" not in host)

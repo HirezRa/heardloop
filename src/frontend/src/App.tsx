@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { lazy, Suspense, useEffect, useRef, useState, type MouseEvent } from 'react';
 import {
   fetchHealth,
   fetchMe,
@@ -15,16 +15,22 @@ import { installUpdateDocUrl } from './docsLinks';
 import { applyPrefs } from './prefs';
 import { LOCALE, t } from './i18n';
 import { notesAsNodes } from './notesText';
-import Accounts from './Accounts';
-import Approvals from './Approvals';
 import Calendar from './Calendar';
-import Campaigns from './Campaigns';
-import Posts from './Posts';
 import Login from './Login';
-import Notifications from './Notifications';
-import Reports from './Reports';
-import Settings from './Settings';
-import Templates from './Templates';
+import LegalLinks from './LegalLinks';
+import NotesDialog from './NotesDialog';
+import Icon from './Icon';
+import { acceptCurrentUrl, confirmDiscard, hasUnsaved, lastAppUrl, pushUrl, sectionUrl, type NavParams } from './nav';
+
+// Screens other than the calendar (the default) load on first use: the first download stays small.
+const Accounts = lazy(() => import('./Accounts'));
+const Approvals = lazy(() => import('./Approvals'));
+const Campaigns = lazy(() => import('./Campaigns'));
+const Notifications = lazy(() => import('./Notifications'));
+const Posts = lazy(() => import('./Posts'));
+const Reports = lazy(() => import('./Reports'));
+const Settings = lazy(() => import('./Settings'));
+const Templates = lazy(() => import('./Templates'));
 
 type SectionId = keyof typeof t.sections;
 
@@ -42,6 +48,19 @@ const SECTIONS: { id: SectionId; phase: number }[] = [
 
 // Shown through the bell, not as a menu entry.
 const HIDDEN_IN_MENU: SectionId[] = ['notifications'];
+
+/** The screen the address bar points at. Links from e-mails and webhooks: /?section=posts&post=<id> */
+function readLocation(): { active: SectionId; notFound: boolean; post: string | null } {
+  const params = new URLSearchParams(window.location.search);
+  const wanted = params.get('section');
+  const known = SECTIONS.some((s) => s.id === wanted);
+  return {
+    active: known ? (wanted as SectionId) : 'calendar',
+    // An unknown path or ?section= value (old or mistyped link) gets a "not found" screen, not a silent redirect.
+    notFound: window.location.pathname !== '/' || (wanted !== null && !known),
+    post: params.get('post'),
+  };
+}
 
 export default function App() {
   const [me, setMe] = useState<Me | null | undefined>(undefined);
@@ -69,15 +88,14 @@ export default function App() {
 }
 
 function Shell({ me, onMeChange, onLoggedOut }: { me: Me; onMeChange: (me: Me) => void; onLoggedOut: () => void }) {
-  const [active, setActive] = useState<SectionId>(() => {
-    const wanted = new URLSearchParams(window.location.search).get('section');
-    return SECTIONS.some((s) => s.id === wanted) ? (wanted as SectionId) : 'calendar';
-  });
+  const [active, setActive] = useState<SectionId>(() => readLocation().active);
+  const [notFound, setNotFound] = useState(() => readLocation().notFound);
   const [health, setHealth] = useState<HealthState>('checking');
-  // Links from e-mails and webhooks: /?section=posts&post=<id>
-  const [focusPostId, setFocusPostId] = useState<string | null>(
-    () => new URLSearchParams(window.location.search).get('post'),
-  );
+  const [focusPostId, setFocusPostId] = useState<string | null>(() => readLocation().post);
+  const headingRef = useRef<HTMLHeadingElement>(null);
+  const mainRef = useRef<HTMLElement>(null);
+  const shownScreen = useRef<string | null>(null);
+  const [menuOpen, setMenuOpen] = useState(false); // narrow screens: the folded menu
   const [unread, setUnread] = useState(0);
   const [appVersion, setAppVersion] = useState<AppVersion | null>(null);
   const [notesOpen, setNotesOpen] = useState(false);
@@ -99,19 +117,78 @@ function Shell({ me, onMeChange, onLoggedOut }: { me: Me; onMeChange: (me: Me) =
   }, []);
 
   function openPost(postId: string) {
-    setFocusPostId(postId);
-    setActive('posts');
+    go('posts', { post: postId });
   }
 
-  function go(id: SectionId) {
-    setFocusPostId(null);
+  /** Every screen change goes through here: unsaved-edit guard, address bar, then state. */
+  function go(id: SectionId, params: NavParams = {}) {
+    const sameScreen = id === active && !notFound;
+    // The menu entry of the screen already shown: nothing to do (and nothing to lose).
+    if (sameScreen && !params.tab && !params.post) {
+      setMenuOpen(false);
+      return;
+    }
+    if (!sameScreen && !confirmDiscard()) return;
+    pushUrl(sectionUrl(id, params));
+    setMenuOpen(false);
+    setFocusPostId(params.post ?? null);
+    setNotFound(false);
     setActive(id);
   }
 
   /** Settings -> Workspace, where audiences are managed (the editor and the campaign form link here). */
   function openAudiences() {
-    window.history.replaceState(null, '', '?section=settings&tab=workspace');
-    go('settings');
+    go('settings', { tab: 'workspace' });
+  }
+
+  // Back / Forward: show the screen the address bar now points at.
+  useEffect(() => {
+    function onPopState() {
+      if (hasUnsaved() && !confirmDiscard()) {
+        // Stay: put the address of the screen that is still shown back on top.
+        window.history.pushState(null, '', lastAppUrl());
+        return;
+      }
+      acceptCurrentUrl();
+      setMenuOpen(false);
+      const loc = readLocation();
+      setFocusPostId(loc.post);
+      setNotFound(loc.notFound);
+      setActive(loc.active);
+    }
+    window.addEventListener('popstate', onPopState);
+    return () => window.removeEventListener('popstate', onPopState);
+  }, []);
+
+  // A new screen: move keyboard and screen-reader focus to its heading and name the browser tab after it.
+  // The first render is skipped (focus stays where the browser puts it on load); StrictMode re-runs are no-ops.
+  const screenKey = notFound ? 'not-found' : active;
+  useEffect(() => {
+    const [name] = notFound ? [t.notFound.title] : t.sections[active];
+    document.title = `${name} · Heardloop`;
+    if (shownScreen.current === null) {
+      shownScreen.current = screenKey;
+      return;
+    }
+    if (shownScreen.current === screenKey) return;
+    shownScreen.current = screenKey;
+    headingRef.current?.focus();
+  }, [screenKey]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // A reload or closing the tab with unsaved edits asks the browser's own "leave site?" question.
+  useEffect(() => {
+    function onBeforeUnload(e: BeforeUnloadEvent) {
+      if (!hasUnsaved()) return;
+      e.preventDefault();
+      e.returnValue = '';
+    }
+    window.addEventListener('beforeunload', onBeforeUnload);
+    return () => window.removeEventListener('beforeunload', onBeforeUnload);
+  }, []);
+
+  function skipToContent(e: MouseEvent<HTMLAnchorElement>) {
+    e.preventDefault(); // no #hash in the address bar (it would add a history entry)
+    mainRef.current?.focus();
   }
 
   useEffect(() => {
@@ -126,6 +203,7 @@ function Shell({ me, onMeChange, onLoggedOut }: { me: Me; onMeChange: (me: Me) =
   }, []);
 
   async function signOut() {
+    if (!confirmDiscard()) return;
     try {
       await logout();
     } finally {
@@ -157,19 +235,47 @@ function Shell({ me, onMeChange, onLoggedOut }: { me: Me; onMeChange: (me: Me) =
 
   return (
     <div className="layout">
+      <a className="skip-link" href="#main" onClick={skipToContent}>
+        {t.ux.skipToContent}
+      </a>
       <aside className="sidebar">
-        <div className="brand">Heardloop</div>
-        {workspace && <div className="muted small">{workspace.workspace_name}</div>}
+        <div className="sidebar-top">
+          <div>
+            <div className="brand">Heardloop</div>
+            {/* The workspace name only adds information when it is not the product name again. */}
+            {workspace && workspace.workspace_name.trim().toLowerCase() !== 'heardloop' && (
+              <div className="muted small">{workspace.workspace_name}</div>
+            )}
+          </div>
+          {/* Narrow screens only (CSS): the menu folds away so the screen's content comes first. */}
+          <button
+            type="button"
+            className="menu-toggle"
+            aria-expanded={menuOpen}
+            aria-controls="app-menu"
+            onClick={() => setMenuOpen((open) => !open)}
+          >
+            <Icon name={menuOpen ? 'close' : 'menu'} />
+            {menuOpen ? t.ux.menuClose : t.ux.menuOpen}
+            {!menuOpen && unread > 0 && (
+              <span className="count" aria-hidden="true">
+                {unread > 99 ? '99+' : unread}
+              </span>
+            )}
+          </button>
+        </div>
+        <div id="app-menu" className={menuOpen ? 'sidebar-panel open' : 'sidebar-panel'}>
         <nav aria-label={t.nav}>
           {SECTIONS.filter((s) => !HIDDEN_IN_MENU.includes(s.id)).map((s) => (
             <button
               key={s.id}
               type="button"
-              className={s.id === active ? 'nav-item active' : 'nav-item'}
-              aria-current={s.id === active ? 'page' : undefined}
+              className={s.id === active && !notFound ? 'nav-item active' : 'nav-item'}
+              aria-current={s.id === active && !notFound ? 'page' : undefined}
               onClick={() => go(s.id)}
             >
-              {t.sections[s.id][0]}
+              <Icon name={s.id === 'notifications' ? 'bell' : s.id} />
+              <span>{t.sections[s.id][0]}</span>
             </button>
           ))}
         </nav>
@@ -179,16 +285,28 @@ function Shell({ me, onMeChange, onLoggedOut }: { me: Me; onMeChange: (me: Me) =
           aria-current={active === 'notifications' ? 'page' : undefined}
           onClick={() => go('notifications')}
         >
-          <span aria-hidden="true">🔔</span> {t.notifications.title}
+          <Icon name="bell" />
+          <span>{t.notifications.title}</span>
           {unread > 0 && (
-            <span className="count" aria-label={t.notifications.unread(unread)}>
-              {unread > 99 ? '99+' : unread}
-            </span>
+            <>
+              <span className="count" aria-hidden="true">
+                {unread > 99 ? '99+' : unread}
+              </span>
+              <span className="visually-hidden">{t.notifications.unread(unread)}</span>
+            </>
           )}
         </button>
         <div className="sidebar-footer">
-          <div className="muted small">{me.user.display_name}</div>
-          <button type="button" className="link" onClick={signOut}>
+          <div className="user-row">
+            <span className="avatar" aria-hidden="true">
+              {me.user.display_name.trim().charAt(0).toUpperCase() || '?'}
+            </span>
+            <span className="user-name" title={me.user.display_name}>
+              {me.user.display_name}
+            </span>
+          </div>
+          <button type="button" className="link signout" onClick={signOut}>
+            <Icon name="logout" size={16} />
             {t.logout}
           </button>
           {appVersion && (
@@ -196,23 +314,22 @@ function Shell({ me, onMeChange, onLoggedOut }: { me: Me; onMeChange: (me: Me) =
               Heardloop v{appVersion.version}
             </a>
           )}
+          <LegalLinks />
           <div className={`health health-${health}`} role="status">
             <span className="dot" aria-hidden="true" />
             {t.health[health]}
           </div>
         </div>
+        </div>
       </aside>
-      <main className="content">
+      <main className="content" id="main" ref={mainRef} tabIndex={-1}>
         {workspace?.role === 'owner' && !me.mfa_enabled && (
           <div className="banner" role="alert">
             {t.mfa.ownerBanner}{' '}
             <button
               type="button"
               className="link"
-              onClick={() => {
-                window.history.replaceState(null, '', '?section=settings&tab=security');
-                go('settings');
-              }}
+              onClick={() => go('settings', { tab: 'security' })}
             >
               {t.mfa.goToSettings}
             </button>
@@ -236,17 +353,23 @@ function Shell({ me, onMeChange, onLoggedOut }: { me: Me; onMeChange: (me: Me) =
           </div>
         )}
         {notesOpen && update && (
-          <dialog open className="notes-dialog" onClose={() => setNotesOpen(false)}>
-            <form method="dialog">
-              <h3>{t.about.whatsNewTitle(update.latest)}</h3>
-              <div className="notes-body">{notesAsNodes(update.notes || t.about.noNotes)}</div>
-              <button type="submit">{t.about.close}</button>
-            </form>
-          </dialog>
+          <NotesDialog title={t.about.whatsNewTitle(update.latest)} onClose={() => setNotesOpen(false)}>
+            {notesAsNodes(update.notes || t.about.noNotes)}
+          </NotesDialog>
         )}
-        <h1>{title}</h1>
-        <p className="muted">{description}</p>
-        {section.id === 'settings' ? (
+        <h1 ref={headingRef} tabIndex={-1} className="screen-title">
+          {notFound ? t.notFound.title : title}
+        </h1>
+        {!notFound && <p className="muted">{description}</p>}
+        <Suspense fallback={<div className="loading">{t.loading}</div>}>
+        {notFound ? (
+          <section className="card">
+            <p>{t.notFound.text}</p>
+            <button type="button" className="primary" onClick={() => go('calendar')}>
+              {t.notFound.toCalendar}
+            </button>
+          </section>
+        ) : section.id === 'settings' ? (
           <Settings me={me} onMeChange={onMeChange} appVersion={appVersion} onAppVersion={setAppVersion} />
         ) : section.id === 'accounts' ? (
           <Accounts me={me} />
@@ -267,6 +390,7 @@ function Shell({ me, onMeChange, onLoggedOut }: { me: Me; onMeChange: (me: Me) =
         ) : (
           <div className="placeholder">{t.comingInPhase(section.phase)}</div>
         )}
+        </Suspense>
       </main>
     </div>
   );

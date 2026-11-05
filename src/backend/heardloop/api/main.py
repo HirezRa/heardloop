@@ -62,6 +62,8 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
     app.state.preview_http = guarded_client(allow_private=False)  # user URLs: pinned, vetted IPs only
     await refresh_blocked_service_ips()
     log.info("API started", extra={"environment": settings.environment})
+    for warning in settings.config_warnings():
+        log.warning("Unsafe setting for a server", extra={"warning": warning})
     yield
     await app.state.http.aclose()
     await app.state.preview_http.aclose()
@@ -125,6 +127,9 @@ def create_app() -> FastAPI:
             "name": "Heardloop",
             "environment": settings.environment if settings.is_development else None,
             "ui_language": settings.ui_language,
+            # Shown before sign-in too (footer of the sign-in page); empty = the repository templates.
+            "privacy_url": settings.privacy_url or None,
+            "accessibility_url": settings.accessibility_url or None,
         }
 
     app.include_router(routes_auth.router)

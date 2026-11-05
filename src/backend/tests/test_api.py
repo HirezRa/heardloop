@@ -59,6 +59,21 @@ def test_meta_hides_environment_in_production(client: TestClient) -> None:
     assert "version" not in res.json()  # anonymous callers do not learn the version
 
 
+def test_meta_links_privacy_and_accessibility_pages(monkeypatch: pytest.MonkeyPatch) -> None:
+    with _app(monkeypatch) as plain:
+        meta = plain.get("/api/v1/meta").json()
+    assert meta["privacy_url"] is None and meta["accessibility_url"] is None  # the app links the templates
+    custom = _app(
+        monkeypatch,
+        PRIVACY_URL="https://example.com/privacy",
+        ACCESSIBILITY_URL="https://example.com/accessibility",
+    )
+    with custom:
+        meta = custom.get("/api/v1/meta").json()
+    assert meta["privacy_url"] == "https://example.com/privacy"
+    assert meta["accessibility_url"] == "https://example.com/accessibility"
+
+
 def test_security_headers_and_no_docs_in_production(client: TestClient) -> None:
     with client:
         res = client.get("/api/docs")

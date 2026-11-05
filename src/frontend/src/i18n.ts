@@ -547,9 +547,15 @@ const en = {
       securityMfaDisabled: 'Two-step verification was turned off for your account. Not you? Change your password now.',
       securityCodesRegenerated: 'New recovery codes were created; the old ones no longer work.',
       securitySessionsRevoked: (n: number) => `${n} other device(s) were signed out of your account.`,
+      securityWorkspaceAdded: (role: string) =>
+        `An owner added your account to this workspace as ${role}. If you did not expect this, ask the owner to remove you.`,
     },
   },
   about: {
+    configWarnings: {
+      development_mode: 'APP_ENV is set to development while the app is reachable beyond this computer: API docs and demo tools are open. Set APP_ENV=production in .env and restart.',
+      ai_key_over_http: 'The AI key is sent over plain http to another machine. Use https for AI_BASE_URL, or a server on this computer.',
+    } as Record<string, string>,
     title: 'About Heardloop',
     versionLabel: 'Version',
     gitSha: 'Build',
@@ -665,6 +671,7 @@ const en = {
   ai: {
     title: 'AI assistant',
     hint: 'Works on the selected text, or on the whole post when nothing is selected. Nothing changes until you choose.',
+    sentTo: 'The text you work on is sent to the AI server set up by the owner:',
     actions: {
       improve: 'Improve',
       shorten: 'Shorten',
@@ -797,6 +804,7 @@ const en = {
     created: 'Post imported with its numbers.',
     matched: 'This post was already in Heardloop; its numbers were added.',
     alreadyToday: 'This post is already in Heardloop and its numbers were already imported today.',
+    planningNotSet: 'The campaign or audience could not be set. Set it in the editor.',
     privacy: 'The file is read once and not kept; only the numbers are saved. Nothing is fetched from LinkedIn.',
   },
   exportImport: {
@@ -925,6 +933,12 @@ const en = {
     open: 'Open',
   },
   comingInPhase: (phase: number) => `Coming in phase ${phase}`,
+  legal: { label: 'Legal', privacy: 'Privacy', accessibility: 'Accessibility statement' },
+  notFound: {
+    title: 'Page not found',
+    text: 'This address does not exist in Heardloop. It may come from an old link.',
+    toCalendar: 'Go to the calendar',
+  },
   sections: {
     calendar: ['Calendar', 'Scheduled and published posts by month or week.'],
     posts: ['Posts', 'Editor with preview, character counter and media.'],
@@ -941,6 +955,21 @@ const en = {
     healthy: 'Server and database OK',
     unhealthy: 'Server up, database down',
     offline: 'No connection to server',
+  },
+  // Navigation, unsaved edits and other cross-screen UX copy.
+  ux: {
+    skipToContent: 'Skip to content',
+    menuOpen: 'Menu',
+    menuClose: 'Close menu',
+    unsavedLeave: 'You have unsaved changes in the post editor. Leave and lose them?',
+    unsavedNote: 'Unsaved changes. Save to keep them; approval and scheduling show after saving.',
+    calHelpTitle: 'Moving posts without dragging',
+    calKeyboardHint:
+      'Keyboard: focus a scheduled post and press Shift + Left/Right to move it a day, Shift + Up/Down to move it a week. On a phone, open the post and change its date there.',
+    calCannotMove: 'This post cannot be moved from the calendar. Open it to see its status.',
+    calPastDay: 'A post cannot be moved to a day that has passed.',
+    chartData: 'Show the numbers as a table',
+    chartPeriod: 'Week',
   },
   // Publish failure reasons (codes from the worker). Keep in sync with publishErrors.ts / KNOWN_CODES.
   publishErrors: {
@@ -1571,9 +1600,15 @@ const he: Strings = {
       securityMfaDisabled: 'אימות דו-שלבי כובה בחשבון שלך. לא אתה? שנה את הסיסמה עכשיו.',
       securityCodesRegenerated: 'נוצרו קודי שחזור חדשים; הקודים הישנים כבר לא עובדים.',
       securitySessionsRevoked: (n: number) => `${n} מכשירים אחרים נותקו מהחשבון שלך.`,
+      securityWorkspaceAdded: (role: string) =>
+        `בעלים הוסיף את החשבון שלך ל-workspace הזה בתפקיד ${role}. אם לא ציפית לזה, אפשר לבקש מהבעלים להסיר אותך.`,
     },
   },
   about: {
+    configWarnings: {
+      development_mode: 'APP_ENV מוגדר כ-development והמערכת נגישה גם ממחשבים אחרים: תיעוד ה-API וכלי הדמו פתוחים. יש להגדיר APP_ENV=production בקובץ .env ולהפעיל מחדש.',
+      ai_key_over_http: 'מפתח ה-AI נשלח ב-http לא מוצפן למחשב אחר. יש להשתמש ב-https ב-AI_BASE_URL, או בשרת על המחשב הזה.',
+    } as Record<string, string>,
     title: 'אודות Heardloop',
     versionLabel: 'גרסה',
     gitSha: 'בנייה',
@@ -1689,6 +1724,7 @@ const he: Strings = {
   ai: {
     title: 'עוזר כתיבה (AI)',
     hint: 'עובד על הטקסט המסומן, או על כל הפוסט כשלא מסומן כלום. שום דבר לא משתנה עד שבוחרים.',
+    sentTo: 'הטקסט שעליו עובדים נשלח לשרת ה-AI שהבעלים הגדיר:',
     actions: {
       improve: 'שיפור',
       shorten: 'קיצור',
@@ -1821,6 +1857,7 @@ const he: Strings = {
     created: 'הפוסט יובא עם המספרים שלו.',
     matched: 'הפוסט כבר היה ב-Heardloop; המספרים נוספו לו.',
     alreadyToday: 'הפוסט כבר ב-Heardloop והמספרים שלו כבר יובאו היום.',
+    planningNotSet: 'לא ניתן היה לשייך קמפיין או קהל. אפשר לשייך בעורך.',
     privacy: 'הקובץ נקרא פעם אחת ולא נשמר; נשמרים רק המספרים. שום דבר לא נקרא מ-LinkedIn.',
   },
   exportImport: {
@@ -1947,6 +1984,12 @@ const he: Strings = {
     open: 'פתיחה',
   },
   comingInPhase: (phase: number) => `יגיע בשלב ${phase}`,
+  legal: { label: 'מידע משפטי', privacy: 'פרטיות', accessibility: 'הצהרת נגישות' },
+  notFound: {
+    title: 'הדף לא נמצא',
+    text: 'הכתובת הזאת לא קיימת ב-Heardloop. ייתכן שהיא מגיעה מקישור ישן.',
+    toCalendar: 'מעבר ללוח השנה',
+  },
   sections: {
     calendar: ['לוח שנה', 'פוסטים מתוזמנים ושפורסמו, לפי חודש או שבוע.'],
     posts: ['פוסטים', 'עורך עם תצוגה מקדימה, מונה תווים ומדיה.'],
@@ -1963,6 +2006,20 @@ const he: Strings = {
     healthy: 'השרת וה-DB תקינים',
     unhealthy: 'השרת עונה, ה-DB לא תקין',
     offline: 'אין חיבור לשרת',
+  },
+  ux: {
+    skipToContent: 'דילוג לתוכן',
+    menuOpen: 'תפריט',
+    menuClose: 'סגירת התפריט',
+    unsavedLeave: 'יש שינויים שלא נשמרו בעורך הפוסט. לצאת ולאבד אותם?',
+    unsavedNote: 'יש שינויים שלא נשמרו. צריך לשמור כדי לא לאבד אותם; אישור ותזמון מופיעים אחרי השמירה.',
+    calHelpTitle: 'הזזת פוסטים בלי גרירה',
+    calKeyboardHint:
+      'במקלדת: עומדים על פוסט מתוזמן ולוחצים Shift + חץ שמאלה/ימינה כדי להזיז אותו ביום, או Shift + חץ למעלה/למטה כדי להזיז אותו בשבוע. בטלפון: פותחים את הפוסט ומשנים שם את התאריך.',
+    calCannotMove: 'אי אפשר להזיז את הפוסט הזה מלוח השנה. אפשר לפתוח אותו ולראות את הסטטוס שלו.',
+    calPastDay: 'אי אפשר להזיז פוסט ליום שכבר עבר.',
+    chartData: 'הצגת המספרים כטבלה',
+    chartPeriod: 'שבוע',
   },
   publishErrors: {
     no_content: { message: 'לפוסט אין טקסט לפרסום.', whatToDo: 'הוסף טקסט וקבע מועד פרסום מחדש.' },
