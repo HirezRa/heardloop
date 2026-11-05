@@ -956,6 +956,20 @@ const en = {
     unhealthy: 'Server up, database down',
     offline: 'No connection to server',
   },
+  // Navigation, unsaved edits and other cross-screen UX copy.
+  ux: {
+    skipToContent: 'Skip to content',
+    menuOpen: 'Menu',
+    menuClose: 'Close menu',
+    unsavedLeave: 'You have unsaved changes in the post editor. Leave and lose them?',
+    unsavedNote: 'Unsaved changes. Save to keep them; approval and scheduling show after saving.',
+    calKeyboardHint:
+      'Keyboard: focus a scheduled post and press Shift + Left/Right to move it a day, Shift + Up/Down to move it a week. On a phone, open the post and change its date there.',
+    calCannotMove: 'This post cannot be moved from the calendar. Open it to see its status.',
+    calPastDay: 'A post cannot be moved to a day that has passed.',
+    chartData: 'Show the numbers as a table',
+    chartPeriod: 'Week',
+  },
   // Publish failure reasons (codes from the worker). Keep in sync with publishErrors.ts / KNOWN_CODES.
   publishErrors: {
     no_content: { message: 'The post has no text to publish.', whatToDo: 'Add text and schedule the post again.' },
@@ -1991,6 +2005,19 @@ const he: Strings = {
     healthy: 'השרת וה-DB תקינים',
     unhealthy: 'השרת עונה, ה-DB לא תקין',
     offline: 'אין חיבור לשרת',
+  },
+  ux: {
+    skipToContent: 'דילוג לתוכן',
+    menuOpen: 'תפריט',
+    menuClose: 'סגירת התפריט',
+    unsavedLeave: 'יש שינויים שלא נשמרו בעורך הפוסט. לצאת ולאבד אותם?',
+    unsavedNote: 'יש שינויים שלא נשמרו. צריך לשמור כדי לא לאבד אותם; אישור ותזמון מופיעים אחרי השמירה.',
+    calKeyboardHint:
+      'במקלדת: עומדים על פוסט מתוזמן ולוחצים Shift + חץ שמאלה/ימינה כדי להזיז אותו ביום, או Shift + חץ למעלה/למטה כדי להזיז אותו בשבוע. בטלפון: פותחים את הפוסט ומשנים שם את התאריך.',
+    calCannotMove: 'אי אפשר להזיז את הפוסט הזה מלוח השנה. אפשר לפתוח אותו ולראות את הסטטוס שלו.',
+    calPastDay: 'אי אפשר להזיז פוסט ליום שכבר עבר.',
+    chartData: 'הצגת המספרים כטבלה',
+    chartPeriod: 'שבוע',
   },
   publishErrors: {
     no_content: { message: 'לפוסט אין טקסט לפרסום.', whatToDo: 'הוסף טקסט וקבע מועד פרסום מחדש.' },

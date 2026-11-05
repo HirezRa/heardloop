@@ -1,4 +1,4 @@
-import { lazy, Suspense, useEffect, useState } from 'react';
+import { lazy, Suspense, useEffect, useRef, useState, type MouseEvent } from 'react';
 import {
   fetchHealth,
   fetchMe,
@@ -19,6 +19,7 @@ import Calendar from './Calendar';
 import Login from './Login';
 import LegalLinks from './LegalLinks';
 import NotesDialog from './NotesDialog';
+import { acceptCurrentUrl, confirmDiscard, hasUnsaved, lastAppUrl, pushUrl, sectionUrl, type NavParams } from './nav';
 
 // Screens other than the calendar (the default) load on first use: the first download stays small.
 const Accounts = lazy(() => import('./Accounts'));
@@ -47,6 +48,19 @@ const SECTIONS: { id: SectionId; phase: number }[] = [
 // Shown through the bell, not as a menu entry.
 const HIDDEN_IN_MENU: SectionId[] = ['notifications'];
 
+/** The screen the address bar points at. Links from e-mails and webhooks: /?section=posts&post=<id> */
+function readLocation(): { active: SectionId; notFound: boolean; post: string | null } {
+  const params = new URLSearchParams(window.location.search);
+  const wanted = params.get('section');
+  const known = SECTIONS.some((s) => s.id === wanted);
+  return {
+    active: known ? (wanted as SectionId) : 'calendar',
+    // An unknown path or ?section= value (old or mistyped link) gets a "not found" screen, not a silent redirect.
+    notFound: window.location.pathname !== '/' || (wanted !== null && !known),
+    post: params.get('post'),
+  };
+}
+
 export default function App() {
   const [me, setMe] = useState<Me | null | undefined>(undefined);
   // Strings and direction live in module state (i18n.ts); remount the shell when preferences change
@@ -73,20 +87,14 @@ export default function App() {
 }
 
 function Shell({ me, onMeChange, onLoggedOut }: { me: Me; onMeChange: (me: Me) => void; onLoggedOut: () => void }) {
-  const [active, setActive] = useState<SectionId>(() => {
-    const wanted = new URLSearchParams(window.location.search).get('section');
-    return SECTIONS.some((s) => s.id === wanted) ? (wanted as SectionId) : 'calendar';
-  });
-  // An unknown path or ?section= value (old or mistyped link) gets a "not found" screen, not a silent redirect.
-  const [notFound, setNotFound] = useState(() => {
-    const wanted = new URLSearchParams(window.location.search).get('section');
-    return window.location.pathname !== '/' || (wanted !== null && !SECTIONS.some((s) => s.id === wanted));
-  });
+  const [active, setActive] = useState<SectionId>(() => readLocation().active);
+  const [notFound, setNotFound] = useState(() => readLocation().notFound);
   const [health, setHealth] = useState<HealthState>('checking');
-  // Links from e-mails and webhooks: /?section=posts&post=<id>
-  const [focusPostId, setFocusPostId] = useState<string | null>(
-    () => new URLSearchParams(window.location.search).get('post'),
-  );
+  const [focusPostId, setFocusPostId] = useState<string | null>(() => readLocation().post);
+  const headingRef = useRef<HTMLHeadingElement>(null);
+  const mainRef = useRef<HTMLElement>(null);
+  const shownScreen = useRef<string | null>(null);
+  const [menuOpen, setMenuOpen] = useState(false); // narrow screens: the folded menu
   const [unread, setUnread] = useState(0);
   const [appVersion, setAppVersion] = useState<AppVersion | null>(null);
   const [notesOpen, setNotesOpen] = useState(false);
@@ -108,23 +116,78 @@ function Shell({ me, onMeChange, onLoggedOut }: { me: Me; onMeChange: (me: Me) =
   }, []);
 
   function openPost(postId: string) {
-    setFocusPostId(postId);
-    setActive('posts');
+    go('posts', { post: postId });
   }
 
-  function go(id: SectionId) {
-    setFocusPostId(null);
-    if (notFound) {
-      setNotFound(false);
-      window.history.replaceState(null, '', '/');
+  /** Every screen change goes through here: unsaved-edit guard, address bar, then state. */
+  function go(id: SectionId, params: NavParams = {}) {
+    const sameScreen = id === active && !notFound;
+    // The menu entry of the screen already shown: nothing to do (and nothing to lose).
+    if (sameScreen && !params.tab && !params.post) {
+      setMenuOpen(false);
+      return;
     }
+    if (!sameScreen && !confirmDiscard()) return;
+    pushUrl(sectionUrl(id, params));
+    setMenuOpen(false);
+    setFocusPostId(params.post ?? null);
+    setNotFound(false);
     setActive(id);
   }
 
   /** Settings -> Workspace, where audiences are managed (the editor and the campaign form link here). */
   function openAudiences() {
-    window.history.replaceState(null, '', '?section=settings&tab=workspace');
-    go('settings');
+    go('settings', { tab: 'workspace' });
+  }
+
+  // Back / Forward: show the screen the address bar now points at.
+  useEffect(() => {
+    function onPopState() {
+      if (hasUnsaved() && !confirmDiscard()) {
+        // Stay: put the address of the screen that is still shown back on top.
+        window.history.pushState(null, '', lastAppUrl());
+        return;
+      }
+      acceptCurrentUrl();
+      setMenuOpen(false);
+      const loc = readLocation();
+      setFocusPostId(loc.post);
+      setNotFound(loc.notFound);
+      setActive(loc.active);
+    }
+    window.addEventListener('popstate', onPopState);
+    return () => window.removeEventListener('popstate', onPopState);
+  }, []);
+
+  // A new screen: move keyboard and screen-reader focus to its heading and name the browser tab after it.
+  // The first render is skipped (focus stays where the browser puts it on load); StrictMode re-runs are no-ops.
+  const screenKey = notFound ? 'not-found' : active;
+  useEffect(() => {
+    const [name] = notFound ? [t.notFound.title] : t.sections[active];
+    document.title = `${name} · Heardloop`;
+    if (shownScreen.current === null) {
+      shownScreen.current = screenKey;
+      return;
+    }
+    if (shownScreen.current === screenKey) return;
+    shownScreen.current = screenKey;
+    headingRef.current?.focus();
+  }, [screenKey]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // A reload or closing the tab with unsaved edits asks the browser's own "leave site?" question.
+  useEffect(() => {
+    function onBeforeUnload(e: BeforeUnloadEvent) {
+      if (!hasUnsaved()) return;
+      e.preventDefault();
+      e.returnValue = '';
+    }
+    window.addEventListener('beforeunload', onBeforeUnload);
+    return () => window.removeEventListener('beforeunload', onBeforeUnload);
+  }, []);
+
+  function skipToContent(e: MouseEvent<HTMLAnchorElement>) {
+    e.preventDefault(); // no #hash in the address bar (it would add a history entry)
+    mainRef.current?.focus();
   }
 
   useEffect(() => {
@@ -139,6 +202,7 @@ function Shell({ me, onMeChange, onLoggedOut }: { me: Me; onMeChange: (me: Me) =
   }, []);
 
   async function signOut() {
+    if (!confirmDiscard()) return;
     try {
       await logout();
     } finally {
@@ -170,9 +234,32 @@ function Shell({ me, onMeChange, onLoggedOut }: { me: Me; onMeChange: (me: Me) =
 
   return (
     <div className="layout">
+      <a className="skip-link" href="#main" onClick={skipToContent}>
+        {t.ux.skipToContent}
+      </a>
       <aside className="sidebar">
-        <div className="brand">Heardloop</div>
-        {workspace && <div className="muted small">{workspace.workspace_name}</div>}
+        <div className="sidebar-top">
+          <div>
+            <div className="brand">Heardloop</div>
+            {workspace && <div className="muted small">{workspace.workspace_name}</div>}
+          </div>
+          {/* Narrow screens only (CSS): the menu folds away so the screen's content comes first. */}
+          <button
+            type="button"
+            className="menu-toggle"
+            aria-expanded={menuOpen}
+            aria-controls="app-menu"
+            onClick={() => setMenuOpen((open) => !open)}
+          >
+            {menuOpen ? t.ux.menuClose : t.ux.menuOpen}
+            {!menuOpen && unread > 0 && (
+              <span className="count" aria-hidden="true">
+                {unread > 99 ? '99+' : unread}
+              </span>
+            )}
+          </button>
+        </div>
+        <div id="app-menu" className={menuOpen ? 'sidebar-panel open' : 'sidebar-panel'}>
         <nav aria-label={t.nav}>
           {SECTIONS.filter((s) => !HIDDEN_IN_MENU.includes(s.id)).map((s) => (
             <button
@@ -194,9 +281,12 @@ function Shell({ me, onMeChange, onLoggedOut }: { me: Me; onMeChange: (me: Me) =
         >
           <span aria-hidden="true">🔔</span> {t.notifications.title}
           {unread > 0 && (
-            <span className="count" aria-label={t.notifications.unread(unread)}>
-              {unread > 99 ? '99+' : unread}
-            </span>
+            <>
+              <span className="count" aria-hidden="true">
+                {unread > 99 ? '99+' : unread}
+              </span>
+              <span className="visually-hidden">{t.notifications.unread(unread)}</span>
+            </>
           )}
         </button>
         <div className="sidebar-footer">
@@ -215,18 +305,16 @@ function Shell({ me, onMeChange, onLoggedOut }: { me: Me; onMeChange: (me: Me) =
             {t.health[health]}
           </div>
         </div>
+        </div>
       </aside>
-      <main className="content">
+      <main className="content" id="main" ref={mainRef} tabIndex={-1}>
         {workspace?.role === 'owner' && !me.mfa_enabled && (
           <div className="banner" role="alert">
             {t.mfa.ownerBanner}{' '}
             <button
               type="button"
               className="link"
-              onClick={() => {
-                window.history.replaceState(null, '', '?section=settings&tab=security');
-                go('settings');
-              }}
+              onClick={() => go('settings', { tab: 'security' })}
             >
               {t.mfa.goToSettings}
             </button>
@@ -254,7 +342,9 @@ function Shell({ me, onMeChange, onLoggedOut }: { me: Me; onMeChange: (me: Me) =
             {notesAsNodes(update.notes || t.about.noNotes)}
           </NotesDialog>
         )}
-        <h1>{notFound ? t.notFound.title : title}</h1>
+        <h1 ref={headingRef} tabIndex={-1} className="screen-title">
+          {notFound ? t.notFound.title : title}
+        </h1>
         {!notFound && <p className="muted">{description}</p>}
         <Suspense fallback={<div className="loading">{t.loading}</div>}>
         {notFound ? (

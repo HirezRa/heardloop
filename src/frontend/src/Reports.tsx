@@ -260,6 +260,33 @@ function Trend({ buckets }: { buckets: ReportBucket[] }) {
         <span className="swatch-line imp" /> {t.reports.impressions}
         <span className="swatch-line eng" /> {t.reports.engagement}
       </div>
+      {/* The exact values without hovering a dot: readable by keyboard, touch and screen readers. */}
+      <details className="trend-data">
+        <summary>{t.ux.chartData}</summary>
+        <div className="table-wrap">
+          <table className="table small">
+            <caption className="visually-hidden">{t.reports.trend}</caption>
+            <thead>
+              <tr>
+                <th scope="col">{t.ux.chartPeriod}</th>
+                <th scope="col">{t.reports.impressions}</th>
+                <th scope="col">{t.reports.engagement}</th>
+              </tr>
+            </thead>
+            <tbody>
+              {buckets.map((b) => (
+                <tr key={b.key}>
+                  <td>
+                    <span dir="ltr">{b.key}</span>
+                  </td>
+                  <td>{b.impressions.toLocaleString()}</td>
+                  <td>{b.engagement.toLocaleString()}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      </details>
     </div>
   );
 }

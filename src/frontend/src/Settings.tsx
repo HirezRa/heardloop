@@ -39,6 +39,7 @@ import WebhookSettings from './WebhookSettings';
 import AppearanceSettings from './AppearanceSettings';
 import AboutSettings from './AboutSettings';
 import AudienceSettings from './AudienceSettings';
+import { NAV_EVENT, pushUrl, sectionUrl } from './nav';
 
 const ROLES: Role[] = ['owner', 'editor', 'approver', 'viewer'];
 
@@ -69,10 +70,26 @@ export default function Settings({
   const tabs: Tab[] = isOwner
     ? ['appearance', 'workspace', 'members', 'security', 'webhook', 'audit', 'about']
     : ['appearance', 'workspace', 'members', 'security', 'about'];
-  const [tab, setTab] = useState<Tab>(() => {
+  const tabFromUrl = (): Tab => {
     const wanted = new URLSearchParams(window.location.search).get('tab') as Tab | null;
     return wanted && tabs.includes(wanted) ? wanted : 'appearance';
-  });
+  };
+  const [tab, setTabState] = useState<Tab>(tabFromUrl);
+  // The open tab lives in the address bar (?tab=): Back/Forward, reload and links from e-mails all land on it.
+  useEffect(() => {
+    const sync = () => setTabState(tabFromUrl());
+    window.addEventListener('popstate', sync);
+    window.addEventListener(NAV_EVENT, sync);
+    return () => {
+      window.removeEventListener('popstate', sync);
+      window.removeEventListener(NAV_EVENT, sync);
+    };
+  }, [isOwner]); // eslint-disable-line react-hooks/exhaustive-deps
+  function setTab(id: Tab) {
+    if (id === tab) return;
+    pushUrl(sectionUrl('settings', { tab: id }));
+    setTabState(id);
+  }
   if (!membership) return <p className="muted">{t.settings.noWorkspace}</p>;
   const wsId = membership.workspace_id;
   return (

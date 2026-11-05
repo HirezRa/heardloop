@@ -11,6 +11,7 @@ import {
 import { t } from './i18n';
 import { formatDate } from './dates';
 import { publishErrorReasonLabel } from './publishErrors';
+import { replaceUrl, sectionUrl } from './nav';
 
 function errorText(err: unknown): string {
   if (err instanceof ApiError) {
@@ -25,7 +26,7 @@ function readReturnMessage(): { ok?: string; error?: string; offerRetry?: boolea
   const params = new URLSearchParams(window.location.search);
   const result = params.get('linkedin');
   if (!result) return {};
-  window.history.replaceState(null, '', window.location.pathname); // do not keep it in the URL
+  replaceUrl(sectionUrl('accounts')); // do not keep the result in the URL; stay on this screen on reload
   if (result === 'connected') return { ok: t.accounts.connected, offerRetry: true };
   if (result === 'cancelled') return { error: t.accounts.cancelled };
   const reason = params.get('reason') ?? '';
