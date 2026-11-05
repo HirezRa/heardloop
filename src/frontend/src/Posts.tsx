@@ -46,6 +46,7 @@ import { countCharacters, styledRatio, utf16Length } from './unicodeFormat';
 import { formatDateTime } from './dates';
 import { displaySnippet, isImported } from './postText';
 import { confirmDiscard, replaceUrl, sectionUrl, setUnsaved } from './nav';
+import Icon from './Icon';
 
 const MAX_CHARS = 3000;
 const SEE_MORE_AT = 210; // LinkedIn cuts the feed preview at roughly this many characters
@@ -796,11 +797,12 @@ export default function Posts({
   return (
     <div className="posts-layout">
       <section className="card posts-list">
-        <div className="row-between">
+        <div className="list-head">
           <h2>{t.posts.list}</h2>
           {canWrite && (
-            <div className="row gap">
+            <div className="list-head-actions">
               <button type="button" className="primary" onClick={startNew}>
+                <Icon name="plus" size={16} />
                 {t.posts.new}
               </button>
               <button
@@ -833,6 +835,7 @@ export default function Posts({
                   aria-current={selected?.id === p.id ? 'true' : undefined}
                   onClick={() => openInEditor(p)}
                 >
+                  <span className="post-tags">
                   <span
                     className={`status status-${p.status}`}
                     title={
@@ -864,6 +867,7 @@ export default function Posts({
                       {t.posts.needsReconnectShort}
                     </span>
                   )}
+                  </span>
                   {/* The failure reason as text, not only as a hover tooltip (touch and keyboard users). */}
                   {p.status === 'failed' && p.last_error && (
                     <span className="small fail-reason">{publishErrorText(p.last_error).message}</span>
@@ -872,7 +876,7 @@ export default function Posts({
                     {shown.text.slice(0, 90)}
                     {shown.text.length > 90 ? '…' : ''}
                   </span>
-                  <span className="muted small">
+                  <span className="muted small post-when">
                     {p.published_at
                       ? fmt.format(new Date(p.published_at))
                       : p.scheduled_at
@@ -1139,7 +1143,7 @@ export default function Posts({
         )}
 
         {canWrite && (
-          <div className="actions">
+          <div className="actions editor-actions">
             {textEditable && (
               <button
                 type="button"

@@ -963,6 +963,7 @@ const en = {
     menuClose: 'Close menu',
     unsavedLeave: 'You have unsaved changes in the post editor. Leave and lose them?',
     unsavedNote: 'Unsaved changes. Save to keep them; approval and scheduling show after saving.',
+    calHelpTitle: 'Moving posts without dragging',
     calKeyboardHint:
       'Keyboard: focus a scheduled post and press Shift + Left/Right to move it a day, Shift + Up/Down to move it a week. On a phone, open the post and change its date there.',
     calCannotMove: 'This post cannot be moved from the calendar. Open it to see its status.',
@@ -2012,6 +2013,7 @@ const he: Strings = {
     menuClose: 'סגירת התפריט',
     unsavedLeave: 'יש שינויים שלא נשמרו בעורך הפוסט. לצאת ולאבד אותם?',
     unsavedNote: 'יש שינויים שלא נשמרו. צריך לשמור כדי לא לאבד אותם; אישור ותזמון מופיעים אחרי השמירה.',
+    calHelpTitle: 'הזזת פוסטים בלי גרירה',
     calKeyboardHint:
       'במקלדת: עומדים על פוסט מתוזמן ולוחצים Shift + חץ שמאלה/ימינה כדי להזיז אותו ביום, או Shift + חץ למעלה/למטה כדי להזיז אותו בשבוע. בטלפון: פותחים את הפוסט ומשנים שם את התאריך.',
     calCannotMove: 'אי אפשר להזיז את הפוסט הזה מלוח השנה. אפשר לפתוח אותו ולראות את הסטטוס שלו.',

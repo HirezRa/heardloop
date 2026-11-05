@@ -227,9 +227,11 @@ export default function Calendar({ me, onOpenPost }: { me: Me; onOpenPost: (post
           ))}
         </div>
       </div>
-      <p className="muted small">{t.calendar.hint(timeZone)}</p>
-
-      <p className="muted small">{t.ux.calKeyboardHint}</p>
+      <p className="muted small cal-hint">{t.calendar.hint(timeZone)}</p>
+      <details className="cal-help">
+        <summary>{t.ux.calHelpTitle}</summary>
+        <p className="muted small">{t.ux.calKeyboardHint}</p>
+      </details>
 
       <div className={`cal-grid cal-${view}`} aria-busy={busy || loading} ref={gridRef}>
         {days.slice(0, 7).map((d) => (

@@ -19,6 +19,7 @@ import Calendar from './Calendar';
 import Login from './Login';
 import LegalLinks from './LegalLinks';
 import NotesDialog from './NotesDialog';
+import Icon from './Icon';
 import { acceptCurrentUrl, confirmDiscard, hasUnsaved, lastAppUrl, pushUrl, sectionUrl, type NavParams } from './nav';
 
 // Screens other than the calendar (the default) load on first use: the first download stays small.
@@ -241,7 +242,10 @@ function Shell({ me, onMeChange, onLoggedOut }: { me: Me; onMeChange: (me: Me) =
         <div className="sidebar-top">
           <div>
             <div className="brand">Heardloop</div>
-            {workspace && <div className="muted small">{workspace.workspace_name}</div>}
+            {/* The workspace name only adds information when it is not the product name again. */}
+            {workspace && workspace.workspace_name.trim().toLowerCase() !== 'heardloop' && (
+              <div className="muted small">{workspace.workspace_name}</div>
+            )}
           </div>
           {/* Narrow screens only (CSS): the menu folds away so the screen's content comes first. */}
           <button
@@ -251,6 +255,7 @@ function Shell({ me, onMeChange, onLoggedOut }: { me: Me; onMeChange: (me: Me) =
             aria-controls="app-menu"
             onClick={() => setMenuOpen((open) => !open)}
           >
+            <Icon name={menuOpen ? 'close' : 'menu'} />
             {menuOpen ? t.ux.menuClose : t.ux.menuOpen}
             {!menuOpen && unread > 0 && (
               <span className="count" aria-hidden="true">
@@ -269,7 +274,8 @@ function Shell({ me, onMeChange, onLoggedOut }: { me: Me; onMeChange: (me: Me) =
               aria-current={s.id === active && !notFound ? 'page' : undefined}
               onClick={() => go(s.id)}
             >
-              {t.sections[s.id][0]}
+              <Icon name={s.id === 'notifications' ? 'bell' : s.id} />
+              <span>{t.sections[s.id][0]}</span>
             </button>
           ))}
         </nav>
@@ -279,7 +285,8 @@ function Shell({ me, onMeChange, onLoggedOut }: { me: Me; onMeChange: (me: Me) =
           aria-current={active === 'notifications' ? 'page' : undefined}
           onClick={() => go('notifications')}
         >
-          <span aria-hidden="true">🔔</span> {t.notifications.title}
+          <Icon name="bell" />
+          <span>{t.notifications.title}</span>
           {unread > 0 && (
             <>
               <span className="count" aria-hidden="true">
@@ -290,8 +297,16 @@ function Shell({ me, onMeChange, onLoggedOut }: { me: Me; onMeChange: (me: Me) =
           )}
         </button>
         <div className="sidebar-footer">
-          <div className="muted small">{me.user.display_name}</div>
-          <button type="button" className="link" onClick={signOut}>
+          <div className="user-row">
+            <span className="avatar" aria-hidden="true">
+              {me.user.display_name.trim().charAt(0).toUpperCase() || '?'}
+            </span>
+            <span className="user-name" title={me.user.display_name}>
+              {me.user.display_name}
+            </span>
+          </div>
+          <button type="button" className="link signout" onClick={signOut}>
+            <Icon name="logout" size={16} />
             {t.logout}
           </button>
           {appVersion && (
