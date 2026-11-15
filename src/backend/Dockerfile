@@ -1,6 +1,6 @@
 # One image for both services: api (default CMD) and worker (compose overrides the command).
 # Build context is the repository root (see docker-compose.yml) so VERSION can be copied in.
-FROM python:3.14-slim@sha256:0b566a9f30a60730df33c26ac62dedb55393d8814645cd03543b67bf8987f3a1 AS runtime
+FROM python:3.15-slim@sha256:65a65fc7b30b06cb6df4930fd4650697cb23f4c2698ab81fc87e4b031bc36928 AS runtime
 
 COPY --from=ghcr.io/astral-sh/uv:0.12.21 /uv /usr/local/bin/uv
 
